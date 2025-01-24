@@ -1,10 +1,13 @@
 import { LitElement, html, css } from 'lit';
 import { EnemyAI } from './enemy-ai.js';
+import './winner-popup.js'; // Import the popup component
 
 class GameBoard extends LitElement {
   static properties = {
     playerBoard: { type: Array },
     enemyBoard: { type: Array },
+    winner: { type: String },
+    gameEnded: { type: Boolean },
   };
 
   constructor() {
@@ -26,6 +29,9 @@ class GameBoard extends LitElement {
 
     // Place enemy ships on the enemy board
     this.placeEnemyShips();
+
+    this.winner = '';
+    this.gameEnded = false;
   }
 
   render() {
@@ -60,6 +66,11 @@ class GameBoard extends LitElement {
           </div>
         </div>
       </div>
+      <winner-popup
+        .winner="${this.winner}"
+        .visible="${!!this.winner}"
+        @popup-closed="${this.resetGame}">
+      </winner-popup>
     `;
   }
 
@@ -69,6 +80,7 @@ class GameBoard extends LitElement {
   }
 
   handleEnemyCellClick(row, col) {
+    if (this.gameEnded) return;
     if (!this.isPlayerTurn) {
       console.log("It's not the player's turn.");
       return;
@@ -92,6 +104,7 @@ class GameBoard extends LitElement {
   }
 
   enemyMove() {
+    if (this.gameEnded) return;
     if (!this.isPlayerTurn) {
       this.enemyAI.attack(this.playerBoard);
       if (this.checkWin(this.playerBoard)) {
@@ -135,8 +148,15 @@ class GameBoard extends LitElement {
 
   endGame(winner) {
     console.log(`${winner} wins!`);
-    // Optionally, add logic to display a message or reset the game
-    // For example, you could disable further clicks or show a modal
+    this.winner = winner;
+    this.gameEnded = true;
+    // Optionally, add logic to disable further clicks
+  }
+
+  resetGame() {
+    this.winner = '';
+    this.gameEnded = false;
+    // Add logic to reset the game state if needed
   }
 
   static styles = css`
