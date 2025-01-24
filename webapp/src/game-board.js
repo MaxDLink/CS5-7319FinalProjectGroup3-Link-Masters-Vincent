@@ -37,7 +37,7 @@ class GameBoard extends LitElement {
             ${this.playerBoard.map((row) => html`
               <div class="row">
                 ${row.map((cell) => html`
-                  <div class="cell">
+                  <div class="cell ${cell === 'X' ? 'hit-player' : cell === 'O' ? 'miss' : ''}">
                     ${cell}
                   </div> 
                 `)}
@@ -51,7 +51,7 @@ class GameBoard extends LitElement {
             ${this.enemyBoard.map((row, rowIndex) => html`
               <div class="row">
                 ${row.map((cell, colIndex) => html`
-                  <div class="cell" @click="${() => this.handleEnemyCellClick(rowIndex, colIndex)}">
+                  <div class="cell ${cell === 'X' ? 'hit-enemy' : cell === 'O' ? 'miss' : ''}" @click="${() => this.handleEnemyCellClick(rowIndex, colIndex)}">
                     ${cell === '🚢' ? '' : cell}
                   </div> 
                 `)}
@@ -76,6 +76,7 @@ class GameBoard extends LitElement {
       console.log('Miss!');
       this.enemyBoard[row][col] = 'O'; // Mark miss
     }
+    this.requestUpdate(); // Ensure the component re-renders
     this.switchTurn();
     this.enemyMove();
   }
@@ -83,6 +84,7 @@ class GameBoard extends LitElement {
   enemyMove() {
     if (!this.isPlayerTurn) {
       this.enemyAI.attack(this.playerBoard);
+      this.requestUpdate(); // Ensure the component re-renders
       this.switchTurn();
     }
   }
@@ -148,6 +150,17 @@ class GameBoard extends LitElement {
       justify-content: center;
       cursor: pointer;
       transition: background-color 0.3s;
+    }
+    .cell.hit-enemy {
+      background-color: green;
+      color: white;
+    }
+    .cell.hit-player {
+      background-color: red;
+      color: white;
+    }
+    .cell.miss {
+      background-color: lightgray;
     }
     .cell:hover {
       background-color: #add8e6;
