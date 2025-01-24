@@ -2,82 +2,115 @@ import { LitElement, html, css } from 'lit';
 
 class GameBoard extends LitElement {
   static properties = {
-    board: { type: Array },
+    playerBoard: { type: Array },
+    enemyBoard: { type: Array },
   };
 
   constructor() {
     super();
-    this.board = Array(10).fill().map(() => Array(10).fill(''));
+    this.playerBoard = Array(10).fill().map(() => Array(10).fill(''));
+    this.enemyBoard = Array(10).fill().map(() => Array(10).fill(''));
 
-    // place ship on the board 
-    this.placeShip(0, 0);
-    this.placeShip(1, 1);
-    this.placeShip(2, 2);
-    this.placeShip(3, 3);
+    // Place ships on the player's board
+    this.placeShip(this.playerBoard, 0, 0);
+    this.placeShip(this.playerBoard, 1, 1);
+    this.placeShip(this.playerBoard, 2, 2);
+    this.placeShip(this.playerBoard, 3, 3);
+
+    // Place enemy ships on the enemy board
+    this.placeEnemyShips();
   }
 
   render() {
     return html`
       <div class="board-container">
-        <div class="board">
-          ${this.board.map((row, rowIndex) => html`
-            <div class="row">
-              ${row.map((cell, colIndex) => html`
-                <div class="cell" @click="${() => this.handleCellClick(rowIndex, colIndex)}">
-                  ${cell}
-                </div> 
-              `)}
-            </div>
-          `)}
+        <div class="player-board">
+          <h3>Player Board</h3>
+          <div class="board">
+            ${this.playerBoard.map((row, rowIndex) => html`
+              <div class="row">
+                ${row.map((cell, colIndex) => html`
+                  <div class="cell" @click="${() => this.handleCellClick(rowIndex, colIndex)}">
+                    ${cell}
+                  </div> 
+                `)}
+              </div>
+            `)}
+          </div>
+        </div>
+        <div class="enemy-board">
+          <h3>Enemy Board</h3>
+          <div class="board">
+            ${this.enemyBoard.map((row, rowIndex) => html`
+              <div class="row">
+                ${row.map((cell, colIndex) => html`
+                  <div class="cell" @click="${() => this.handleEnemyCellClick(rowIndex, colIndex)}">
+                    <!-- Do not display ships on the enemy board -->
+                    ${cell === '🚢' ? '' : cell}
+                  </div> 
+                `)}
+              </div>
+            `)}
+          </div>
         </div>
       </div>
     `;
   }
 
-  // function to place a ship on the board. To place a ship we update the board 
-  placeShip(row, col) {
-    // Check if the position is within bounds and not already occupied
-    if (this.board[row][col] === '') {
-      // Mark the position on the board
-      this.board[row][col] = '🚢';
+  // Function to place a ship on a given board
+  placeShip(board, row, col) {
+    if (board[row][col] === '') {
+      board[row][col] = '🚢';
     } else {
       console.error('Position already occupied or out of bounds');
     }
   }
 
-  handleCellClick(row, col) {
-    // Handle cell click logic, e.g., place a ship or make a guess
-    console.log(`Cell clicked: ${row}, ${col}`);
+  // Function to place enemy ships on the enemy board in random positions
+  placeEnemyShips() {
+    const shipCount = 5; // Number of ships to place
+    let placedShips = 0;
 
-    // place ship with clicking 
-//   // Create a new ship element
-//   const ship = document.createElement('ship-element');
-  
-//   // Calculate the position based on the cell size
-//   const cellSize = 90 / 10; // Assuming the board is 90vmin and has 10 cells
-//   ship.style.position = 'absolute';
-//   ship.style.top = `${row * cellSize}vmin`;
-//   ship.style.left = `${col * cellSize}vmin`;
-  
-//   // Append the ship to the board
-//   this.shadowRoot.querySelector('.board-container').appendChild(ship);
+    while (placedShips < shipCount) {
+      const row = Math.floor(Math.random() * 10);
+      const col = Math.floor(Math.random() * 10);
+
+      if (this.enemyBoard[row][col] === '') {
+        this.enemyBoard[row][col] = '🚢';
+        console.log(`Placed enemy ship at: ${row}, ${col}`);
+        placedShips++;
+      }
+    }
+  }
+
+  handleCellClick(row, col) {
+    console.log(`Cell clicked: ${row}, ${col}`);
+  }
+
+  handleEnemyCellClick(row, col) {
+    console.log(`Enemy cell clicked: ${row}, ${col}`);
   }
 
   static styles = css`
     .board-container {
       display: flex;
-      justify-content: center;
+      justify-content: space-around;
       align-items: center;
       height: 100vh;
       width: 100vw;
       background-color: #f0f0f0;
     }
+    .player-board, .enemy-board {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
     .board {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
       grid-gap: 2px;
-      width: 90vmin;
-      height: 90vmin;
+      width: 45vmin;
+      height: 45vmin;
     }
     .row {
       display: contents;
