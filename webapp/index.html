@@ -1,8 +1,8 @@
-<!-- source: https://lit.dev/tutorials/intro-to-lit/#4-->
 <!DOCTYPE html>
 <html>
   <head>
-    <script type="module" src="src/name-tag.js"></script>
+    <script type="module" src="src/game-board.js"></script>
+    <script type="module" src="src/ship.js"></script>
     <style>
       body {
         font-family: 'Open Sans', sans-serif;
@@ -12,6 +12,9 @@
     </style>
   </head>
   <body>
-    <name-tag></name-tag>
+    <div style="position: relative;">
+      <game-board></game-board>
+      <ship-element></ship-element>
+    </div>
   </body>
 </html>
