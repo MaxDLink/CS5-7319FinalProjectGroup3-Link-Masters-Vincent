@@ -63,6 +63,11 @@ class GameBoard extends LitElement {
     `;
   }
 
+  checkWin(board) {
+    // Check if all ships ('🚢') have been hit ('X')
+    return board.every(row => row.every(cell => cell !== '🚢'));
+  }
+
   handleEnemyCellClick(row, col) {
     if (!this.isPlayerTurn) {
       console.log("It's not the player's turn.");
@@ -72,6 +77,11 @@ class GameBoard extends LitElement {
     if (this.enemyBoard[row][col] === '🚢') {
       console.log('Hit!');
       this.enemyBoard[row][col] = 'X'; // Mark hit
+      if (this.checkWin(this.enemyBoard)) {
+        console.log('Player wins!');
+        this.endGame('Player');
+        return; // Stop further actions
+      }
     } else {
       console.log('Miss!');
       this.enemyBoard[row][col] = 'O'; // Mark miss
@@ -84,6 +94,11 @@ class GameBoard extends LitElement {
   enemyMove() {
     if (!this.isPlayerTurn) {
       this.enemyAI.attack(this.playerBoard);
+      if (this.checkWin(this.playerBoard)) {
+        console.log('Enemy wins!');
+        this.endGame('Enemy');
+        return; // Stop further actions
+      }
       this.requestUpdate(); // Ensure the component re-renders
       this.switchTurn();
     }
@@ -116,6 +131,12 @@ class GameBoard extends LitElement {
         placedShips++;
       }
     }
+  }
+
+  endGame(winner) {
+    console.log(`${winner} wins!`);
+    // Optionally, add logic to display a message or reset the game
+    // For example, you could disable further clicks or show a modal
   }
 
   static styles = css`
