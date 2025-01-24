@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { EnemyAI } from './enemy-ai.js';
 
 class GameBoard extends LitElement {
   static properties = {
@@ -10,6 +11,12 @@ class GameBoard extends LitElement {
     super();
     this.playerBoard = Array(10).fill().map(() => Array(10).fill(''));
     this.enemyBoard = Array(10).fill().map(() => Array(10).fill(''));
+
+    // Instantiate the enemy AI
+    this.enemyAI = new EnemyAI();
+
+    // Initialize turn state
+    this.isPlayerTurn = true;
 
     // Place ships on the player's board
     this.placeShip(this.playerBoard, 0, 0);
@@ -27,10 +34,10 @@ class GameBoard extends LitElement {
         <div class="player-board">
           <h3>Player Board</h3>
           <div class="board">
-            ${this.playerBoard.map((row, rowIndex) => html`
+            ${this.playerBoard.map((row) => html`
               <div class="row">
-                ${row.map((cell, colIndex) => html`
-                  <div class="cell" @click="${() => this.handleCellClick(rowIndex, colIndex)}">
+                ${row.map((cell) => html`
+                  <div class="cell">
                     ${cell}
                   </div> 
                 `)}
@@ -45,7 +52,6 @@ class GameBoard extends LitElement {
               <div class="row">
                 ${row.map((cell, colIndex) => html`
                   <div class="cell" @click="${() => this.handleEnemyCellClick(rowIndex, colIndex)}">
-                    <!-- Do not display ships on the enemy board -->
                     ${cell === '🚢' ? '' : cell}
                   </div> 
                 `)}
@@ -57,7 +63,35 @@ class GameBoard extends LitElement {
     `;
   }
 
-  // Function to place a ship on a given board
+  handleEnemyCellClick(row, col) {
+    if (!this.isPlayerTurn) {
+      console.log("It's not the player's turn.");
+      return;
+    }
+    console.log(`Player attacks: ${row}, ${col}`);
+    if (this.enemyBoard[row][col] === '🚢') {
+      console.log('Hit!');
+      this.enemyBoard[row][col] = 'X'; // Mark hit
+    } else {
+      console.log('Miss!');
+      this.enemyBoard[row][col] = 'O'; // Mark miss
+    }
+    this.switchTurn();
+    this.enemyMove();
+  }
+
+  enemyMove() {
+    if (!this.isPlayerTurn) {
+      this.enemyAI.attack(this.playerBoard);
+      this.switchTurn();
+    }
+  }
+
+  switchTurn() {
+    this.isPlayerTurn = !this.isPlayerTurn;
+    console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);
+  }
+
   placeShip(board, row, col) {
     if (board[row][col] === '') {
       board[row][col] = '🚢';
@@ -66,9 +100,8 @@ class GameBoard extends LitElement {
     }
   }
 
-  // Function to place enemy ships on the enemy board in random positions
   placeEnemyShips() {
-    const shipCount = 5; // Number of ships to place
+    const shipCount = 5;
     let placedShips = 0;
 
     while (placedShips < shipCount) {
@@ -81,14 +114,6 @@ class GameBoard extends LitElement {
         placedShips++;
       }
     }
-  }
-
-  handleCellClick(row, col) {
-    console.log(`Cell clicked: ${row}, ${col}`);
-  }
-
-  handleEnemyCellClick(row, col) {
-    console.log(`Enemy cell clicked: ${row}, ${col}`);
   }
 
   static styles = css`
