@@ -96,6 +96,29 @@ export class App extends cdk.Stack {
     }); 
     table.grantReadWriteData(simpleLambda); 
 
+    // Define a cognito Lambda function
+    const cognitoLambdaRole = new iam.Role(this, 'CognitoLambdaRole', {
+      assumedBy: new iam.CompositePrincipal(
+        new iam.ServicePrincipal('lambda.amazonaws.com'),
+        new iam.ServicePrincipal('edgelambda.amazonaws.com')
+      ),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    const cognitoLambda = new NodejsFunction(this, 'CognitoLambda', {
+      entry: 'lambda/cognito-lambda/index.js', 
+      handler: 'handler', 
+      runtime: lambda.Runtime.NODEJS_20_X, 
+      architecture: lambda.Architecture.X86_64,
+      timeout: Duration.seconds(5),
+      loggingFormat: lambda.LoggingFormat.JSON, 
+      logRetention: RetentionDays.THREE_MONTHS, 
+      memorySize: 128, 
+      role: cognitoLambdaRole,
+    }); 
+
     // Define the save Lambda function
     const saveLambda = new NodejsFunction(this, 'SaveLambda', {
       entry: 'lambda/save-lambda/index.js', // Path to your new Lambda function
@@ -137,6 +160,12 @@ export class App extends cdk.Stack {
       path: '/save',
       methods: [HttpMethod.POST],
       integration: new HttpLambdaIntegration('SaveLambdaIntegration', saveLambda), 
+    });
+
+    api.addRoutes({
+      path: '/cognito',
+      methods: [HttpMethod.POST],
+      integration: new HttpLambdaIntegration('CognitoLambdaIntegration', cognitoLambda), 
     });
 
 

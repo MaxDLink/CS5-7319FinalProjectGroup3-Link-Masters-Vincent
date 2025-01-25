@@ -3,8 +3,8 @@
     "version": "1.0.0",
     "description": "Lambda functions for App project",
     "dependencies": {
-      "@aws-sdk/client-dynamodb": "^3.726.1",
-      "@aws-sdk/lib-dynamodb": "^3.726.1",
-      "@aws-sdk/client-bedrock-runtime": "^3.0.0"
+        "@aws-sdk/client-dynamodb": "^3.726.1",
+        "@aws-sdk/lib-dynamodb": "^3.726.1",
+        "cognito-at-edge": "^1.5.3"
     }
-  }
+}
