@@ -25,6 +25,10 @@ exports.handler = async (event) => {
     'access-control-allow-credentials': [{
       key: 'Access-Control-Allow-Credentials',
       value: 'true'
+    }],
+    'cache-control': [{
+      key: 'Cache-Control',
+      value: 'public, max-age=0, must-revalidate'
     }]
   };
 
@@ -39,7 +43,13 @@ exports.handler = async (event) => {
 
   // Always allow static assets and root
   if (request.uri === '/' || request.uri.match(/\.(html|js|css|jpg|png|gif)$/)) {
-    return request;
+    console.log('Allowing static asset or root path');
+    return {
+      status: '200',  // Explicitly set 200 status
+      statusDescription: 'OK',
+      headers: corsHeaders,
+      body: request.body
+    };
   }
 
   // Handle OAuth callback with code

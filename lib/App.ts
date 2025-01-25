@@ -13,6 +13,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins'; 
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { DockerImage } from 'aws-cdk-lib';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 
 // { APIGatewayEvent, Context, Callback } from "aws-lambda";
 
@@ -27,6 +28,9 @@ export class App extends cdk.Stack {
       userPoolId: 'us-east-1_0OuOMPrYV',
       clientId: '53dbt4feojdrr5i9gpeameio62'
     };
+
+    const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-east-1_0OuOMPrYV');
+    const client = cognito.UserPoolClient.fromUserPoolClientId(this, 'ExistingUserPoolClient', '53dbt4feojdrr5i9gpeameio62');
 
     // S3 bucket for static website hosting
     const bucket = new s3.Bucket(this, 'WebAppBucket', {
@@ -88,7 +92,7 @@ export class App extends cdk.Stack {
         }],
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
         cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
-        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
         responseHeadersPolicy: responseHeadersPolicy
       },
