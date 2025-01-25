@@ -67,16 +67,16 @@ export class App extends cdk.Stack {
     const cognitoLambda = new NodejsFunction(this, 'CognitoLambda', {
       entry: 'lambda/cognito-lambda/index.js', 
       handler: 'handler', 
-      runtime: lambda.Runtime.NODEJS_20_X, 
-      architecture: lambda.Architecture.X86_64,
-      timeout: Duration.seconds(5),
-      loggingFormat: lambda.LoggingFormat.JSON, 
-      logRetention: RetentionDays.THREE_MONTHS, 
-      memorySize: 128, 
+      runtime: lambda.Runtime.NODEJS_18_X,  // CloudFront requirement
+      architecture: lambda.Architecture.X86_64,  // CloudFront requirement
+      timeout: Duration.seconds(5),  // CloudFront requirement
+      memorySize: 128,
       role: cognitoLambdaRole,
     }); 
 
     // Then define CloudFront distribution
+    const responseHeadersPolicy = cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS;
+
     const distribution = new cloudfront.Distribution(this, 'WebAppDistribution', {
       defaultBehavior: {
         origin: new origins.S3Origin(bucket),
@@ -90,6 +90,7 @@ export class App extends cdk.Stack {
         cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
         cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
         originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
+        responseHeadersPolicy: responseHeadersPolicy
       },
       defaultRootObject: 'index.html',
       errorResponses: [
@@ -124,10 +125,19 @@ export class App extends cdk.Stack {
 
     // Deploy website files to S3
     new s3deploy.BucketDeployment(this, 'DeployWebsite', {
-      sources: [s3deploy.Source.asset('./webapp')],
+      sources: [s3deploy.Source.asset('./webapp/dist', {
+        bundling: {
+          command: [
+            'bash', '-c',
+            'cp -r . /asset-output/'
+          ],
+          image: DockerImage.fromRegistry('public.ecr.aws/sam/build-nodejs18.x')
+        }
+      })],
       destinationBucket: bucket,
-      distribution,
-      distributionPaths: ['/*']
+      memoryLimit: 512,
+      prune: false,
+      retainOnDelete: false
     });
 
     // Output the CloudFront URL
