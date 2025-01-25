@@ -8,7 +8,16 @@ function redirectToCognitoLogin() {
     console.log('Redirect URI:', redirectUri);
     console.log('Cognito Domain:', cognitoDomain);
   
-    const loginUrl = `${cognitoDomain}/login?client_id=${clientId}&response_type=code&scope=email+openid&redirect_uri=${redirectUri}`;
+    // Add required OAuth parameters
+    const params = new URLSearchParams({
+        client_id: clientId,
+        response_type: 'code',
+        scope: 'email openid',
+        redirect_uri: redirectUri,
+        state: Math.random().toString(36).substring(7)
+    });
+  
+    const loginUrl = `${cognitoDomain}/oauth2/authorize?${params.toString()}`;
     console.log('Login URL:', loginUrl);
   
     window.location.href = loginUrl;

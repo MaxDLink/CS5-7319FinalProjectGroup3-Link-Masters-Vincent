@@ -12,6 +12,7 @@ import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront'; 
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins'; 
 import * as iam from 'aws-cdk-lib/aws-iam';
+import { DockerImage } from 'aws-cdk-lib';
 
 // { APIGatewayEvent, Context, Callback } from "aws-lambda";
 
@@ -21,7 +22,12 @@ export class App extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    
+    // Add Cognito config at the top of your constructor
+    const userPoolConfig = {
+      userPoolId: 'us-east-1_0OuOMPrYV',
+      clientId: '53dbt4feojdrr5i9gpeameio62'
+    };
+
     // S3 bucket for static website hosting
     const bucket = new s3.Bucket(this, 'WebAppBucket', {
       publicReadAccess: false,
@@ -30,35 +36,98 @@ export class App extends cdk.Stack {
       enforceSSL: true,
     });
 
-    // CloudFront distribution
+    // Define cognito Lambda first
+    const cognitoLambdaRole = new iam.Role(this, 'CognitoLambdaRole', {
+      assumedBy: new iam.CompositePrincipal(
+        new iam.ServicePrincipal('lambda.amazonaws.com'),
+        new iam.ServicePrincipal('edgelambda.amazonaws.com')
+      ),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+      inlinePolicies: {
+        'EdgeFunctionPolicy': new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'logs:CreateLogGroup',
+                'logs:CreateLogStream',
+                'logs:PutLogEvents',
+                'cognito-idp:GetUser',
+                's3:GetObject'
+              ],
+              resources: ['*']  // For edge functions, we need to allow all regions
+            })
+          ]
+        })
+      }
+    });
+
+    const cognitoLambda = new NodejsFunction(this, 'CognitoLambda', {
+      entry: 'lambda/cognito-lambda/index.js', 
+      handler: 'handler', 
+      runtime: lambda.Runtime.NODEJS_20_X, 
+      architecture: lambda.Architecture.X86_64,
+      timeout: Duration.seconds(5),
+      loggingFormat: lambda.LoggingFormat.JSON, 
+      logRetention: RetentionDays.THREE_MONTHS, 
+      memorySize: 128, 
+      role: cognitoLambdaRole,
+    }); 
+
+    // Then define CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'WebAppDistribution', {
       defaultBehavior: {
         origin: new origins.S3Origin(bucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        edgeLambdas: [{
+          functionVersion: cognitoLambda.currentVersion,
+          eventType: cloudfront.LambdaEdgeEventType.VIEWER_REQUEST,
+          includeBody: true
+        }],
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
       },
-      defaultRootObject: 'index.html', // Serve index.html as the default
+      defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: Duration.seconds(0)
+        },
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: Duration.seconds(0)
+        }
+      ]
     });
 
     // Add a bucket policy to allow CloudFront access
     bucket.addToResourcePolicy(
-      new cdk.aws_iam.PolicyStatement({
+      new iam.PolicyStatement({
         actions: ['s3:GetObject'],
         resources: [`${bucket.bucketArn}/*`],
-        principals: [new cdk.aws_iam.ServicePrincipal('cloudfront.amazonaws.com')],
+        principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
         conditions: {
           StringEquals: {
-            'AWS:SourceArn': `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
+            'AWS:SourceArn': distribution.distributionArn
           },
         },
       })
     );
 
-    // Deploy the HTML file to the S3 bucket
-    new s3deploy.BucketDeployment(this, 'WebAppDeployment', {
-      sources: [s3deploy.Source.asset('./webapp/dist')], // Use the dist folder for deployment
+    // Deploy website files to S3
+    new s3deploy.BucketDeployment(this, 'DeployWebsite', {
+      sources: [s3deploy.Source.asset('./webapp')],
       destinationBucket: bucket,
-      distribution, // Optional: Invalidate cache when new content is deployed
-      distributionPaths: ['/*'], // Optional: Invalidate all paths
+      distribution,
+      distributionPaths: ['/*']
     });
 
     // Output the CloudFront URL
@@ -88,6 +157,10 @@ export class App extends cdk.Stack {
         DYNAMODB_TABLE: table.tableName, 
         
       }, 
+      bundling: {
+        platform: 'linux/amd64', 
+        dockerImage: DockerImage.fromRegistry('public.ecr.aws/sam/build-nodejs20.x:latest-x86_64'),
+      },
       timeout: Duration.seconds(29),
       loggingFormat: lambda.LoggingFormat.JSON, 
       logRetention: RetentionDays.THREE_MONTHS, 
@@ -95,29 +168,6 @@ export class App extends cdk.Stack {
       tracing: lambda.Tracing.ACTIVE,  
     }); 
     table.grantReadWriteData(simpleLambda); 
-
-    // Define a cognito Lambda function
-    const cognitoLambdaRole = new iam.Role(this, 'CognitoLambdaRole', {
-      assumedBy: new iam.CompositePrincipal(
-        new iam.ServicePrincipal('lambda.amazonaws.com'),
-        new iam.ServicePrincipal('edgelambda.amazonaws.com')
-      ),
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
-      ],
-    });
-
-    const cognitoLambda = new NodejsFunction(this, 'CognitoLambda', {
-      entry: 'lambda/cognito-lambda/index.js', 
-      handler: 'handler', 
-      runtime: lambda.Runtime.NODEJS_20_X, 
-      architecture: lambda.Architecture.X86_64,
-      timeout: Duration.seconds(5),
-      loggingFormat: lambda.LoggingFormat.JSON, 
-      logRetention: RetentionDays.THREE_MONTHS, 
-      memorySize: 128, 
-      role: cognitoLambdaRole,
-    }); 
 
     // Define the save Lambda function
     const saveLambda = new NodejsFunction(this, 'SaveLambda', {
