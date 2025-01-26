@@ -78,7 +78,9 @@
             `client_id=53dbt4feojdrr5i9gpeameio62&` +
             `response_type=code&` +
             `scope=email+openid&` +
-            `redirect_uri=https://d10iucnlpv2uup.cloudfront.net/`;
+            `redirect_uri=${encodeURIComponent('https://d10iucnlpv2uup.cloudfront.net/')}&` +
+            `state=${encodeURIComponent(Date.now().toString())}&` +
+            `identity_provider=COGNITO`;
 
         log.info('Login Redirect', { loginUrl });
 
