@@ -1,6 +1,6 @@
-const { CognitoIdentityProvider } = require('@aws-sdk/client-cognito-identity-provider');
+import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 
-const cognito = new CognitoIdentityProvider({ region: 'us-east-1' });
+const cognito = new CognitoIdentityProviderClient({ region: 'us-east-1' });
 
 const userPoolConfig = {
   region: 'us-east-1',
@@ -8,29 +8,16 @@ const userPoolConfig = {
   clientId: '53dbt4feojdrr5i9gpeameio62'
 };
 
-exports.handler = async (event) => {
+const corsHeaders = {
+  'access-control-allow-origin': [{ key: 'Access-Control-Allow-Origin', value: '*' }],
+  'access-control-allow-methods': [{ key: 'Access-Control-Allow-Methods', value: 'GET, HEAD, OPTIONS' }],
+  'access-control-allow-headers': [{ key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' }],
+  'access-control-expose-headers': [{ key: 'Access-Control-Expose-Headers', value: '*' }]
+};
+
+export const handler = async (event) => {
   const request = event.Records[0].cf.request;
-  console.log('Request:', JSON.stringify(request, null, 2));
-  
-  // Add CORS headers with specific origin
-  const corsHeaders = {
-    'access-control-allow-origin': [{
-      key: 'Access-Control-Allow-Origin',
-      value: 'https://d10iucnlpv2uup.cloudfront.net'
-    }],
-    'access-control-allow-methods': [{
-      key: 'Access-Control-Allow-Methods',
-      value: 'GET,POST,OPTIONS'
-    }],
-    'access-control-allow-credentials': [{
-      key: 'Access-Control-Allow-Credentials',
-      value: 'true'
-    }],
-    'cache-control': [{
-      key: 'Cache-Control',
-      value: 'public, max-age=0, must-revalidate'
-    }]
-  };
+  console.log('Request:', JSON.stringify(request));
 
   // Handle OPTIONS preflight
   if (request.method === 'OPTIONS') {
@@ -41,54 +28,23 @@ exports.handler = async (event) => {
     };
   }
 
-  // Always allow static assets and root
-  if (request.uri === '/' || request.uri.match(/\.(html|js|css|jpg|png|gif)$/)) {
-    console.log('Allowing static asset or root path');
-    return {
-      status: '200',  // Explicitly set 200 status
-      statusDescription: 'OK',
-      headers: corsHeaders,
-      body: request.body
-    };
-  }
-
-  // Handle OAuth callback with code
-  if (request.querystring && request.querystring.includes('code=')) {
-    console.log('Handling OAuth callback');
-    try {
-      const params = new URLSearchParams(request.querystring);
-      const code = params.get('code');
-      
-      return {
-        status: '302',
-        statusDescription: 'Found',
-        headers: {
-          ...corsHeaders,
-          'location': [{
-            key: 'Location',
-            value: 'https://d10iucnlpv2uup.cloudfront.net/'  // Explicit redirect URL
-          }],
-          'set-cookie': [{
-            key: 'Set-Cookie',
-            value: `CognitoToken=${code}; Path=/; Secure; SameSite=Lax; Domain=d10iucnlpv2uup.cloudfront.net`
-          }]
-        }
-      };
-    } catch (error) {
-      console.error('OAuth callback error:', error);
-      return request;
-    }
-  }
-
-  // Handle login page request
-  if (request.uri === '/login') {
-    console.log('Redirecting to login');
-    const loginUrl = `https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com/oauth2/authorize?` +
+  // Check for auth cookie
+  const cookies = request.headers.cookie || [];
+  const authCookie = cookies.find(cookie => cookie.value.includes('CognitoToken='));
+  
+  if (!authCookie) {
+    console.log('No auth cookie found, redirecting to Cognito');
+    const cognitoDomain = 'us-east-10ouompryv.auth.us-east-1.amazoncognito.com';
+    const loginUrl = `https://${cognitoDomain}/oauth2/authorize?` +
       `client_id=53dbt4feojdrr5i9gpeameio62&` +
       `response_type=code&` +
-      `scope=email+openid&` +
-      `redirect_uri=${encodeURIComponent('https://d10iucnlpv2uup.cloudfront.net')}`;
+      `scope=${encodeURIComponent('email openid')}&` +
+      `redirect_uri=${encodeURIComponent('https://d10iucnlpv2uup.cloudfront.net/')}&` +
+      `state=${encodeURIComponent(Date.now().toString())}&` +
+      `identity_provider=COGNITO`;
 
+    console.log('Generated login URL:', loginUrl);
+    
     return {
       status: '302',
       statusDescription: 'Found',
@@ -97,45 +53,6 @@ exports.handler = async (event) => {
         'location': [{
           key: 'Location',
           value: loginUrl
-        }]
-      }
-    };
-  }
-
-  // Check for auth cookie
-  const cookies = request.headers.cookie || [];
-  const authCookie = cookies.find(cookie => cookie.value.includes('CognitoToken='));
-  
-  if (!authCookie) {
-    console.log('No auth cookie found, redirecting to login');
-    return {
-      status: '302',
-      statusDescription: 'Found',
-      headers: {
-        ...corsHeaders,
-        'location': [{
-          key: 'Location',
-          value: '/login'
-        }],
-        'cache-control': [{
-          key: 'Cache-Control',
-          value: 'no-cache'
-        }]
-      }
-    };
-  }
-
-  // Handle root path without auth
-  if (request.uri === '/' && !authCookie) {
-    console.log('Root path without auth, redirecting to login');
-    return {
-      status: '302',
-      statusDescription: 'Found',
-      headers: {
-        ...corsHeaders,
-        'location': [{
-          key: 'Location',
-          value: '/login'
         }]
       }
     };

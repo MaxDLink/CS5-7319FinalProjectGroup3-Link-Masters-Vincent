@@ -78,7 +78,7 @@
             `client_id=53dbt4feojdrr5i9gpeameio62&` +
             `response_type=code&` +
             `scope=email+openid&` +
-            `redirect_uri=${redirectUri}`;
+            `redirect_uri=https://d10iucnlpv2uup.cloudfront.net/`;
 
         log.info('Login Redirect', { loginUrl });
 

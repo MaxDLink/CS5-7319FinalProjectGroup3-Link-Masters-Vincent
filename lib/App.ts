@@ -14,6 +14,7 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { DockerImage } from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as logs from 'aws-cdk-lib/aws-logs';
 
 // { APIGatewayEvent, Context, Callback } from "aws-lambda";
 
@@ -81,6 +82,13 @@ export class App extends cdk.Stack {
     // Then define CloudFront distribution
     const responseHeadersPolicy = cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS;
 
+    const logBucket = new s3.Bucket(this, 'CloudFrontLogsBucket', {
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,  // Enable ACLs
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL
+    });
+
     const distribution = new cloudfront.Distribution(this, 'WebAppDistribution', {
       defaultBehavior: {
         origin: new origins.S3Origin(bucket),
@@ -110,7 +118,10 @@ export class App extends cdk.Stack {
           responsePagePath: '/index.html',
           ttl: Duration.seconds(0)
         }
-      ]
+      ],
+      enableLogging: true,
+      logBucket: logBucket,
+      logFilePrefix: 'cloudfront-logs/'
     });
 
     // Add a bucket policy to allow CloudFront access
