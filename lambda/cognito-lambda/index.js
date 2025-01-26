@@ -27,6 +27,15 @@ export const handler = async (event) => {
       headers: corsHeaders
     };
   }
+  
+  // Check for auth code in query string
+  const queryString = request.querystring || '';
+  const hasAuthCode = queryString.includes('code=');
+
+  if (hasAuthCode) {
+    console.log('Auth code present, allowing request');
+    return request;
+  }
 
   // Check for auth cookie
   const cookies = request.headers.cookie || [];

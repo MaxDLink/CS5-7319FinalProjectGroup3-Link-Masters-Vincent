@@ -100,7 +100,7 @@ export class App extends cdk.Stack {
         }],
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
         cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
         originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
         responseHeadersPolicy: responseHeadersPolicy
       },
@@ -150,6 +150,8 @@ export class App extends cdk.Stack {
         }
       })],
       destinationBucket: bucket,
+      distribution: distribution,
+      distributionPaths: ['/*'],
       memoryLimit: 512,
       prune: false,
       retainOnDelete: false
