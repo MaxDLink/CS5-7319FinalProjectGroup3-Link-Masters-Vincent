@@ -77,15 +77,18 @@
         const loginUrl = `https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com/oauth2/authorize?` +
             `client_id=53dbt4feojdrr5i9gpeameio62&` +
             `response_type=code&` +
-            `scope=email+openid&` +
+            `scope=${encodeURIComponent('email openid')}&` +
             `redirect_uri=${encodeURIComponent('https://d10iucnlpv2uup.cloudfront.net/')}&` +
             `state=${encodeURIComponent(Date.now().toString())}&` +
             `identity_provider=COGNITO`;
 
         log.info('Login Redirect', { loginUrl });
 
-        // Immediate redirect
-        window.location.href = loginUrl;
+        // Create and click a link with crossorigin attribute
+        const link = document.createElement('a');
+        link.href = loginUrl;
+        link.crossOrigin = 'use-credentials';  // or 'anonymous' depending on your needs
+        link.click();
 
     } catch (error) {
         log.error('Fatal Error', {
