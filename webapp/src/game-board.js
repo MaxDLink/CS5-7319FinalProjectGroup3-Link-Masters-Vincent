@@ -10,10 +10,15 @@ class GameBoard extends LitElement {
     gameEnded: { type: Boolean },
   };
 
+  // TODO - 4 columns, 6 rows
+  // static ROWS = 4;
+  // static COLUMNS = 6;
+
   constructor() {
     super();
-    this.playerBoard = Array(10).fill().map(() => Array(10).fill(''));
-    this.enemyBoard = Array(10).fill().map(() => Array(10).fill(''));
+    // 4 columns, 6 rows
+    this.playerBoard = Array(10).fill().map(() => Array(10).fill('')); // this.playerBoard = Array(10).fill().map(() => Array(10).fill(''));
+    this.enemyBoard = Array(10).fill().map(() => Array(10).fill('')); // this.enemyBoard = Array(10).fill().map(() => Array(10).fill(''));
 
     // Instantiate the enemy AI
     this.enemyAI = new EnemyAI();
@@ -135,7 +140,7 @@ class GameBoard extends LitElement {
     let placedShips = 0;
 
     while (placedShips < shipCount) {
-      const row = Math.floor(Math.random() * 10);
+      const row = Math.floor(Math.random() * 4);
       const col = Math.floor(Math.random() * 10);
 
       if (this.enemyBoard[row][col] === '') {

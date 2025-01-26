@@ -3,19 +3,16 @@ import { Construct } from 'constructs';
 import {Table, BillingMode, AttributeType, StreamViewType } from 'aws-cdk-lib/aws-dynamodb'; 
 import * as lambda from 'aws-cdk-lib/aws-lambda' 
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
-import { Duration } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { HttpApi, CorsHttpMethod, HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
-import * as cloudfront from 'aws-cdk-lib/aws-cloudfront'; 
-import * as origins from 'aws-cdk-lib/aws-cloudfront-origins'; 
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { DockerImage } from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
-import * as logs from 'aws-cdk-lib/aws-logs';
-
+import { Distribution, OriginAccessIdentity, ViewerProtocolPolicy } from 'aws-cdk-lib/aws-cloudfront';
+import { BlockPublicAccess, Bucket } from 'aws-cdk-lib/aws-s3';
+import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 // { APIGatewayEvent, Context, Callback } from "aws-lambda";
 
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -26,142 +23,87 @@ export class App extends cdk.Stack {
 
     // Add Cognito config at the top of your constructor
     const userPoolConfig = {
-      userPoolId: 'us-east-1_0OuOMPrYV',
+      userPoolId: 'us-east-1_0OuOMPrYV', 
       clientId: '53dbt4feojdrr5i9gpeameio62'
     };
-
+    // TODO: Define cognito ARN for backend services 
     const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-east-1_0OuOMPrYV');
     const client = cognito.UserPoolClient.fromUserPoolClientId(this, 'ExistingUserPoolClient', '53dbt4feojdrr5i9gpeameio62');
 
+   
+
+   
+    // webapp stack 
+    const originAccessIdentity = new OriginAccessIdentity(this, 'WebAppOriginAccessIdentity');
+
     // S3 bucket for static website hosting
-    const bucket = new s3.Bucket(this, 'WebAppBucket', {
+    const bucket = new Bucket(this, 'WebAppBucket', {
       publicReadAccess: false,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // Change to RETAIN in production
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL, // Ensure the bucket is private
-      enforceSSL: true,
+      removalPolicy: RemovalPolicy.RETAIN,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
     });
 
-    // Define cognito Lambda first
-    const cognitoLambdaRole = new iam.Role(this, 'CognitoLambdaRole', {
-      assumedBy: new iam.CompositePrincipal(
-        new iam.ServicePrincipal('lambda.amazonaws.com'),
-        new iam.ServicePrincipal('edgelambda.amazonaws.com')
-      ),
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
-      ],
-      inlinePolicies: {
-        'EdgeFunctionPolicy': new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                'logs:CreateLogGroup',
-                'logs:CreateLogStream',
-                'logs:PutLogEvents',
-                'cognito-idp:GetUser',
-                's3:GetObject'
-              ],
-              resources: ['*']  // For edge functions, we need to allow all regions
-            })
-          ]
-        })
-      }
-    });
+    // Grant CloudFront Origin Access Identity permission to read from the bucket
+    bucket.grantRead(originAccessIdentity);
 
-    const cognitoLambda = new NodejsFunction(this, 'CognitoLambda', {
-      entry: 'lambda/cognito-lambda/index.js', 
-      handler: 'handler', 
-      runtime: lambda.Runtime.NODEJS_18_X,  // CloudFront requirement
-      architecture: lambda.Architecture.X86_64,  // CloudFront requirement
-      timeout: Duration.seconds(5),  // CloudFront requirement
-      memorySize: 128,
-      role: cognitoLambdaRole,
-    }); 
-
-    // Then define CloudFront distribution
-    const responseHeadersPolicy = cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS;
-
-    const logBucket = new s3.Bucket(this, 'CloudFrontLogsBucket', {
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,  // Enable ACLs
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL
-    });
-
-    const distribution = new cloudfront.Distribution(this, 'WebAppDistribution', {
+    // CloudFront distribution
+    const distribution = new Distribution(this, 'WebAppDistribution', {
       defaultBehavior: {
-        origin: new origins.S3Origin(bucket),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        edgeLambdas: [{
-          functionVersion: cognitoLambda.currentVersion,
-          eventType: cloudfront.LambdaEdgeEventType.VIEWER_REQUEST,
-          includeBody: true
-        }],
-        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
-        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
-        responseHeadersPolicy: responseHeadersPolicy
+        origin: new S3Origin(bucket, {
+          originAccessIdentity: originAccessIdentity,
+        }),
+        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       defaultRootObject: 'index.html',
-      errorResponses: [
-        {
-          httpStatus: 403,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-          ttl: Duration.seconds(0)
-        },
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-          ttl: Duration.seconds(0)
-        }
-      ],
-      enableLogging: true,
-      logBucket: logBucket,
-      logFilePrefix: 'cloudfront-logs/'
     });
-
-    // Add a bucket policy to allow CloudFront access
-    bucket.addToResourcePolicy(
-      new iam.PolicyStatement({
-        actions: ['s3:GetObject'],
-        resources: [`${bucket.bucketArn}/*`],
-        principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
-        conditions: {
-          StringEquals: {
-            'AWS:SourceArn': distribution.distributionArn
-          },
-        },
-      })
-    );
-
-    // Deploy website files to S3
-    new s3deploy.BucketDeployment(this, 'DeployWebsite', {
-      sources: [s3deploy.Source.asset('./webapp/dist', {
-        bundling: {
-          command: [
-            'bash', '-c',
-            'cp -r . /asset-output/'
-          ],
-          image: DockerImage.fromRegistry('public.ecr.aws/sam/build-nodejs18.x')
-        }
-      })],
+    // Deploy the HTML file to the S3 bucket
+    new BucketDeployment(this, 'WebAppDeployment', {
+      sources: [Source.asset('./webapp/dist')], // Path to your webapp folder containing index.html
       destinationBucket: bucket,
-      distribution: distribution,
-      distributionPaths: ['/*'],
-      memoryLimit: 512,
-      prune: false,
-      retainOnDelete: false
+      distribution, // Optional: Invalidate cache when new content is deployed
+      distributionPaths: ['/*'], // Optional: Invalidate all paths
     });
-
     // Output the CloudFront URL
-    new cdk.CfnOutput(this, 'WebAppURL', {
+    new CfnOutput(this, 'WebAppURL', {
       value: `https://${distribution.domainName}`,
       description: 'The URL of the deployed web application',
     });
+    
+    
+
+    
+
+    
+
+    // Deploy website files to S3
+    // new s3deploy.BucketDeployment(this, 'DeployWebsite', {
+    //   sources: [s3deploy.Source.asset('./webapp/dist', {
+    //     bundling: {
+    //       command: [
+    //         'bash', '-c',
+    //         'cp -r . /asset-output/'
+    //       ],
+    //       image: DockerImage.fromRegistry('public.ecr.aws/sam/build-nodejs18.x')
+    //     }
+    //   })],
+    //   destinationBucket: bucket,
+    //   distribution: distribution,
+    //   distributionPaths: ['/*'],
+    //   memoryLimit: 512,
+    //   prune: false,
+    //   retainOnDelete: false
+    // });
+
+   
+
+
+
+
+
+
+
+
+    /// BACKEND STACK ///
 
     // Create a DynamoDB Table
     const table = new Table(this, 'MyTable', {
@@ -237,12 +179,6 @@ export class App extends cdk.Stack {
       path: '/save',
       methods: [HttpMethod.POST],
       integration: new HttpLambdaIntegration('SaveLambdaIntegration', saveLambda), 
-    });
-
-    api.addRoutes({
-      path: '/cognito',
-      methods: [HttpMethod.POST],
-      integration: new HttpLambdaIntegration('CognitoLambdaIntegration', cognitoLambda), 
     });
 
 
