@@ -71,6 +71,40 @@ class App extends LitElement {
       }
   `;
 
+  getOrientation(boardContainer, playerBoard, enemyBoard) {
+    let _orn = screen.orientation ? screen.orientation.type : (screen.mozOrientation || screen.msOrientation);
+    console.log('Current orientation:', _orn); // Debugging line
+  
+    // Update the viewport based on the orientation
+    const viewport = document.getElementById("viewport");
+    // const boardContainer = document.querySelector('.board-container'); // Adjust selector as needed
+    // const playerBoard = document.querySelector('.player-board .board'); // Adjust selector as needed
+    // const enemyBoard = document.querySelector('.enemy-board .board'); // Adjust selector as needed
+  
+    if (_orn.includes('portrait')) {
+        viewport.setAttribute("content", "width=device-width, initial-scale=1.0");
+        // Reset styles for portrait
+        if (boardContainer) {
+            boardContainer.style.flexDirection = 'column'; // Column for portrait
+            playerBoard.style.width = '40vmin'; // Reset to original size
+            playerBoard.style.height = '40vmin'; // Reset to original size
+            enemyBoard.style.width = '40vmin'; // Reset to original size
+            enemyBoard.style.height = '40vmin'; // Reset to original size
+        }
+    } else if (_orn.includes('landscape')) {
+        console.log("Scaling boards to fit landscape");
+        console.log('boardContainer', boardContainer)
+  
+        // viewport.setAttribute("content", "width=600px, initial-scale=1.0"); // Adjust width for landscape
+        if (boardContainer) {
+            boardContainer.style.flexDirection = 'row'; // Change to row for landscape
+            boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
+            playerBoard.style.margin = '5px'; // Set smaller margin for player board
+            enemyBoard.style.margin = '5px'; // Set smaller margin for enemy board
+        }
+    }
+  } 
+
   updated(changedProperties) {
     if (changedProperties.has('route') && this.route === 'game') {
       const gameBoard = this.shadowRoot.querySelector('game-board');
@@ -82,6 +116,20 @@ class App extends LitElement {
           messageElement.classList.add('message'); // apply message class for styles 
           console.log('Message updated to: ', event.detail);
         });
+
+        // Board landscape mode 
+        gameBoard.addEventListener('board-ready', (event) => {
+          const { boardContainer, playerBoard, enemyBoard } = event.detail;
+          console.log('Board Container:', boardContainer);
+          console.log('Player Board:', playerBoard);
+          console.log('Enemy Board:', enemyBoard);
+          
+          // Now you can call getOrientation or any other logic you need
+          this.getOrientation(boardContainer, playerBoard, enemyBoard); // Pass the boardContainer to getOrientation
+      });
+
+        // Call getOrientation when the game board is ready
+        this.getOrientation();
       } else {
         console.error('Game board element not found.');
       }
@@ -89,6 +137,8 @@ class App extends LitElement {
   }
 
 }
+
+
 
 
 

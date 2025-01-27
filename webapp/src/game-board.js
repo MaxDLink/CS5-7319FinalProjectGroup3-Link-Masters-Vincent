@@ -119,6 +119,32 @@ class GameBoard extends LitElement {
         @popup-closed="${this.resetGame}">
       </winner-popup>
     `;
+
+    // dispatch event to handle landscape mode on mobile 
+    // Dispatch events after rendering
+    setTimeout(() => {
+      const boardContainer = this.shadowRoot.querySelector('.board-container');
+      const playerBoard = this.shadowRoot.querySelector('.player-board');
+      const enemyBoard = this.shadowRoot.querySelector('.enemy-board');
+
+
+      console.log('Board Container:', boardContainer);
+      console.log('Player Board:', playerBoard);
+      console.log('Enemy Board:', enemyBoard);
+
+      // Check if elements are found
+      if (boardContainer && playerBoard && enemyBoard) {
+        this.dispatchEvent(new CustomEvent('board-ready', {
+          detail: {
+              boardContainer,
+              playerBoard,
+              enemyBoard
+          }
+        }));
+      } else {
+        console.error('One or more board elements are null:', { boardContainer, playerBoard, enemyBoard });
+      }
+    }, 0); // Adjust the delay as necessary
     // this.updateViewport(); // Ensure the viewport is updated after rendering
     return result;
   }
