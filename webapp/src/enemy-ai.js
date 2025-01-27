@@ -1,3 +1,4 @@
+import { sounds } from './sounds.js';
 export class EnemyAI {
     constructor() {
       this.possibleMoves = this.generateAllPossibleMoves();

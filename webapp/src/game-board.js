@@ -3,7 +3,7 @@ import { EnemyAI } from './enemy-ai.js';
 import './winner-popup.js'; // Import the popup component
 
 // sounds.js import 
-// import {sounds} from 'sounds.js'
+import { sounds } from './sounds.js'; 
 
 class GameBoard extends LitElement {
   static properties = {

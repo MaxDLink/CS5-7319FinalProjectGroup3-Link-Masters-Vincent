@@ -120,3 +120,4 @@ class Sounds {
 
 
 const sounds = new Sounds()
+export {sounds}; 
