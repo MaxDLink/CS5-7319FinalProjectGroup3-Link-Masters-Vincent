@@ -11,6 +11,8 @@ class GameBoard extends LitElement {
     enemyBoard: { type: Array },
     winner: { type: String },
     gameEnded: { type: Boolean },
+    shipsPlaced: { type: Number }, // Track number of ships placed
+    message: { type: String }, // Added for the new message
   };
 
   // TODO - 4 columns, 6 rows
@@ -27,7 +29,7 @@ class GameBoard extends LitElement {
     this.enemyAI = new EnemyAI();
 
     // Initialize turn state
-    this.isPlayerTurn = true;
+    this.isPlayerTurn = false;
 
     // Place ships on the player's board
     this.placeShip(this.playerBoard, 0, 0);
@@ -40,40 +42,40 @@ class GameBoard extends LitElement {
 
     this.winner = '';
     this.gameEnded = false;
+    this.shipsPlaced = 0; // Initialize ships placed count
+    this.message = 'Place 4 ships on your board. Tap on Player Board 4 times'; // Initial message
   }
 
   connectedCallback() {
     super.connectedCallback();
     // Call updateViewport when the component is connected to the DOM
-    this.updateViewport();
-    window.addEventListener('orientationchange', this.updateViewport.bind(this));
+    // this.updateViewport();
+    // window.addEventListener('orientationchange', this.updateViewport.bind(this));
   }
 
-  updateViewport() {
-    let orn = getOrientation();
-    const board = this.shadowRoot.querySelector('.board'); // Use shadowRoot to access the board
-    if (orn.includes('portrait')) {
-      document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
-      // Reset styles for portrait
-      if (board) {
-        board.style.width = '40vmin'; // Reset to original size
-        board.style.height = '40vmin'; // Reset to original size
-      }
-    } else if (orn.includes('landscape')) {
-      console.log("Scaling boards to fit landscape");
-      const boardSize = '40vmin'; // Define a common size for both width and height
-      document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
-      console.log("landscape!"); // Print to console when in landscape mode
-      // Adjust styles for landscape
-      if (board) {
-        console.log("Accessing boards to scale them");
-        // TODO - go to the game-board.js file and make landscape mode put the player board & enemy board side by side 
-
-        board.style.width = boardSize; // Set common width 
-        board.style.height = boardSize; // Set common height
-      }
-    }
-  }
+  // updateViewport() {
+  //   let orn = getOrientation();
+  //   const board = this.shadowRoot.querySelector('.board'); // Use shadowRoot to access the board
+  //   if (orn.includes('portrait')) {
+  //     document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
+  //     // Reset styles for portrait
+  //     if (board) {
+  //       board.style.width = '40vmin'; // Reset to original size
+  //       board.style.height = '40vmin'; // Reset to original size
+  //     }
+  //   } else if (orn.includes('landscape')) {
+  //     console.log("Scaling boards to fit landscape");
+  //     const boardSize = '40vmin'; // Define a common size for both width and height
+  //     document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
+  //     console.log("landscape!"); // Print to console when in landscape mode
+  //     // Adjust styles for landscape
+  //     if (board) {
+  //       console.log("Accessing boards to scale them");
+  //       board.style.width = boardSize; // Set common width
+  //       board.style.height = boardSize; // Set common height
+  //     }
+  //   }
+  // }
 
   render() {
     // Call updateViewport after rendering the boards
@@ -96,10 +98,10 @@ class GameBoard extends LitElement {
         <div class="player-board">
           <h3>Player Board</h3>
           <div class="board">
-            ${this.playerBoard.map((row) => html`
+            ${this.playerBoard.map((row, rowIndex) => html`
               <div class="row">
-                ${row.map((cell) => html`
-                  <div class="cell ${cell === 'X' ? 'hit-player' : cell === 'O' ? 'miss' : ''}">
+                ${row.map((cell, colIndex) => html`
+                  <div class="cell ${cell === '🚢' ? 'ship' : ''}" @click="${() => this.placeShip(rowIndex, colIndex)}">
                     ${cell}
                   </div> 
                 `)}
@@ -114,7 +116,7 @@ class GameBoard extends LitElement {
         @popup-closed="${this.resetGame}">
       </winner-popup>
     `;
-    this.updateViewport(); // Ensure the viewport is updated after rendering
+    // this.updateViewport(); // Ensure the viewport is updated after rendering
     return result;
   }
 
@@ -174,13 +176,30 @@ class GameBoard extends LitElement {
   switchTurn() {
     this.isPlayerTurn = !this.isPlayerTurn;
     console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);
+    
+    // Update message based on whose turn it is
+    if (this.isPlayerTurn) {
+      this.message = 'Tap on the enemy\'s board to try to hit ships'; // Update message for player's turn
+    } else {
+      this.message = 'Wait for the enemy\'s turn'; // Update message for enemy's turn
+    }
+    this.requestUpdate(); // Re-render to show updated message
   }
 
-  placeShip(board, row, col) {
-    if (board[row][col] === '') {
-      board[row][col] = '🚢';
-    } else {
-      console.error('Position already occupied or out of bounds');
+  placeShip(row, col) {
+    if (this.shipsPlaced < 4 && this.playerBoard[row][col] === '') {
+      this.playerBoard[row][col] = '🚢'; // Place ship
+      this.shipsPlaced++; // Increment ships placed count
+      this.requestUpdate(); // Re-render the component
+
+      // Change message to "Game Start" if all ships are placed
+      if (this.shipsPlaced === 4) {
+        this.message = 'Tap on the enemy\'s board to try to hit ships';
+        this.requestUpdate(); // Re-render to show updated message
+        console.log('Dispatching message-updated event with message:', this.message); // Debugging line
+        this.dispatchEvent(new CustomEvent('message-updated', { detail: this.message })); // Dispatch event
+        this.switchTurn(); // Start the player's turn
+      }
     }
   }
 
@@ -211,46 +230,67 @@ class GameBoard extends LitElement {
   resetGame() {
     this.winner = '';
     this.gameEnded = false;
+    this.shipsPlaced = 0; // Reset ships placed count
     // Add logic to reset the game state if needed
   }
 
   static styles = css`
     .board-container {
       display: flex;
-      flex-direction: column; <!-- for vertical board alignment -->
-      justify-content: space-between; <!-- for vertical board alignment -->
+      flex-direction: column;
+      justify-content: flex-start;
       align-items: center;
-      height: 100vh;
       width: 100vw;
-      background-color: #f0f0f0;
+      background-color: grey;
+      margin: 0;
+      padding: 0;
+      
+    }
+    .message {
+      color: orange; /* Style the message text */
+      margin: 0; /* Remove default margin */
+      font-size: 1.2em; /* Adjust font size for better readability */
     }
     .player-board, .enemy-board {
       display: flex;
       flex-direction: column;
       align-items: center;
+      margin: 0px; 
+      padding: 0px;
+      position: relative;
+      top: -20px; 
+    }
+    h3 {
+      color: yellow; /* Set the color of the headings to yellow */
     }
     .board {
       display: grid;
-      grid-template-columns: repeat(4, 1fr); // change 4 to change board size 
-      grid-gap: 2px;
+      grid-template-columns: repeat(4, 1fr);
+      border: 4px solid #ccc;
       width: 40vmin;
       height: 40vmin;
     }
     .row {
       display: contents;
     }
-       .cell {
+    .cell {
       background-color: lightblue;
-      border: 1px solid #ccc;
+      border: 2px solid #ccc;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       transition: background-color 0.3s;
-      font-size: 5vmin; // Use viewport width for responsive font size
-      width: 10vmin; // Use viewport width for responsive width
-      height: 10vmin; // Use viewport width for responsive height
-      box-sizing: border-box; // Ensure padding and border are included in the element's total width and height
+      font-size: 5vmin;
+      width: 10vmin;
+      height: 10vmin;
+      box-sizing: border-box;
+    }
+    .cell:hover {
+      background-color: #add8e6;
+    }
+    .cell.ship {
+      background-color: blue;
     }
     .cell.hit-enemy {
       background-color: green;
@@ -262,9 +302,6 @@ class GameBoard extends LitElement {
     }
     .cell.miss {
       background-color: lightgray;
-    }
-    .cell:hover {
-      background-color: #add8e6;
     }
   `;
 }

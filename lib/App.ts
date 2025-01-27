@@ -137,6 +137,7 @@ export class App extends cdk.Stack {
       tracing: lambda.Tracing.ACTIVE,  
     }); 
     table.grantReadWriteData(simpleLambda); 
+  
 
     // Define the save Lambda function
     const saveLambda = new NodejsFunction(this, 'SaveLambda', {
