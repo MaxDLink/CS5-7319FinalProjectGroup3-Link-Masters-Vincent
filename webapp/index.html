@@ -90,12 +90,12 @@
             }
         } else if (_orn.includes('landscape')) {
             console.log("Scaling boards to fit landscape");
-            viewport.setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
+            viewport.setAttribute("content", "width=600px, initial-scale=1.0"); // Adjust width for landscape
             if (boardContainer) {
                 boardContainer.style.flexDirection = 'row'; // Change to row for landscape
                 boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
-                playerBoard.style.margin = '10px'; // Set margin for player board
-                enemyBoard.style.margin = '10px'; // Set margin for enemy board
+                playerBoard.style.margin = '5px'; // Set smaller margin for player board
+                enemyBoard.style.margin = '5px'; // Set smaller margin for enemy board
             }
         }
     }
