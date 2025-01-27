@@ -125,11 +125,11 @@ export class App extends cdk.Stack {
         // BUCKET: 
         DYNAMODB_TABLE: table.tableName, 
         
-      }, 
-      bundling: {
-        platform: 'linux/amd64', 
-        dockerImage: DockerImage.fromRegistry('public.ecr.aws/sam/build-nodejs20.x:latest-x86_64'),
-      },
+      }, // commented out to get simple lambda to work on mac cdk deploy --profile <profile>, but do we need bundling to work on windows 11 architecture? 
+      // bundling: {
+      //   platform: 'linux/amd64', 
+      //   dockerImage: DockerImage.fromRegistry('public.ecr.aws/sam/build-nodejs20.x:latest-x86_64'),
+      // },
       timeout: Duration.seconds(29),
       loggingFormat: lambda.LoggingFormat.JSON, 
       logRetention: RetentionDays.THREE_MONTHS, 
