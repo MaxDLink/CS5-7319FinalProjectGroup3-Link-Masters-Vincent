@@ -8,6 +8,7 @@ class GameBoard extends LitElement {
     enemyBoard: { type: Array },
     winner: { type: String },
     gameEnded: { type: Boolean },
+    shipsPlaced: { type: Number }, // Track number of ships placed
   };
 
   // TODO - 4 columns, 6 rows
@@ -37,6 +38,7 @@ class GameBoard extends LitElement {
 
     this.winner = '';
     this.gameEnded = false;
+    this.shipsPlaced = 0; // Initialize ships placed count
   }
 
   connectedCallback() {
@@ -91,10 +93,10 @@ class GameBoard extends LitElement {
         <div class="player-board">
           <h3>Player Board</h3>
           <div class="board">
-            ${this.playerBoard.map((row) => html`
+            ${this.playerBoard.map((row, rowIndex) => html`
               <div class="row">
-                ${row.map((cell) => html`
-                  <div class="cell ${cell === 'X' ? 'hit-player' : cell === 'O' ? 'miss' : ''}">
+                ${row.map((cell, colIndex) => html`
+                  <div class="cell ${cell === '🚢' ? 'ship' : ''}" @click="${() => this.placeShip(rowIndex, colIndex)}">
                     ${cell}
                   </div> 
                 `)}
@@ -102,6 +104,7 @@ class GameBoard extends LitElement {
             `)}
           </div>
         </div>
+        <button @click="${this.startGame}" ?disabled="${this.shipsPlaced < 4}">Start Game</button>
       </div>
       <winner-popup
         .winner="${this.winner}"
@@ -166,11 +169,11 @@ class GameBoard extends LitElement {
     console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);
   }
 
-  placeShip(board, row, col) {
-    if (board[row][col] === '') {
-      board[row][col] = '🚢';
-    } else {
-      console.error('Position already occupied or out of bounds');
+  placeShip(row, col) {
+    if (this.shipsPlaced < 4 && this.playerBoard[row][col] === '') {
+      this.playerBoard[row][col] = '🚢'; // Place ship
+      this.shipsPlaced++; // Increment ships placed count
+      this.requestUpdate(); // Re-render the component
     }
   }
 
@@ -201,7 +204,16 @@ class GameBoard extends LitElement {
   resetGame() {
     this.winner = '';
     this.gameEnded = false;
+    this.shipsPlaced = 0; // Reset ships placed count
     // Add logic to reset the game state if needed
+  }
+
+  startGame() {
+    if (this.shipsPlaced === 4) {
+      // Logic to start the game
+      console.log('Game started!');
+      this.enemyMove(); // Start enemy move if needed
+    }
   }
 
   static styles = css`
