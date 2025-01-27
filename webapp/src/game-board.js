@@ -9,6 +9,7 @@ class GameBoard extends LitElement {
     winner: { type: String },
     gameEnded: { type: Boolean },
     shipsPlaced: { type: Number }, // Track number of ships placed
+    message: { type: String }, // Added for the new message
   };
 
   // TODO - 4 columns, 6 rows
@@ -39,6 +40,7 @@ class GameBoard extends LitElement {
     this.winner = '';
     this.gameEnded = false;
     this.shipsPlaced = 0; // Initialize ships placed count
+    this.message = 'Place your ships on your board. Tap on your board'; // Initial message
   }
 
   connectedCallback() {
@@ -76,6 +78,7 @@ class GameBoard extends LitElement {
     // Call updateViewport after rendering the boards
     const result = html`
       <div class="board-container">
+        <div class="message">${this.message}</div>
         <div class="enemy-board">
           <h3>Enemy Board</h3>
           <div class="board">
@@ -104,7 +107,6 @@ class GameBoard extends LitElement {
             `)}
           </div>
         </div>
-        <button @click="${this.startGame}" ?disabled="${this.shipsPlaced < 4}">Start Game</button>
       </div>
       <winner-popup
         .winner="${this.winner}"
@@ -174,6 +176,14 @@ class GameBoard extends LitElement {
       this.playerBoard[row][col] = '🚢'; // Place ship
       this.shipsPlaced++; // Increment ships placed count
       this.requestUpdate(); // Re-render the component
+
+      // Change message to "Game Start" if all ships are placed
+      if (this.shipsPlaced === 4) {
+        this.message = 'Game Start';
+        this.requestUpdate(); // Re-render to show updated message
+        // Optionally, you can start the game logic here
+        this.enemyMove(); // Start enemy move if needed
+      }
     }
   }
 
@@ -206,14 +216,6 @@ class GameBoard extends LitElement {
     this.gameEnded = false;
     this.shipsPlaced = 0; // Reset ships placed count
     // Add logic to reset the game state if needed
-  }
-
-  startGame() {
-    if (this.shipsPlaced === 4) {
-      // Logic to start the game
-      console.log('Game started!');
-      this.enemyMove(); // Start enemy move if needed
-    }
   }
 
   static styles = css`
