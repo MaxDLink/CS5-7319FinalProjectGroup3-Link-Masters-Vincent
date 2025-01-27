@@ -69,11 +69,43 @@
 
     <script>
       function getOrientation() {
-          let _orn = screen.orientation ? screen.orientation.type : (screen.mozOrientation || screen.msOrientation);
-          return _orn;
-      }
+        let _orn = screen.orientation ? screen.orientation.type : (screen.mozOrientation || screen.msOrientation);
+        console.log('Current orientation:', _orn); // Debugging line
 
+        // Update the viewport based on the orientation
+        const viewport = document.getElementById("viewport");
+        const boardContainer = document.querySelector('.board-container'); // Adjust selector as needed
+        const playerBoard = document.querySelector('.player-board .board'); // Adjust selector as needed
+        const enemyBoard = document.querySelector('.enemy-board .board'); // Adjust selector as needed
+
+        if (_orn.includes('portrait')) {
+            viewport.setAttribute("content", "width=device-width, initial-scale=1.0");
+            // Reset styles for portrait
+            if (boardContainer) {
+                boardContainer.style.flexDirection = 'column'; // Column for portrait
+                playerBoard.style.width = '40vmin'; // Reset to original size
+                playerBoard.style.height = '40vmin'; // Reset to original size
+                enemyBoard.style.width = '40vmin'; // Reset to original size
+                enemyBoard.style.height = '40vmin'; // Reset to original size
+            }
+        } else if (_orn.includes('landscape')) {
+            console.log("Scaling boards to fit landscape");
+            viewport.setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
+            if (boardContainer) {
+                boardContainer.style.flexDirection = 'row'; // Change to row for landscape
+                boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
+                playerBoard.style.margin = '10px'; // Set margin for player board
+                enemyBoard.style.margin = '10px'; // Set margin for enemy board
+            }
+        }
+    }
+
+    // Call getOrientation on page load
+    window.addEventListener('load', getOrientation);
     
+    // Call getOrientation on orientation change
+    window.addEventListener('orientationchange', getOrientation);
+  
   </script>
   
   <app-element></app-element>
@@ -85,17 +117,6 @@
     </div>
     
   </body> 
-
-  <!-- <script>
-    const gameBoard = document.querySelector('game-board');
-    gameBoard.addEventListener('message-updated', (event) => {
-      const messageElement = document.querySelector('.instruction-box'); // Select the message element
-      messageElement.textContent = event.detail; // Update the message text
-
-      messageElement.classList.add('message'); // apply message class for styles 
-      console.log('Message updated to: ', event.detail);
-    });
-  </script>  -->
 
 </html>
 

@@ -53,29 +53,32 @@ class GameBoard extends LitElement {
     // window.addEventListener('orientationchange', this.updateViewport.bind(this));
   }
 
-  // updateViewport() {
-  //   let orn = getOrientation();
-  //   const board = this.shadowRoot.querySelector('.board'); // Use shadowRoot to access the board
-  //   if (orn.includes('portrait')) {
-  //     document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
-  //     // Reset styles for portrait
-  //     if (board) {
-  //       board.style.width = '40vmin'; // Reset to original size
-  //       board.style.height = '40vmin'; // Reset to original size
-  //     }
-  //   } else if (orn.includes('landscape')) {
-  //     console.log("Scaling boards to fit landscape");
-  //     const boardSize = '40vmin'; // Define a common size for both width and height
-  //     document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
-  //     console.log("landscape!"); // Print to console when in landscape mode
-  //     // Adjust styles for landscape
-  //     if (board) {
-  //       console.log("Accessing boards to scale them");
-  //       board.style.width = boardSize; // Set common width
-  //       board.style.height = boardSize; // Set common height
-  //     }
-  //   }
-  // }
+  updateViewport() {
+    console.log('updateViewport function called');
+    let orn = getOrientation();
+    const board = this.shadowRoot.querySelector('.board'); // Use shadowRoot to access the board
+    if (orn.includes('portrait')) {
+      document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
+      // Reset styles for portrait
+      if (board) {
+        board.style.width = '40vmin'; // Reset to original size
+        board.style.height = '40vmin'; // Reset to original size
+      }
+    } else if (orn.includes('landscape')) {
+      console.log("Scaling boards to fit landscape");
+      const boardSize = '40vmin'; // Define a common size for both width and height
+      document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
+      console.log("landscape!"); // Print to console when in landscape mode
+      // Adjust styles for landscape
+      if (board) {
+        console.log("Accessing boards to scale them");
+        boardContainer.style.flexDirection = 'row'; // Change to row for landscape
+        boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
+        playerBoard.style.margin = '10px'; // Set margin for player board
+        enemyBoard.style.margin = '10px'; // Set margin for enemy board
+      }
+    }
+  }
 
   render() {
     // Call updateViewport after rendering the boards
@@ -241,8 +244,8 @@ class GameBoard extends LitElement {
   static styles = css`
     .board-container {
       display: flex;
-      flex-direction: row; // column by default for portrait 
-      justify-content: space-around; //flex-start for portrait 
+      flex-direction: column; // column by default for portrait 
+      justify-content: flex-start; //flex-start for portrait 
       align-items: center;
       width: 100vw;
       background-color: grey;
@@ -259,7 +262,7 @@ class GameBoard extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin: 10px; // margin 0 for portrait 
+      margin: 0px; // margin 0px for portrait 
       padding: 0px;
       position: relative;
       top: -20px; 
