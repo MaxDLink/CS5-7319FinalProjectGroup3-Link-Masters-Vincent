@@ -39,23 +39,41 @@ class GameBoard extends LitElement {
     this.gameEnded = false;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    // Call updateViewport when the component is connected to the DOM
+    this.updateViewport();
+    window.addEventListener('orientationchange', this.updateViewport.bind(this));
+  }
+
+  updateViewport() {
+    let orn = getOrientation();
+    const board = this.shadowRoot.querySelector('.board'); // Use shadowRoot to access the board
+    if (orn.includes('portrait')) {
+      document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
+      // Reset styles for portrait
+      if (board) {
+        board.style.width = '40vmin'; // Reset to original size
+        board.style.height = '40vmin'; // Reset to original size
+      }
+    } else if (orn.includes('landscape')) {
+      console.log("Scaling boards to fit landscape");
+      const boardSize = '40vmin'; // Define a common size for both width and height
+      document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
+      console.log("landscape!"); // Print to console when in landscape mode
+      // Adjust styles for landscape
+      if (board) {
+        console.log("Accessing boards to scale them");
+        board.style.width = boardSize; // Set common width
+        board.style.height = boardSize; // Set common height
+      }
+    }
+  }
+
   render() {
-    return html`
+    // Call updateViewport after rendering the boards
+    const result = html`
       <div class="board-container">
-        <div class="player-board">
-          <h3>Player Board</h3>
-          <div class="board">
-            ${this.playerBoard.map((row) => html`
-              <div class="row">
-                ${row.map((cell) => html`
-                  <div class="cell ${cell === 'X' ? 'hit-player' : cell === 'O' ? 'miss' : ''}">
-                    ${cell}
-                  </div> 
-                `)}
-              </div>
-            `)}
-          </div>
-        </div>
         <div class="enemy-board">
           <h3>Enemy Board</h3>
           <div class="board">
@@ -70,6 +88,20 @@ class GameBoard extends LitElement {
             `)}
           </div>
         </div>
+        <div class="player-board">
+          <h3>Player Board</h3>
+          <div class="board">
+            ${this.playerBoard.map((row) => html`
+              <div class="row">
+                ${row.map((cell) => html`
+                  <div class="cell ${cell === 'X' ? 'hit-player' : cell === 'O' ? 'miss' : ''}">
+                    ${cell}
+                  </div> 
+                `)}
+              </div>
+            `)}
+          </div>
+        </div>
       </div>
       <winner-popup
         .winner="${this.winner}"
@@ -77,6 +109,8 @@ class GameBoard extends LitElement {
         @popup-closed="${this.resetGame}">
       </winner-popup>
     `;
+    this.updateViewport(); // Ensure the viewport is updated after rendering
+    return result;
   }
 
   checkWin(board) {
@@ -86,10 +120,15 @@ class GameBoard extends LitElement {
 
   handleEnemyCellClick(row, col) {
     if (this.gameEnded) return;
-    if (!this.isPlayerTurn) {
+    if (!this.isPlayerTurn) { // if it's not the player's turn, skip the player 
       console.log("It's not the player's turn.");
       return;
     }
+    // Check if the cell has already been hit or missed
+    if (this.enemyBoard[row][col] === 'X' || this.enemyBoard[row][col] === 'O') {
+      console.log('Cell already hit or missed. No action taken.');
+      return; // Prevent further action if the cell is already marked
+  }
     console.log(`Player attacks: ${row}, ${col}`);
     if (this.enemyBoard[row][col] === '🚢') {
       console.log('Hit!');
@@ -168,7 +207,8 @@ class GameBoard extends LitElement {
   static styles = css`
     .board-container {
       display: flex;
-      justify-content: space-around;
+      flex-direction: column; <!-- for vertical board alignment -->
+      justify-content: space-between; <!-- for vertical board alignment -->
       align-items: center;
       height: 100vh;
       width: 100vw;
@@ -183,8 +223,8 @@ class GameBoard extends LitElement {
       display: grid;
       grid-template-columns: repeat(4, 1fr); // change 4 to change board size 
       grid-gap: 2px;
-      width: 45vmin;
-      height: 45vmin;
+      width: 40vmin;
+      height: 40vmin;
     }
     .row {
       display: contents;

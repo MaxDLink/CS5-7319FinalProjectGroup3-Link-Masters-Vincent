@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <!--Viewport for mobile screen scaling-->
+    <meta name="viewport" id="viewport" content="width=device-width, initial-scale=1.0">
     <script type="module" src="src/login.js"></script> <!-- Login Redirect -->
     <script type="module" src="src/game-board.js"></script> <!-- Game Board -->
     <script type="module" src="src/ship.js"></script> <!-- Ship -->
@@ -9,14 +11,88 @@
         font-family: 'Open Sans', sans-serif;
         font-size: 1.5em;
         padding-left: 0.5em;
+        margin: 0; 
+      }
+      .container {
+        max-width: 1200px; 
+        margin: 0 auto;  
+        padding: 0 1em; 
+      } 
+      /* Styles for mobile devices */
+   @media (max-width: 768px) {
+     body {
+       font-size: 1.2em; 
+     }
+     .container {
+       padding: 0 0.5em; 
+     }
+     /* Additional mobile-specific styles */
+   }
+
+   /* Styles for tablets and larger devices */
+   @media (min-width: 769px) {
+     body {
+       font-size: 1.5em; 
+     }
+     .container {
+       padding: 0 1em; 
+     }
+     /* Additional styles for larger devices */
+   } 
+    /* Styles for landscape orientation */
+    @media (orientation: landscape) {
+        body {
+          font-size: 1.4em; /* Adjust font size for landscape */
+        }
+        .container {
+          padding: 0 2em; /* Increase padding for landscape */
+        }
+        /* Additional landscape-specific styles */
+      } 
+      
+      /* New styles for positioning the login element */
+      .login-container {
+        position: absolute;
+        bottom: 20px; /* Adjust as needed */
+        left: 20px; 
+        z-index: 10; /* Ensure it appears above other elements */
       }
     </style>
   </head>
   <body>
+
+    <script>
+      function getOrientation() {
+          let _orn = screen.orientation ? screen.orientation.type : (screen.mozOrientation || screen.msOrientation);
+          return _orn;
+      }
+
+      // moved into game-board.js to load after game board is loaded 
+      // function updateViewport() {
+      //     let orn = getOrientation();
+      //     if (orn.includes('portrait')) {
+      //         document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
+      //         // Reset styles for portrait
+      //         document.querySelector('.board').style.width = '40vmin'; // Reset to original size
+      //         document.querySelector('.board').style.height = '40vmin'; // Reset to original size
+      //     } else if (orn.includes('landscape')) {
+      //         document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
+      //         console.log("landscape!"); // Print to console when in landscape mode
+      //          // Adjust styles for landscape
+      //         document.querySelector('.board').style.width = '80vw'; // Scale to fit landscape
+      //         document.querySelector('.board').style.height = '80vw'; // Maintain aspect ratio
+      //     }
+      // }
+
+      // window.addEventListener('orientationchange', updateViewport);
+      // window.addEventListener('load', updateViewport); // Call on load to set initial orientation
+  </script>
+
+
     <div style="position: relative;">
       <game-board></game-board>
     </div>
-    <div>
+    <div class="login-container">
       <login-element></login-element>
     </div>
   </body>
