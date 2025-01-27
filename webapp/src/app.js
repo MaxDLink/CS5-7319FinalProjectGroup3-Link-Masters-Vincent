@@ -82,14 +82,21 @@ class App extends LitElement {
     // const enemyBoard = document.querySelector('.enemy-board .board'); // Adjust selector as needed
   
     if (_orn.includes('portrait')) {
+      console.log("Scaling boards to fit portrait");
+      console.log('boardContainer', boardContainer)
         viewport.setAttribute("content", "width=device-width, initial-scale=1.0");
         // Reset styles for portrait
         if (boardContainer) {
             boardContainer.style.flexDirection = 'column'; // Column for portrait
-            playerBoard.style.width = '40vmin'; // Reset to original size
-            playerBoard.style.height = '40vmin'; // Reset to original size
-            enemyBoard.style.width = '40vmin'; // Reset to original size
-            enemyBoard.style.height = '40vmin'; // Reset to original size
+            boardContainer.style.justifyContent = 'flex-start'; // flex-start for portrait
+
+            // Remove redundant size and margin settings
+            // playerBoard.style.width = '40vmin'; // Reset to original size
+            // playerBoard.style.height = '40vmin'; // Reset to original size
+            // enemyBoard.style.width = '40vmin'; // Reset to original size
+            // enemyBoard.style.height = '40vmin'; // Reset to original size
+            // playerBoard.style.margin = '0px'; // Reset to original size
+            // enemyBoard.style.margin = '0px'; // Reset to original size
         }
     } else if (_orn.includes('landscape')) {
         console.log("Scaling boards to fit landscape");
@@ -123,13 +130,13 @@ class App extends LitElement {
           console.log('Board Container:', boardContainer);
           console.log('Player Board:', playerBoard);
           console.log('Enemy Board:', enemyBoard);
-          
+          console.log("HELLOLOLOLOL")
           // Now you can call getOrientation or any other logic you need
           this.getOrientation(boardContainer, playerBoard, enemyBoard); // Pass the boardContainer to getOrientation
       });
 
         // Call getOrientation when the game board is ready
-        this.getOrientation();
+        // this.getOrientation();
       } else {
         console.error('Game board element not found.');
       }
