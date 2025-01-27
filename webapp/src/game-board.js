@@ -26,7 +26,7 @@ class GameBoard extends LitElement {
     this.enemyAI = new EnemyAI();
 
     // Initialize turn state
-    this.isPlayerTurn = true;
+    this.isPlayerTurn = false;
 
     // Place ships on the player's board
     this.placeShip(this.playerBoard, 0, 0);
@@ -40,7 +40,7 @@ class GameBoard extends LitElement {
     this.winner = '';
     this.gameEnded = false;
     this.shipsPlaced = 0; // Initialize ships placed count
-    this.message = 'Place your ships on your board. Tap on your board'; // Initial message
+    this.message = 'Place 4 ships on your board. Tap on Player Board 4 times'; // Initial message
   }
 
   connectedCallback() {
@@ -169,6 +169,14 @@ class GameBoard extends LitElement {
   switchTurn() {
     this.isPlayerTurn = !this.isPlayerTurn;
     console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);
+    
+    // Update message based on whose turn it is
+    if (this.isPlayerTurn) {
+      this.message = 'Tap on the enemy\'s board to try to hit ships'; // Update message for player's turn
+    } else {
+      this.message = 'Wait for the enemy\'s turn'; // Update message for enemy's turn
+    }
+    this.requestUpdate(); // Re-render to show updated message
   }
 
   placeShip(row, col) {
@@ -181,8 +189,7 @@ class GameBoard extends LitElement {
       if (this.shipsPlaced === 4) {
         this.message = 'Game Start';
         this.requestUpdate(); // Re-render to show updated message
-        // Optionally, you can start the game logic here
-        this.enemyMove(); // Start enemy move if needed
+        this.switchTurn(); // Start the player's turn
       }
     }
   }
