@@ -162,17 +162,21 @@ class GameBoard extends LitElement {
   enemyMove() {
     if (this.gameEnded) return;
     if (!this.isPlayerTurn) {
-      this.enemyAI.attack(this.playerBoard);
-      if (this.checkWin(this.playerBoard)) {
-        console.log('Enemy wins!');
-        this.endGame('Enemy');
-        return; // Stop further actions
-      }
-      this.requestUpdate(); // Ensure the component re-renders
-      this.switchTurn();
+      // Add a timeout for the enemy's move
+      setTimeout(() => {
+        this.enemyAI.attack(this.playerBoard);
+        if (this.checkWin(this.playerBoard)) {
+          console.log('Enemy wins!');
+          this.endGame('Enemy');
+          return; // Stop further actions
+        }
+        this.requestUpdate(); // Ensure the component re-renders
+        this.switchTurn();
+      }, 1000); // Delay of 1000 milliseconds (1 second)
     }
   }
 
+  
   switchTurn() {
     this.isPlayerTurn = !this.isPlayerTurn;
     console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);

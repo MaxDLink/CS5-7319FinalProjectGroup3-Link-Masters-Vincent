@@ -30,6 +30,9 @@ export class EnemyAI {
       const move = this.selectRandomMove();
       if (move) {
         const { row, col } = move;
+
+        console.log("Enemy AI is thinking....")
+
         console.log(`Enemy attacks: ${row}, ${col}`);
         // Implement logic to check if the attack hits a ship on the player's board
         if (playerBoard[row][col] === '🚢') {
@@ -44,4 +47,4 @@ export class EnemyAI {
         }
       }
     }
-  }
+  } 
