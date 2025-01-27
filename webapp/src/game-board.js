@@ -64,7 +64,9 @@ class GameBoard extends LitElement {
       // Adjust styles for landscape
       if (board) {
         console.log("Accessing boards to scale them");
-        board.style.width = boardSize; // Set common width
+        // TODO - go to the game-board.js file and make landscape mode put the player board & enemy board side by side 
+
+        board.style.width = boardSize; // Set common width 
         board.style.height = boardSize; // Set common height
       }
     }
