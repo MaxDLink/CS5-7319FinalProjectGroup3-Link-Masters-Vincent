@@ -33,6 +33,9 @@ export class EnemyAI {
         // Implement logic to check if the attack hits a ship on the player's board
         if (playerBoard[row][col] === '🚢') {
           console.log('Hit!');
+          // sounds.js 
+          sounds.initAudioContext(); // ensure the audio context is initialized
+          sounds.HitPlayer();
           playerBoard[row][col] = 'X'; // Mark hit
         } else {
           console.log('Miss!');
