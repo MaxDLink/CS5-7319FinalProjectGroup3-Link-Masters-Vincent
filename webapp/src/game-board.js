@@ -186,8 +186,10 @@ class GameBoard extends LitElement {
 
       // Change message to "Game Start" if all ships are placed
       if (this.shipsPlaced === 4) {
-        this.message = 'Game Start';
+        this.message = 'Tap on the enemy\'s board to try to hit ships';
         this.requestUpdate(); // Re-render to show updated message
+        console.log('Dispatching message-updated event with message:', this.message); // Debugging line
+        this.dispatchEvent(new CustomEvent('message-updated', { detail: this.message })); // Dispatch event
         this.switchTurn(); // Start the player's turn
       }
     }

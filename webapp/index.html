@@ -107,7 +107,6 @@
       // window.addEventListener('load', updateViewport); // Call on load to set initial orientation
   </script>
 
-
     <div style="position: relative;">
       <game-board></game-board>
     </div>
@@ -117,5 +116,15 @@
     <div class="instruction-box">
       <div class="message">Place 4 ships on your board. Tap on Player Board 4 times</div>
     </div>
-  </body>
+  </body> 
+
+  <script>
+    const gameBoard = document.querySelector('game-board');
+    gameBoard.addEventListener('message-updated', (event) => {
+      const messageElement = document.querySelector('.instruction-box'); // Select the message element
+      messageElement.textContent = event.detail; // Update the message text
+      console.log('Message updated to: ', event.detail);
+    });
+  </script> 
+
 </html>
