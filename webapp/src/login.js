@@ -71,6 +71,8 @@ export class Login extends LitElement {
       } else {
         console.log('User Not Logged In');
       }
+      // fire an event to the app to update the route
+      this.dispatchEvent(new CustomEvent('login', {detail: {isLoggedIn: this.user ? true : false}}))
       // console.log(this.user)
     })
 
@@ -82,6 +84,7 @@ export class Login extends LitElement {
             this.user = user
             console.log(this.user)
             window.location.href = '/'
+            this.dispatchEvent(new CustomEvent('login', {detail: {isLoggedIn: this.user ? true : false}}))
           })
         })
       } catch (error) {

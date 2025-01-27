@@ -6,6 +6,7 @@
     <script type="module" src="src/login.js"></script> <!-- Login Redirect -->
     <script type="module" src="src/game-board.js"></script> <!-- Game Board -->
     <script type="module" src="src/ship.js"></script> <!-- Ship -->
+    <script type="module" src="src/app.js"></script> <!-- App -->
     <style>
       body {
         font-family: 'Open Sans', sans-serif;
@@ -67,33 +68,11 @@
           return _orn;
       }
 
-      // moved into game-board.js to load after game board is loaded 
-      // function updateViewport() {
-      //     let orn = getOrientation();
-      //     if (orn.includes('portrait')) {
-      //         document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
-      //         // Reset styles for portrait
-      //         document.querySelector('.board').style.width = '40vmin'; // Reset to original size
-      //         document.querySelector('.board').style.height = '40vmin'; // Reset to original size
-      //     } else if (orn.includes('landscape')) {
-      //         document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
-      //         console.log("landscape!"); // Print to console when in landscape mode
-      //          // Adjust styles for landscape
-      //         document.querySelector('.board').style.width = '80vw'; // Scale to fit landscape
-      //         document.querySelector('.board').style.height = '80vw'; // Maintain aspect ratio
-      //     }
-      // }
-
-      // window.addEventListener('orientationchange', updateViewport);
-      // window.addEventListener('load', updateViewport); // Call on load to set initial orientation
+    
   </script>
+  
+  <app-element></app-element>
 
-
-    <div style="position: relative;">
-      <game-board></game-board>
-    </div>
-    <div class="login-container">
-      <login-element></login-element>
-    </div>
+    
   </body>
 </html>
