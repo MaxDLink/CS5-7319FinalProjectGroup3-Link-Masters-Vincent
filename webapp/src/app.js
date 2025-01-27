@@ -74,9 +74,12 @@ class App extends LitElement {
       /* Styles for landscape mode */
     @media (orientation: landscape) {
         .instruction-box {
-            bottom: 8px; /* Adjust this value for landscape positioning */
-            left: 100px;
-            font-size: 0.6em; 
+            bottom: 150px; /* Adjust this value for landscape positioning */
+            left: 290px;
+            top: 60px; 
+            width: 90px;
+            height: 190px;
+            font-size: 0.75em; 
             font-weight: bold;             
             /* You can add more styles specific to landscape here */
         }
