@@ -155,11 +155,24 @@ class App extends LitElement {
   }
 
   _checkOrientation() {
-    this.getOrientation(
-        this.shadowRoot.querySelector('.board-container'), 
-        this.shadowRoot.querySelector('.player-board .board'), 
-        this.shadowRoot.querySelector('.enemy-board .board')
-    ); // Call getOrientation with selected elements
+     // Attempt to find the game board directly in the shadow root
+     const gameBoard = this.shadowRoot.querySelector('game-board');
+
+      // Check if the game board exists
+    if (gameBoard) {
+      const boardContainer = gameBoard.shadowRoot.querySelector('.board-container'); 
+      const playerBoard = gameBoard.shadowRoot.querySelector('.player-board .board'); 
+      const enemyBoard = gameBoard.shadowRoot.querySelector('.enemy-board .board');
+
+    // Ensure all elements are found before calling getOrientation
+      if (boardContainer && playerBoard && enemyBoard) {
+        this.getOrientation(boardContainer, playerBoard, enemyBoard); // Call getOrientation with selected elements
+      } else {
+        console.warn('Board elements not found in game board, please ensure the game board is loaded.');
+      }
+    } else {
+      console.warn('Game board not found, please ensure it is rendered.');
+    }
   }
 
 }
