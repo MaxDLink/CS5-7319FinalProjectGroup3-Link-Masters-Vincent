@@ -58,8 +58,9 @@ class App extends LitElement {
 
       .instruction-box {
         position: absolute;
-        bottom: 50px; /* Adjust this value to position it higher or lower */
-        left: -15px; /* Align with the login element */
+        bottom: 60px; /* Adjust this value to position it higher or lower */
+        left: 5px; /* Align with the login element */ 
+        font-weight: bold;
         background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
         border: 2px solid orange; /* Border color */
         border-radius: 8px; /* Rounded corners */
@@ -67,8 +68,28 @@ class App extends LitElement {
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
         width: 250px; /* Fixed width for the instruction box */
         text-align: center; /* Center the text */
-        font-size: 0.8em; /* Adjust font size for better readability */
-      }
+        font-size: 0.75em; /* Adjust font size for better readability */
+      } 
+
+      /* Styles for landscape mode */
+    @media (orientation: landscape) {
+        .instruction-box {
+            bottom: 8px; /* Adjust this value for landscape positioning */
+            left: 100px;
+            font-size: 0.6em; 
+            font-weight: bold;             
+            /* You can add more styles specific to landscape here */
+        }
+    }
+
+    /* Styles for portrait mode */
+    @media (orientation: portrait) {
+        .instruction-box {
+            bottom: 50px; /* Adjust this value for portrait positioning */
+            /* You can add more styles specific to portrait here */
+        }
+    } 
+
   `;
 
   getOrientation(boardContainer, playerBoard, enemyBoard) {
