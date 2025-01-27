@@ -136,6 +136,25 @@ class App extends LitElement {
     }
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    this._checkOrientation(); // Initial check on load
+    window.addEventListener('resize', this._checkOrientation.bind(this)); // Add event listener for resize
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('resize', this._checkOrientation.bind(this)); // Clean up event listener
+    super.disconnectedCallback();
+  }
+
+  _checkOrientation() {
+    this.getOrientation(
+        this.shadowRoot.querySelector('.board-container'), 
+        this.shadowRoot.querySelector('.player-board .board'), 
+        this.shadowRoot.querySelector('.enemy-board .board')
+    ); // Call getOrientation with selected elements
+  }
+
 }
 
 
