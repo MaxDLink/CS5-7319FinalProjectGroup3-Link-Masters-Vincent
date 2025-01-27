@@ -46,39 +46,38 @@ class GameBoard extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     // Call updateViewport when the component is connected to the DOM
-    this.updateViewport();
-    window.addEventListener('orientationchange', this.updateViewport.bind(this));
+    // this.updateViewport();
+    // window.addEventListener('orientationchange', this.updateViewport.bind(this));
   }
 
-  updateViewport() {
-    let orn = getOrientation();
-    const board = this.shadowRoot.querySelector('.board'); // Use shadowRoot to access the board
-    if (orn.includes('portrait')) {
-      document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
-      // Reset styles for portrait
-      if (board) {
-        board.style.width = '40vmin'; // Reset to original size
-        board.style.height = '40vmin'; // Reset to original size
-      }
-    } else if (orn.includes('landscape')) {
-      console.log("Scaling boards to fit landscape");
-      const boardSize = '40vmin'; // Define a common size for both width and height
-      document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
-      console.log("landscape!"); // Print to console when in landscape mode
-      // Adjust styles for landscape
-      if (board) {
-        console.log("Accessing boards to scale them");
-        board.style.width = boardSize; // Set common width
-        board.style.height = boardSize; // Set common height
-      }
-    }
-  }
+  // updateViewport() {
+  //   let orn = getOrientation();
+  //   const board = this.shadowRoot.querySelector('.board'); // Use shadowRoot to access the board
+  //   if (orn.includes('portrait')) {
+  //     document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
+  //     // Reset styles for portrait
+  //     if (board) {
+  //       board.style.width = '40vmin'; // Reset to original size
+  //       board.style.height = '40vmin'; // Reset to original size
+  //     }
+  //   } else if (orn.includes('landscape')) {
+  //     console.log("Scaling boards to fit landscape");
+  //     const boardSize = '40vmin'; // Define a common size for both width and height
+  //     document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
+  //     console.log("landscape!"); // Print to console when in landscape mode
+  //     // Adjust styles for landscape
+  //     if (board) {
+  //       console.log("Accessing boards to scale them");
+  //       board.style.width = boardSize; // Set common width
+  //       board.style.height = boardSize; // Set common height
+  //     }
+  //   }
+  // }
 
   render() {
     // Call updateViewport after rendering the boards
     const result = html`
       <div class="board-container">
-        <div class="message">${this.message}</div>
         <div class="enemy-board">
           <h3>Enemy Board</h3>
           <div class="board">
@@ -114,7 +113,7 @@ class GameBoard extends LitElement {
         @popup-closed="${this.resetGame}">
       </winner-popup>
     `;
-    this.updateViewport(); // Ensure the viewport is updated after rendering
+    // this.updateViewport(); // Ensure the viewport is updated after rendering
     return result;
   }
 
@@ -229,21 +228,27 @@ class GameBoard extends LitElement {
     .board-container {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: center;
-      height: 100vh;
       width: 100vw;
       background-color: grey;
+      margin: 0;
+      padding: 0;
       
     }
     .message {
-      color: white;
-      margin-bottom: 20px;
+      color: orange; /* Style the message text */
+      margin: 0; /* Remove default margin */
+      font-size: 1.2em; /* Adjust font size for better readability */
     }
     .player-board, .enemy-board {
       display: flex;
       flex-direction: column;
       align-items: center;
+      margin: 0px; 
+      padding: 0px;
+      position: relative;
+      top: -20px; 
     }
     h3 {
       color: yellow; /* Set the color of the headings to yellow */
@@ -251,7 +256,7 @@ class GameBoard extends LitElement {
     .board {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      grid-gap: 2px;
+      border: 4px solid #ccc;
       width: 40vmin;
       height: 40vmin;
     }
@@ -260,7 +265,7 @@ class GameBoard extends LitElement {
     }
     .cell {
       background-color: lightblue;
-      border: 1px solid #ccc;
+      border: 2px solid #ccc;
       display: flex;
       align-items: center;
       justify-content: center;
