@@ -241,8 +241,8 @@ class GameBoard extends LitElement {
   static styles = css`
     .board-container {
       display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
+      flex-direction: row; // column by default for portrait 
+      justify-content: space-around; //flex-start for portrait 
       align-items: center;
       width: 100vw;
       background-color: grey;
@@ -259,7 +259,7 @@ class GameBoard extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin: 0px; 
+      margin: 10px; // margin 0 for portrait 
       padding: 0px;
       position: relative;
       top: -20px; 
