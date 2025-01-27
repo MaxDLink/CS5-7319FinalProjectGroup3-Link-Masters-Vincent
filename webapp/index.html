@@ -123,6 +123,8 @@
     gameBoard.addEventListener('message-updated', (event) => {
       const messageElement = document.querySelector('.instruction-box'); // Select the message element
       messageElement.textContent = event.detail; // Update the message text
+
+      messageElement.classList.add('message'); // apply message class for styles 
       console.log('Message updated to: ', event.detail);
     });
   </script> 
