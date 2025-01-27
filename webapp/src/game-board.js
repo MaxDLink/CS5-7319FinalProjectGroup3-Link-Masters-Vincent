@@ -228,21 +228,29 @@ class GameBoard extends LitElement {
   static styles = css`
     .board-container {
       display: flex;
-      flex-direction: column; <!-- for vertical board alignment -->
-      justify-content: space-between; <!-- for vertical board alignment -->
+      flex-direction: column;
+      justify-content: space-between;
       align-items: center;
       height: 100vh;
       width: 100vw;
-      background-color: #f0f0f0;
+      background-color: grey;
+      
+    }
+    .message {
+      color: white;
+      margin-bottom: 20px;
     }
     .player-board, .enemy-board {
       display: flex;
       flex-direction: column;
       align-items: center;
     }
+    h3 {
+      color: yellow; /* Set the color of the headings to yellow */
+    }
     .board {
       display: grid;
-      grid-template-columns: repeat(4, 1fr); // change 4 to change board size 
+      grid-template-columns: repeat(4, 1fr);
       grid-gap: 2px;
       width: 40vmin;
       height: 40vmin;
@@ -250,7 +258,7 @@ class GameBoard extends LitElement {
     .row {
       display: contents;
     }
-       .cell {
+    .cell {
       background-color: lightblue;
       border: 1px solid #ccc;
       display: flex;
@@ -258,10 +266,16 @@ class GameBoard extends LitElement {
       justify-content: center;
       cursor: pointer;
       transition: background-color 0.3s;
-      font-size: 5vmin; // Use viewport width for responsive font size
-      width: 10vmin; // Use viewport width for responsive width
-      height: 10vmin; // Use viewport width for responsive height
-      box-sizing: border-box; // Ensure padding and border are included in the element's total width and height
+      font-size: 5vmin;
+      width: 10vmin;
+      height: 10vmin;
+      box-sizing: border-box;
+    }
+    .cell:hover {
+      background-color: #add8e6;
+    }
+    .cell.ship {
+      background-color: blue;
     }
     .cell.hit-enemy {
       background-color: green;
@@ -273,9 +287,6 @@ class GameBoard extends LitElement {
     }
     .cell.miss {
       background-color: lightgray;
-    }
-    .cell:hover {
-      background-color: #add8e6;
     }
   `;
 }
