@@ -2,6 +2,9 @@ import { LitElement, html, css } from 'lit';
 import { EnemyAI } from './enemy-ai.js';
 import './winner-popup.js'; // Import the popup component
 
+// sounds.js import 
+// import {sounds} from 'sounds.js'
+
 class GameBoard extends LitElement {
   static properties = {
     playerBoard: { type: Array },
@@ -132,6 +135,11 @@ class GameBoard extends LitElement {
     console.log(`Player attacks: ${row}, ${col}`);
     if (this.enemyBoard[row][col] === '🚢') {
       console.log('Hit!');
+
+      // sounds.js 
+      sounds.initAudioContext(); // ensure the audio context is initialized
+      sounds.HitEnemy();
+
       this.enemyBoard[row][col] = 'X'; // Mark hit
       if (this.checkWin(this.enemyBoard)) {
         console.log('Player wins!');

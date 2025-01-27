@@ -18,7 +18,7 @@ class App extends LitElement {
   _onLogin(event) {
     this.route = event.detail.isLoggedIn ? 'game' : 'login'
     console.log('App login event', event.detail.isLoggedIn)
-    // this.route = 'game'; // bypass login for now
+    this.route = 'game'; // bypass login for now
   }
 
   render() {
