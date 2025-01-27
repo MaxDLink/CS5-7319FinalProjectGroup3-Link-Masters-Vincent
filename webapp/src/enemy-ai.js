@@ -6,8 +6,8 @@ export class EnemyAI {
     // Generate all possible moves on a 10x10 board
     generateAllPossibleMoves() {
       const moves = [];
-      for (let row = 0; row < 10; row++) {
-        for (let col = 0; col < 10; col++) {
+      for (let row = 0; row < 4; row++) { // modify the 4's here to be dynamic to work with any board size 
+        for (let col = 0; col < 4; col++) {
           moves.push({ row, col });
         }
       }

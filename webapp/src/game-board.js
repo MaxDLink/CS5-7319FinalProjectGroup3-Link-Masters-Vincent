@@ -16,9 +16,9 @@ class GameBoard extends LitElement {
 
   constructor() {
     super();
-    // 4 columns, 6 rows
-    this.playerBoard = Array(10).fill().map(() => Array(10).fill('')); // this.playerBoard = Array(10).fill().map(() => Array(10).fill(''));
-    this.enemyBoard = Array(10).fill().map(() => Array(10).fill('')); // this.enemyBoard = Array(10).fill().map(() => Array(10).fill(''));
+    // 4 columns, 6 rows -- make this dynamic and make the 4 on line 183 dynamic too 
+    this.playerBoard = Array(4).fill().map(() => Array(4).fill('')); // this.playerBoard = Array(10).fill().map(() => Array(10).fill(''));
+    this.enemyBoard = Array(4).fill().map(() => Array(4).fill('')); // this.enemyBoard = Array(10).fill().map(() => Array(10).fill(''));
 
     // Instantiate the enemy AI
     this.enemyAI = new EnemyAI();
@@ -140,8 +140,9 @@ class GameBoard extends LitElement {
     let placedShips = 0;
 
     while (placedShips < shipCount) {
+      // make this dynamic along with board size 
       const row = Math.floor(Math.random() * 4);
-      const col = Math.floor(Math.random() * 10);
+      const col = Math.floor(Math.random() * 4);
 
       if (this.enemyBoard[row][col] === '') {
         this.enemyBoard[row][col] = '🚢';
@@ -180,7 +181,7 @@ class GameBoard extends LitElement {
     }
     .board {
       display: grid;
-      grid-template-columns: repeat(10, 1fr);
+      grid-template-columns: repeat(4, 1fr); // change 4 to change board size 
       grid-gap: 2px;
       width: 45vmin;
       height: 45vmin;
