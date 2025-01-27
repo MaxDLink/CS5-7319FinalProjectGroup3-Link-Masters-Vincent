@@ -229,7 +229,7 @@ class GameBoard extends LitElement {
     .row {
       display: contents;
     }
-    .cell {
+       .cell {
       background-color: lightblue;
       border: 1px solid #ccc;
       display: flex;
@@ -237,6 +237,10 @@ class GameBoard extends LitElement {
       justify-content: center;
       cursor: pointer;
       transition: background-color 0.3s;
+      font-size: 5vmin; // Use viewport width for responsive font size
+      width: 10vmin; // Use viewport width for responsive width
+      height: 10vmin; // Use viewport width for responsive height
+      box-sizing: border-box; // Ensure padding and border are included in the element's total width and height
     }
     .cell.hit-enemy {
       background-color: green;
