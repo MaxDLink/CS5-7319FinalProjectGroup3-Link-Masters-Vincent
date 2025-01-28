@@ -18,9 +18,43 @@ export class Login extends LitElement {
   static get styles() {
     return css`
       .login-container {
+        position: fixed; /* Position it fixed in the window */
+        top: 10px; /* Adjust as needed to position it below the top */
+        left: 20px; /* Position it from the left */
         text-align: center;
-        padding: 10px 0;
+        padding: 10px;
         background-color: var(--secondary-color);
+        border-radius: 5px; /* Rounded corners */
+        transition: transform 0.3s ease, opacity 0.3s ease; /* Smooth transition */
+        transform: translateY(-20px); /* Initially hidden above the tab */
+        opacity: 0; /* Initially hidden */
+        pointer-events: none; /* Prevent interaction when hidden */
+      }
+
+      .tab {
+        position: absolute; /* Position the tab */
+        bottom: 0; /* Align to the bottom */
+        right: 0; /* Align to the right */
+        width: 100px; /* Width of the tab */
+        height: 50px; /* Height of the tab */
+        background-color: var(--primary-color); /* Tab color */
+        border-radius: 25px; /* Rounded tab */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer; /* Pointer cursor */
+        transition: transform 0.3s ease, background-color 0.3s ease; /* Smooth transition */
+      }
+
+      .tab:hover {
+        transform: scale(1.1); /* Slightly enlarge on hover */
+        background-color: var(--hover-color); /* Change color on hover */
+      }
+
+      .tab:hover + .login-container {
+        transform: translateY(0); /* Show on hover */
+        opacity: 1; /* Show on hover */
+        pointer-events: auto; /* Allow interaction when visible */
       }
     `
   }
@@ -96,15 +130,16 @@ export class Login extends LitElement {
 
   render() {
     return html`
-    ${this.user ? html`
+      <div class="tab" @click=${this._onClickLogin}>
+        <span></span> <!-- Text for the tab -->
+      </div>
       <div class="login-container">
+        ${this.user ? html`
           <button @click=${this._onClickLogout} id="signOut" class="lite">${this.user?.profile?.email}</button>
-      </div>
-    ` : html`
-      <div class="login-container">
+        ` : html`
           <button @click=${this._onClickLogin} id="signIn" class="lite">Sign In</button>
+        `}
       </div>
-    `}
     ` 
   }
 
