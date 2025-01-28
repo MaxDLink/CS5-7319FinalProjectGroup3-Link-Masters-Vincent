@@ -18,12 +18,12 @@ class App extends LitElement {
   _onLogin(event) {
     this.route = event.detail.isLoggedIn ? 'game' : 'login'
     console.log('App login event', event.detail.isLoggedIn)
-    // this.route = 'game'; // bypass login for now
+    this.route = 'game'; // bypass login for now
   }
 
   render() {
     return html`
-
+ <div class="overall-container">
     <div class="login-container">
       <login-element @login=${this._onLogin}></login-element>
     </div>
@@ -32,9 +32,12 @@ class App extends LitElement {
 
     ${this.route === 'game' ? html`
     <div>
+     
       <game-board></game-board>
+      <div class="text-container">
       <div class="instruction-box">
       <div class="message">Place 4 ships on your board. Tap on Player Board 4 times</div>
+    </div>
     </div>
     </div>
      ` : ''}
@@ -43,6 +46,26 @@ class App extends LitElement {
   }
 
   static styles = css`
+  .overall-container {
+   position: relative; /* Set positioning context */
+      width: 100vw; /* Full width */
+      height: 100vh; /* Full height */
+      margin: 0; /* Remove default margin */
+      padding: 0; /* Remove default padding */
+      overflow: hidden; /* Prevent overflow */
+      background-color: gray; /* Set background color */
+      display: flex; /* Use flexbox for layout */
+      flex-direction: column; /* Stack children vertically */
+      justify-content: center; /* Center content vertically */
+      align-items: center; /* Center content horizontally */
+      
+  } 
+    
+  .text-container {
+    position: absolute;
+    top: 50px; 
+    left: -235px;
+  } 
     
   .icon {
       font-size: 40px;
@@ -94,14 +117,55 @@ class App extends LitElement {
         }
     } 
 
+    login-element {
+      position: absolute; /* Use absolute positioning */
+      top: 50px; /* Adjust this value to move it vertically */
+      left: 75px; /* Adjust this value to move it horizontally */
+      /* You can also use right or bottom properties if needed */
+    } 
+
+    /* Media query for desktop */
+    @media (min-width: 1024px) {
+      .game-container {
+        flex-direction: column; /* Keep side by side for desktop */
+      }
+
+      game-board {
+        width: 30vmin; /* Adjust size for desktop */
+        height: 30vmin; /* Adjust size for desktop */
+      }
+
+      .instruction-box {
+        bottom: 80px; /* Adjust position for desktop */
+        left: 10px; /* Adjust position for desktop */
+      }
+    } 
+
   `;
 
   getOrientation(boardContainer, playerBoard, enemyBoard) {
+    // Check for Windows or macOS
+    const isWindows = /Windows/i.test(navigator.userAgent);
+    const isMac = /Macintosh/i.test(navigator.userAgent);
+    
+    // Check if it's a desktop environment with stricter conditions
+    const isDesktop = (isWindows || isMac) && window.innerWidth > 1024 && window.innerHeight > 600;
+
+    // Check if it's a desktop environment first
+    if (isDesktop) {
+      console.log("Detected desktop environment");
+      if (boardContainer) {
+          boardContainer.style.flexDirection = 'row'; // Default to row for desktop
+          boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
+      }
+      return; // Exit the function after handling desktop
+    }
     let _orn = screen.orientation ? screen.orientation.type : (screen.mozOrientation || screen.msOrientation);
     console.log('Current orientation:', _orn); // Debugging line
   
     // Update the viewport based on the orientation
     const viewport = document.getElementById("viewport");
+    console.log('Viewport:', viewport);
     // const boardContainer = document.querySelector('.board-container'); // Adjust selector as needed
     // const playerBoard = document.querySelector('.player-board .board'); // Adjust selector as needed
     // const enemyBoard = document.querySelector('.enemy-board .board'); // Adjust selector as needed
@@ -123,18 +187,18 @@ class App extends LitElement {
             // playerBoard.style.margin = '0px'; // Reset to original size
             // enemyBoard.style.margin = '0px'; // Reset to original size
         }
-    } else if (_orn.includes('landscape')) {
-        console.log("Scaling boards to fit landscape");
-        console.log('boardContainer', boardContainer)
+    }  // else if (_orn.includes('landscape')) {
+    //     console.log("Scaling boards to fit landscape");
+    //     console.log('boardContainer', boardContainer)
   
-        // viewport.setAttribute("content", "width=600px, initial-scale=1.0"); // Adjust width for landscape
-        if (boardContainer) {
-            boardContainer.style.flexDirection = 'row'; // Change to row for landscape
-            boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
-            playerBoard.style.margin = '5px'; // Set smaller margin for player board
-            enemyBoard.style.margin = '5px'; // Set smaller margin for enemy board
-        }
-    }
+    //     // viewport.setAttribute("content", "width=600px, initial-scale=1.0"); // Adjust width for landscape
+    //     if (boardContainer) {
+    //         boardContainer.style.flexDirection = 'row'; // Change to row for landscape
+    //         boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
+    //         playerBoard.style.margin = '5px'; // Set smaller margin for player board
+    //         enemyBoard.style.margin = '5px'; // Set smaller margin for enemy board
+    //     }
+    // }
   } 
 
   updated(changedProperties) {
