@@ -133,6 +133,12 @@ export class Login extends LitElement {
     const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com"; //Mine: https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com //OG: https://backend-auth.auth.us-east-1.amazoncognito.com
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
   }
+
+  // Public method to trigger login
+  login() {
+    this._onClickLogin();
+}
+
 }
 
 /**
