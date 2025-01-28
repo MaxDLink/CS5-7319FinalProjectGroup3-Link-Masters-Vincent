@@ -62,7 +62,16 @@
         z-index: 10; /* Ensure it appears above other elements */
       }
       
-    
+       /* Style for the object element */
+       #style-bar {
+            position: fixed; /* or 'absolute' depending on your layout */
+            top: 10px; /* Adjust this value to move it down */
+            left: 0; /* Adjust this value to move it horizontally */
+            width: 100%; /* Full width */
+            height: 150px; /* Adjust height as needed */
+            z-index: 20; /* Ensure it appears above other content */
+            background-color: transparent; 
+        }
       
     </style>
   </head>
@@ -118,7 +127,7 @@
     <!-- <login-element></login-element> -->
   </div>
   
-  <object type="text/html" data="style-bar.html" width="100%" height="100%"></object> 
+  <object id="style-bar" type="text/html" data="style-bar.html"></object> 
 
   <app-element></app-element>
   

@@ -7,7 +7,7 @@
     font-family: 'Poppins', sans-serif;
 }
 :root {
-    --clr: #222327;
+    --clr: #222327; 
 
 }
 
@@ -16,7 +16,7 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: var(--clr);
+    background: transparent;
 }
 .navigation{
     width: 400px;
