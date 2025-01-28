@@ -1,3 +1,4 @@
+
 // Object to keep track of click counts for each button
 // creteria is 2 
 // starts at 1 and not 0 because the user starts on the tutorial button and we want that to be activated immediately if they click it 
