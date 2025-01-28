@@ -18,7 +18,7 @@ function handleTutorialClick(event) {
         console.log('Tutorial button activated!'); // Confirm the click is registered
         const loginElement = document.querySelector('login-element'); // Get the Lit component
         if (loginElement) {
-            loginElement.login(); // Call the login method
+            // loginElement.login(); // Call the login method
         }
         // Reset the click count
         clickCounts[buttonId] = 0;
@@ -41,7 +41,9 @@ function handleLoginClick(event) {
         console.log('Login button activated!'); // Confirm the click is registered
         const loginElement = document.querySelector('login-element'); // Get the Lit component
         if (loginElement) {
-            loginElement.login(); // Call the login method
+            // loginElement.login(); // Call the public login method
+        } else {
+            console.error('Login element not found!');
         }
         // Reset the click count
         clickCounts[buttonId] = 0;
@@ -65,7 +67,7 @@ function handleProfileClick(event) {
         console.log('Profile button clicked'); // Confirm the click is registered
         const loginElement = document.querySelector('login-element'); // Get the Lit component
         if (loginElement) {
-            loginElement.login(); // Call the login method
+            // loginElement.login(); // Call the login method
         }
         // Reset the click count
         clickCounts[buttonId] = 0;
@@ -88,7 +90,7 @@ function handlePlayAgainClick(event) {
         console.log('Play Again button activated!'); // Confirm the click is registered
         const loginElement = document.querySelector('login-element'); // Get the Lit component
         if (loginElement) {
-            loginElement.login(); // Call the login method
+            // loginElement.login(); // Call the login method
         }
         // Reset the click count
         clickCounts[buttonId] = 0;
@@ -112,7 +114,7 @@ function handleChatClick(event) {
         console.log('Chat button activated!'); // Confirm the click is registered
         const loginElement = document.querySelector('login-element'); // Get the Lit component
         if (loginElement) {
-            loginElement.login(); // Call the login method
+            // loginElement.login(); // Call the login method
         }
         // Reset the click count
         clickCounts[buttonId] = 0;

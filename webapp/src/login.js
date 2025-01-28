@@ -134,10 +134,7 @@ export class Login extends LitElement {
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
   }
 
-  // Public method to trigger login
-  login() {
-    this._onClickLogin();
-}
+  
 
 }
 

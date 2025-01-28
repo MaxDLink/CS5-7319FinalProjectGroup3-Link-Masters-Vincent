@@ -4,8 +4,10 @@
     <title>Side Bar</title>
     <link rel="stylesheet" type="text/css" href="side-bar.css">
     <script src="style-bar.js" defer></script> <!-- Link to the JavaScript file -->
+    <script type="module" src="src/login.js"></script> <!-- Correct path to login.js -->
   </head>
   <body>
+    <login-element></login-element> <!-- Ensure this is present --> 
     <div class="navigation">
       <ul>
         <li class="list active"> 
@@ -41,6 +43,9 @@
       <div class="indicator"></div> 
     </ul>
     </div>
+
+    
+
     <script> 
       const list = document.querySelectorAll('.list'); 
       function activeLink() {
