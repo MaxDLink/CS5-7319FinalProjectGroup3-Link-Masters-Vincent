@@ -25,15 +25,20 @@ class App extends LitElement {
     return html`
  <div class="overall-container">
     <div class="login-container">
-      <login-element @login=${this._onLogin}></login-element>
+      <!-- Removed login-element -->
+      <!-- <login-element @login=${this._onLogin}></login-element> -->
+
+      <!-- game board must appear earlier in DOM if we want login to be optional and not mandatory -->
+      <game-board></game-board>
+
     </div>
 
     
 
     ${this.route === 'game' ? html`
     <div>
-     
-      <game-board></game-board>
+      <!-- game board when login was mandatory -->
+      <!-- <game-board></game-board> -->
       <div class="text-container">
       <div class="instruction-box">
       <div class="message">Place 4 ships on your board. Tap on Player Board 4 times</div>
