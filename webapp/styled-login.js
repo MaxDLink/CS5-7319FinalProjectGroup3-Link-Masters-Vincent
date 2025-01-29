@@ -91,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault(); // Prevent the default anchor behavior
         // Add your functionality here, e.g., navigate to a tutorial page
         console.log('Tutorial button clicked!'); // Example action
+        window.location.href = "scrollPage.html"; // Replace with your actual file name
     });
 });
 
