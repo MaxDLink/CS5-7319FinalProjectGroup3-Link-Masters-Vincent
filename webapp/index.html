@@ -9,6 +9,8 @@
   <script type="module" src="src/ship.js"></script> <!-- Ship -->
   <script type="module" src="src/app.js"></script> <!-- App -->
   <script src="src/sounds.js" type="module"></script> <!-- sounds --> 
+  <!-- included jquery so that login button can change to profile button after clicked in styled-login.js -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 
   <meta charset="UTF-8">
@@ -43,7 +45,7 @@
     }
   </style>
   <!-- Include additional scripts -->
-  <script type="module" src="styled-login.js"></script>
+  <script type="module" src="styled-login.js"></script> <!-- for the button bar functionality-->
   <script type="module" src="src/login.js"></script>
 </head>
 
@@ -62,18 +64,34 @@
             <span class="text">Tutorial</span>
           </a>
         </li>
+        <!-- <li class="list">
+          <a href="#" id="loginButton">
+            <span class="icon"><ion-icon name="log-in-outline"></ion-icon></span>
+            <span class="text">Login</span>
+          </a>
+        </li> -->
         <li class="list">
           <a href="#" id="loginButton">
             <span class="icon"><ion-icon name="log-in-outline"></ion-icon></span>
             <span class="text">Login</span>
           </a>
         </li>
-        <li class="list">
+
+        <!-- Hidden profile button --> 
+      <li class="list" id="profileListItem" style="display: none;">
+        <a href="#" id="profileButton">
+          <span class="icon"><ion-icon name="person-circle-outline"></ion-icon></span>
+          <span class="text">Profile</span>
+        </a>
+      </li>
+
+        <!-- should replace login button once login is clicked -->
+        <!-- <li class="list">
           <a href="#" id="profileButton">
             <span class="icon"><ion-icon name="person-circle-outline"></ion-icon></span>
             <span class="text">Profile</span>
           </a>
-        </li>
+        </li> -->
         <li class="list">
           <a href="#" id="playAgainButton">
             <span class="icon"><ion-icon name="play-outline"></ion-icon></span>
@@ -112,7 +130,7 @@
         this.classList.add('active'); 
       }
       list.forEach((item) => item.addEventListener('click', activeLink));
-    });
+  });
   </script>
 
   <!-- Load ionicons -->

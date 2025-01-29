@@ -162,3 +162,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     });
 });
+
+// Add the jQuery code here
+// $(document).on('click', '#loginButton', function() {
+//     // Simulate login action
+//     // After successful login, change the button
+//     $('#loginListItem').hide(); // Hide login button
+//     $('#profileListItem').show(); // Show profile button
+// });
+
+// show profile button after login button is clicked
+// TODO: replace the login button with the profile button in a cleaner way. This keeps a local storage to get around the page refreshing on login, but that is bad architecture. 
+$(document).ready(function(){
+  // Check if the button has already been replaced
+  if (localStorage.getItem('buttonReplaced') !== 'true') {
+    $("#loginButton").click(function(){
+      setTimeout(() => {
+        $(this).replaceWith($('#profileListItem').show());
+      }, 3000); // Delay of 3 seconds so that amazon cognito can pop up. Hacky fix 
+        // Set the flag in localStorage
+        localStorage.setItem('buttonReplaced', 'true');
+    });
+  } else {
+    // If already replaced, you can directly add the new button
+    $("#loginButton").replaceWith($('#profileListItem').show());
+  }
+});
