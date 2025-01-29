@@ -10,6 +10,7 @@
     <script src="src/game-board.js" type="module"></script> <!-- Ensure this path is correct -->
     <title>Intersection observer</title>
 
+    <title>Play</title>
 </head>
 <body>
 
@@ -54,7 +55,29 @@
     <h1 class="animation">
         The game will continue until one player has no ships left
     </h1>
-    </section>
+    
+    <!-- handles the play button styling logic -->
+    <style>
+        .button-container {
+            margin-top: 40px; /* Adjust the value as needed */
+        }
+
+        .button-container button {
+            padding: 10px 20px; /* Add some padding */
+            cursor: pointer; /* Change cursor to pointer */
+            font-size: 16px; /* Adjust font size as needed */
+            color: #000; /* Set text color */
+            transition: border-color 0.3s, color 0.3s; /* Smooth transition for color change */
+        }
+        .button-container button:hover {
+            background-color: orange;
+        }
+
+    </style>
+
+    <div class="button-container">
+        <button onclick="window.history.back()">Play!</button>
+    </div>
 
 </body>
 </html>
