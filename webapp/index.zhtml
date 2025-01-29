@@ -1,0 +1,10 @@
+<html>
+    <head>
+        <title>Auto FadeIn Text</title>
+        <link rel="stylesheet" href="styles-fade.css">
+    </head>
+    <body>
+        <h1 id="fade-text"><code>I'm Faded :D</code></h1>
+        <script src="fade.js"></script>
+    </body>
+</html>
