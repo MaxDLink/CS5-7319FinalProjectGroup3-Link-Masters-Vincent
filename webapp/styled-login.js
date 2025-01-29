@@ -1,4 +1,6 @@
 import { UserManager, Log } from "oidc-client-ts";
+import './profile-lit.js'; // for profile page on profile button click 
+import './ChatBox.js'; // for chat page on chat button click 
 
 // Set up logging for debugging
 Log.setLogger(console);
@@ -120,6 +122,10 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault(); // Prevent the default anchor behavior
         // Add your functionality here, e.g., navigate to a tutorial page
         console.log('profile button clicked!'); // Example action
+        // Append the profile lit component directly to the body
+        const app = document.createElement('div');
+        app.innerHTML = `<profile-element></profile-element>`;
+        document.body.appendChild(app);  
     });
 });
 
@@ -132,6 +138,8 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault(); // Prevent the default anchor behavior
         // Add your functionality here, e.g., navigate to a tutorial page
         console.log('play again button clicked!'); // Example action
+        // reload the game board
+        window.location.reload();
     });
 });
 
@@ -144,5 +152,12 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault(); // Prevent the default anchor behavior
         // Add your functionality here, e.g., navigate to a tutorial page
         console.log('chat button clicked!'); // Example action
+
+
+        // Append the chat lit component directly to the body
+        const app = document.createElement('div');
+        app.innerHTML = `<chat-box></chat-box>`;
+        document.body.appendChild(app);  
+
     });
 });
