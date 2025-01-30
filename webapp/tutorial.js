@@ -1,0 +1,146 @@
+/* global Event */
+import {html, css, LitElement} from 'lit'
+
+
+/**
+ * @class Tutorial
+ * @extends {LitElement}
+ * @description Web component handle tutorial onboarding 
+ */
+export class Tutorial extends LitElement {
+  static get styles() {
+    return css`
+.tutorial-container {
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+
+}
+
+body {
+    color: rgb(222, 135, 13);
+}
+
+section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+    `
+  }
+
+  static get properties() {
+    return {
+      
+    }
+  }
+
+  constructor() {
+   
+    super(); 
+    
+
+    
+  }
+
+  render() {
+    return html`
+    <!-- global styling for lightblue background -->
+    <div style="background-color: lightblue;"> 
+      <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+    <script src="script.js" defer></script> <!-- TODO: update this file to add side move in animation to our tutorial scroll? -->
+    <script src="src/game-board.js" type="module"></script> <!-- Ensure this path is correct -->
+    <title>Intersection observer</title>
+
+    <title>Play</title>
+</head>
+<body>
+
+    
+
+
+    <section>
+        <h1>
+            Welcome to Battle Ship Down! <br><br>Scroll down to learn how to play
+        </h1>
+
+    </section>
+    <section> 
+        <h2 class="animation">Game Boards</h2>
+        <p class="animation">There is a player board and an enemy board 
+        </p>
+        <!-- Instantiate the game-board component -->
+        <!-- <game-board></game-board> -->
+
+        
+
+        </section>
+        
+
+        <section>
+        <h1 class="animation">
+            The player will place down their four ships. <br> Tap player board four times 
+        </h1>
+    </section>
+    <section> 
+    <h1 class="animation">
+        The enemy will attack the player's board
+    </h1>
+    </section>
+    <section> 
+
+    <h1 class="animation">
+        The player will attack the enemies board  
+    </h1>
+    </section>
+    <section> 
+    <h1 class="animation">
+        The game will continue until one player has no ships left
+    </h1>
+    
+    <!-- handles the play button styling logic -->
+    <style>
+        .button-container {
+            margin-top: 40px; /* Adjust the value as needed */
+        }
+
+        .button-container button {
+            padding: 10px 20px; /* Add some padding */
+            cursor: pointer; /* Change cursor to pointer */
+            font-size: 16px; /* Adjust font size as needed */
+            color: #000; /* Set text color */
+            transition: border-color 0.3s, color 0.3s; /* Smooth transition for color change */
+        }
+        .button-container button:hover {
+            background-color: orange;
+        }
+
+    </style>
+
+    <div class="button-container">
+        <button onclick="window.history.back()">Play!</button>
+    </div>
+
+</body>
+</html>
+    ` 
+  }
+
+  // no js functions needed 
+  
+
+}
+
+/**
+ * @customElement login-element
+ */
+window.customElements.define('tutorial-element', Tutorial)

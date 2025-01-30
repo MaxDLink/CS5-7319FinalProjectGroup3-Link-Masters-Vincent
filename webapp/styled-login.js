@@ -1,6 +1,7 @@
 import { UserManager, Log } from "oidc-client-ts";
 import './profile-lit.js'; // for profile page on profile button click 
 import './ChatBox.js'; // for chat page on chat button click 
+import './tutorial.js'; // for tutorial page on tutorial button click 
 
 // Set up logging for debugging
 Log.setLogger(console);
@@ -91,7 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault(); // Prevent the default anchor behavior
         // Add your functionality here, e.g., navigate to a tutorial page
         console.log('Tutorial button clicked!'); // Example action
-        window.location.href = "scrollPage.html"; // Replace with your actual file name
+        // window.location.href = "scrollPage.html"; // Replace with your actual file name
+        // link to tutorial lit element 
+        document.body.innerHTML = ''; // Clear existing content
+        const tutorialElement = document.createElement('tutorial-element');
+        document.body.appendChild(tutorialElement);
+
     });
 });
 
