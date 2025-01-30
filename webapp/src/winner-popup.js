@@ -41,15 +41,20 @@ class WinnerPopup extends LitElement {
       display: flex;
       justify-content: center;
       align-items: center;
+      border-radius: 10px;
     }
     .content {
-      background-color: white;
+      background-color: orange;
       padding: 20px;
       border-radius: 5px;
       text-align: center;
     }
     button {
       margin-top: 10px;
+
+    }
+    button:hover {
+      background-color:rgb(255, 255, 255);
     }
   `;
 }
