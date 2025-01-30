@@ -299,7 +299,7 @@ class GameBoard extends LitElement {
     .board {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      border: 4px solid #ccc;
+      border: 2px solid darkgrey;
       width: 40vmin;
       height: 40vmin;
     }
@@ -308,7 +308,8 @@ class GameBoard extends LitElement {
     }
     .cell {
       background-color: lightblue;
-      border: 2px solid #ccc;
+      border: 4.5px solid #ccc;
+      border-color: darkgrey;
       display: flex;
       align-items: center;
       justify-content: center;
