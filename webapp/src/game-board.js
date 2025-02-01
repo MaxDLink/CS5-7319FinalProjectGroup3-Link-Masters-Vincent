@@ -266,12 +266,13 @@ class GameBoard extends LitElement {
     // Add logic to reset the game state if needed
   }
 
+  // TODO - take out flex-direction column in .board-container and take out @media (max-width: 768px) fields. Only style the horizontal and vertical boards in app.js @media tag for more encapsulation 
   static styles = css`
     .board-container {
       position: relative; 
       top: 50px;
       display: flex;
-      flex-direction: column; // column by default for portrait 
+      flex-direction: column; 
       justify-content: flex-start; //flex-start for portrait 
       align-items: center;
       width: 100%;
@@ -338,6 +339,20 @@ class GameBoard extends LitElement {
     .cell.miss {
       background-color: lightgray;
     }
+
+    
+    @media (max-width: 768px) { 
+    .board-container {
+      flex-direction: row; 
+    }
+    .player-board {
+      margin: 5px; 
+    }
+    .enemy-board {
+      margin: 5px; 
+      
+    }
+  }
   `;
 }
 

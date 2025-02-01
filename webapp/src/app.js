@@ -99,6 +99,7 @@ class App extends LitElement {
     .right-column {
       order: 2; 
       display: flex; 
+      //TODO - take out flex-direction row in .board-container and take out @media (max-width: 768px) fields. Only style the horizontal and vertical boards in this @media tag for better encapsulation 
       width: 100%; 
     }
   }
