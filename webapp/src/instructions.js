@@ -18,8 +18,8 @@ class Instructions extends LitElement {
         margin: 0; /* Remove default margin */
         font-size: 1.2em; /* Adjust font size for better readability */
         font-weight: bold; 
-        top: 175px; 
-        left: 15px; 
+        top: 75px; 
+        left: 20px; 
     }
 
 
