@@ -1,7 +1,0 @@
-<!DOCTYPE html>
-<head>
-  <script type="module" src="./tutorial.js"></script> <!-- loads the tutorial page -->
-</head>
-<body>
-  <tutorial-element></tutorial-element> <!-- loads the tutorial element -->
-</body>

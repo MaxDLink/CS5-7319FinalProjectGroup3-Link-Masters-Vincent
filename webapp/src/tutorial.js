@@ -10,8 +10,8 @@ import {html, css, LitElement} from 'lit'
 export class Tutorial extends LitElement {
   static get styles() {
     return css`
-.tutorial-container {
-* {
+:host {
+{
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -19,6 +19,7 @@ export class Tutorial extends LitElement {
 }
 
 body {
+    background-color: rgb(9, 77, 140);
     color: rgb(222, 135, 13);
 }
 
@@ -27,7 +28,11 @@ section {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    height: 100vh;
 }
+
+}
+
     `
   }
 
@@ -127,7 +132,7 @@ section {
     </style>
 
     <div class="button-container">
-        <button onclick="window.history.back()">Play!</button>
+        <button @click=${this.playButton}>Play!</button>
     </div>
 
 </body>
@@ -136,7 +141,11 @@ section {
   }
 
   // no js functions needed 
-  
+  playButton() {
+    console.log('Play button clicked!');
+    // reload the game board
+    window.location.reload();
+  }
 
 }
 

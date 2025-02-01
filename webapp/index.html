@@ -4,7 +4,7 @@
   <link rel="stylesheet" href="side-bar.css">
   
   <!-- Login Redirect with lit element, irrelevant for now -->
-  <!-- <script type="module" src="src/login.js"></script> --> 
+  <script type="module" src="src/login.js"></script> 
   <script type="module" src="src/game-board.js"></script> <!-- Game Board -->
   <script type="module" src="src/ship.js"></script> <!-- Ship -->
   <script type="module" src="src/app.js"></script> <!-- App -->
@@ -15,125 +15,14 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simple Cognito Auth</title>
-  <style>
-    .login-container {
-      position: fixed;
-      top: 10px;
-      left: 20px;
-      text-align: center;
-      padding: 10px;
-      background-color: lightgray;
-      border-radius: 5px;
-      z-index: 1000;
-    }
-
-    /* Style for the object element */
-    #style-bar {
-      position: fixed; /* or 'absolute' depending on your layout */
-      top: 10px; /* Adjust this value to move it down */
-      left: 0; /* Adjust this value to move it horizontally */
-      width: 100%; /* Full width */
-      height: 150px; /* Adjust height as needed */
-      z-index: 20; /* Ensure it appears above other content */
-      background-color: transparent; 
-    }
-
-    button {
-      padding: 10px 15px;
-      cursor: pointer;
-    }
-  </style>
-  <!-- Include additional scripts -->
-  <script type="module" src="styled-login.js"></script> <!-- for the button bar functionality-->
-  <script type="module" src="src/login.js"></script>
+  <title>Battleship Down</title>
+  
+ 
 </head>
 
 <body>
 
   <app-element></app-element> <!-- launches app -->
 
-  <!-- <login-element></login-element> Ensure this is present -->
-  <div id="style-bar">
-    <div class="navigation">
-      <ul>
-        <li class="list active">
-          <a href="#" id="TutorialButton">
-            <span class="icon"><ion-icon name="help-outline"></ion-icon></span>
-            <span class="text">Tutorial</span>
-          </a>
-        </li>
-        <!-- <li class="list">
-          <a href="#" id="loginButton">
-            <span class="icon"><ion-icon name="log-in-outline"></ion-icon></span>
-            <span class="text">Login</span>
-          </a>
-        </li> -->
-        <li class="list">
-          <a href="#" id="loginButton">
-            <span class="icon"><ion-icon name="log-in-outline"></ion-icon></span>
-            <span class="text">Login</span>
-          </a>
-        </li>
-
-        <!-- Hidden profile button --> 
-      <li class="list" id="profileListItem" style="display: none;">
-        <a href="#" id="profileButton">
-          <span class="icon"><ion-icon name="person-circle-outline"></ion-icon></span>
-          <span class="text">Profile</span>
-        </a>
-      </li>
-
-        <!-- should replace login button once login is clicked -->
-        <!-- <li class="list">
-          <a href="#" id="profileButton">
-            <span class="icon"><ion-icon name="person-circle-outline"></ion-icon></span>
-            <span class="text">Profile</span>
-          </a>
-        </li> -->
-        <li class="list">
-          <a href="#" id="playAgainButton">
-            <span class="icon"><ion-icon name="play-outline"></ion-icon></span>
-            <span class="text">Play Again</span>
-          </a>
-        </li>
-        <li class="list">
-          <a href="#" id="chatButton">
-            <span class="icon"><ion-icon name="chatbox-outline"></ion-icon></span>
-            <span class="text">Chat</span>
-          </a>
-        </li>
-      </ul>
-      <div class="indicator"></div>
-    </div>
-  </div>
-
-  <div id="app">
-  
-    </div>
-  </div>
-
-  <script>
-    // Add event listeners after the DOM is fully loaded
-    document.addEventListener("DOMContentLoaded", function() {
-      const tutorialButton = document.getElementById("TutorialButton");
-      if (tutorialButton) {
-        tutorialButton.addEventListener("click", handleTutorialClick);
-      } else {
-        console.error('TutorialButton not found');
-      }
-
-      const list = document.querySelectorAll('.list'); 
-      function activeLink() {
-        list.forEach((item) => item.classList.remove('active')); 
-        this.classList.add('active'); 
-      }
-      list.forEach((item) => item.addEventListener('click', activeLink));
-  });
-  </script>
-
-  <!-- Load ionicons -->
-  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </body>
 </html>
