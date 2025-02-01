@@ -6,14 +6,12 @@ class Instructions extends LitElement {
 
 
     .text-container {
-        position: absolute;
         top: 50px; 
         left: -235px;
     } 
 
 
     .message {
-        position: absolute;
         color: orange; /* Style the message text */
         margin: 0; /* Remove default margin */
         font-size: 1.2em; /* Adjust font size for better readability */
@@ -24,7 +22,6 @@ class Instructions extends LitElement {
 
 
     .instruction-box {
-    position: absolute;
     bottom: 600px; /* Adjust this value to position it higher or lower */
     left: 5px; /* Align with the login element */ 
     font-weight: bold;
@@ -43,8 +40,9 @@ class Instructions extends LitElement {
     render() {
         return html`
             <div>
-                <div class="instruction-box"></div> 
-                <div class="message">Place 4 ships on your board. <br> Tap on Player Board 4 times</div>
+                <div class="instruction-box">
+                    <div class="message">Place 4 ships on your board. <br> Tap on Player Board 4 times</div>
+                </div>
             </div>
         `;
     }

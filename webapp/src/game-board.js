@@ -274,7 +274,7 @@ class GameBoard extends LitElement {
       flex-direction: column; // column by default for portrait 
       justify-content: flex-start; //flex-start for portrait 
       align-items: center;
-      width: 100vw;
+      width: 100%;
       background-color: grey;
       margin: 0;
       padding: 0;

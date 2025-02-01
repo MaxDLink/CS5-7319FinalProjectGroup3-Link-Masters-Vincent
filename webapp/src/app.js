@@ -1,6 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import './nav-bar.js';
 import './instructions.js';
+import './login.js';
+import './game-board.js';
+import './ship.js';
 
 class App extends LitElement {
 
@@ -26,23 +29,26 @@ class App extends LitElement {
   render() {
     return html`
  <div class="overall-container">
-    <div class="login-container">
-     <login-element @login=${this._onLogin}></login-element>
-    </div>
+    <div class="flex-container">
+      <div class="left-column">
+        <div class="login-container">
+          <login-element @login=${this._onLogin}></login-element>
+        </div>
+        ${this.route === 'game' ? html`
+        <div>
+          <instruction-component></instruction-component>
+          <nav-bar></nav-bar>
+        </div>
+        ` : ''}
+      </div>
 
-    
-
-    ${this.route === 'game' ? html`
-    <div>
-      <!-- game board when login was mandatory -->
-      <game-board></game-board>
-      <instruction-component></instruction-component>
-      <nav-bar></nav-bar>
+      ${this.route === 'game' ? html`
+      <div class="right-column">
+        <game-board></game-board>
+      </div>
+      ` : ''} 
     </div>
     </div>
-    </div>
-     ` : ''}
-
     `;
   }
 
@@ -62,6 +68,26 @@ class App extends LitElement {
       
   } 
 
+  .flex-container {
+    display: flex; /* Use flexbox for layout */
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+  }
+
+  .left-column {
+    flex: 1; /* Take up equal space */
+    display: flex;
+    flex-direction: column; /* Stack children vertically */
+    justify-content: center; /* Center content vertically */
+    align-items: center; /* Center content horizontally */
+  }
+
+  .right-column {
+    flex: 2; /* Take up more space than the left column */
+    display: flex;
+    justify-content: center; /* Center content vertically */
+    align-items: center; /* Center content horizontally */
+  }
   `;
 
 }
