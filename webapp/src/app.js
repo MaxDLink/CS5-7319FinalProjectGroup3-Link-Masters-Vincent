@@ -83,10 +83,24 @@ class App extends LitElement {
   }
 
   .right-column {
-    flex: 2; /* Take up more space than the left column */
+    flex: 2; 
     display: flex;
-    justify-content: center; /* Center content vertically */
-    align-items: center; /* Center content horizontally */
+    justify-content: center; 
+    align-items: center; 
+  }
+
+  @media (max-width: 768px) { 
+    .flex-container {
+      flex-direction: column; 
+    }
+    .left-column {
+      order: 1; 
+    }
+    .right-column {
+      order: 2; 
+      display: flex; 
+      width: 100%; 
+    }
   }
   `;
 
