@@ -200,7 +200,7 @@ class GameBoard extends LitElement {
           return; // Stop further actions
         }
         this.requestUpdate(); // Ensure the component re-renders
-        this.switchTurn();
+        this.switchTurn(); // switch to player's turn 
       }, 1000); // Delay of 1000 milliseconds (1 second)
     }
   }
@@ -220,6 +220,7 @@ class GameBoard extends LitElement {
   }
 
   placeShip(row, col) {
+    console.log('Placing player ships at:', row, col);
     if (this.shipsPlaced < 4 && this.playerBoard[row][col] === '') {
       this.playerBoard[row][col] = '🚢'; // Place ship
       this.shipsPlaced++; // Increment ships placed count
@@ -231,13 +232,15 @@ class GameBoard extends LitElement {
         this.requestUpdate(); // Re-render to show updated message
         console.log('Dispatching message-updated event with message:', this.message); // Debugging line
         this.dispatchEvent(new CustomEvent('message-updated', { detail: this.message })); // Dispatch event
-        this.switchTurn(); // Start the player's turn
+        // this.switchTurn(); // Start the player's turn
+        console.log("all ships placed, enemy moves first");
+        this.enemyMove(); // enemy moves first 
       }
     }
   }
 
   placeEnemyShips() {
-    const shipCount = 5;
+    const shipCount = 4; // only 4 ships on enemy board 
     let placedShips = 0;
 
     while (placedShips < shipCount) {
