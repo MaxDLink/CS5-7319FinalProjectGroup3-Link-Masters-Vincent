@@ -13,11 +13,13 @@ class Instructions extends LitElement {
 
 
     .message {
+        position: absolute;
         color: orange; /* Style the message text */
         margin: 0; /* Remove default margin */
         font-size: 1.2em; /* Adjust font size for better readability */
         font-weight: bold; 
-        top: 500px; 
+        top: 175px; 
+        left: 15px; 
     }
 
 
@@ -42,7 +44,7 @@ class Instructions extends LitElement {
         return html`
             <div>
                 <div class="instruction-box"></div> 
-                <div class="message">Place 4 ships on your board. Tap on Player Board 4 times</div>
+                <div class="message">Place 4 ships on your board. <br> Tap on Player Board 4 times</div>
             </div>
         `;
     }

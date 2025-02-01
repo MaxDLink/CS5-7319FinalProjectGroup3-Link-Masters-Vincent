@@ -15,10 +15,6 @@ class GameBoard extends LitElement {
     message: { type: String }, // Added for the new message
   };
 
-  // TODO - 4 columns, 6 rows
-  // static ROWS = 4;
-  // static COLUMNS = 6;
-
   constructor() {
     super();
     // 4 columns, 6 rows -- make this dynamic and make the 4 on line 183 dynamic too 
@@ -272,6 +268,8 @@ class GameBoard extends LitElement {
 
   static styles = css`
     .board-container {
+      position: relative; 
+      top: 50px;
       display: flex;
       flex-direction: column; // column by default for portrait 
       justify-content: flex-start; //flex-start for portrait 

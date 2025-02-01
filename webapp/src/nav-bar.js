@@ -8,8 +8,13 @@ export class NavBar extends LitElement {
   
 @import url('https://fonts.googleapis.com/css?family=Poppins:100,200, 300, 400, 500, 600, 700, 800, 900'); 
 
+:host {
+    position: relative; 
+    bottom: 50px;
+    left: 5px; 
+} 
 * 
-{
+{ 
     margin: 0;
     padding: 0;
     box-sizing: border-box;
