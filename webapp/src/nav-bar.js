@@ -10,7 +10,6 @@ export class NavBar extends LitElement {
 
 :host {
     position: relative; 
-    bottom: 50px;
     left: 5px; 
 } 
 * 

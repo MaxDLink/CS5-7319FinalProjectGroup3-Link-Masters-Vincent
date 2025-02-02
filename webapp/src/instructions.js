@@ -31,7 +31,7 @@ class Instructions extends LitElement {
     padding: 10px; /* Padding inside the box */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
     width: 250px; /* Fixed width for the instruction box */
-    height: 100px; /* Fixed height for the instruction box */
+    height: 40px; /* Fixed height for the instruction box */
     text-align: center; /* Center the text */
     font-size: 0.75em; /* Adjust font size for better readability */
     }

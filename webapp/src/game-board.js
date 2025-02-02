@@ -343,7 +343,7 @@ class GameBoard extends LitElement {
     
     @media (max-width: 768px) { 
     .board-container {
-      flex-direction: row; 
+      flex-direction: row;
     }
     .player-board {
       margin: 5px; 
