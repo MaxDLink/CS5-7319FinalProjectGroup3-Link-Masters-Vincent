@@ -343,15 +343,30 @@ class GameBoard extends LitElement {
     
     @media (max-width: 768px) { 
     .board-container {
-      flex-direction: row;
+      flex-direction: column;
+    }
+    h3{
+      position: relative; 
+      bottom: 65px; 
+    }
+    .board{
+      position: relative; 
+      bottom: 80px;
+      width: 48vmin; 
+      height: 48vmin; 
+      
     }
     .player-board {
       margin: 5px; 
     }
     .enemy-board {
       margin: 5px; 
-      
     }
+    .cell {
+      width: 12vmin;
+      height: 12vmin;
+
+    } 
   }
   `;
 }
