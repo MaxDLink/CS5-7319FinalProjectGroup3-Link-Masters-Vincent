@@ -8,49 +8,63 @@ export class NavBar extends LitElement {
   
 @import url('https://fonts.googleapis.com/css?family=Poppins:100,200, 300, 400, 500, 600, 700, 800, 900'); 
 
+/* I moved the navigation bar to the top by changing the host positioning and adding CSS variables for easier theming */
 :host {
-    position: relative; 
-    left: 5px; 
-    --clr: #222327; 
-
+    --primary-color: #29fd53;
+    --text-color: #222327;
+    --bg-color: #ffffff;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    width: 100%;
 } 
-* 
-{ 
+
+* { 
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     font-family: 'Poppins', sans-serif;
 }
-:root {
 
+/* I created a container for the navigation that's fixed at the top of the viewport */
+.navigation-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    padding: 10px 0;
+    background-color: var(--bg-color);
+    box-shadow: 0 2px 10px var(--shadow-color);
 }
-body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 120vh;
-    background: transparent;
-}
+
+/* I centered the navigation and made it responsive with a max-width */
 .navigation {
-    width: 300px;
-    height: 70px;
-    background: white;
+    max-width: 800px;
+    margin: 0 auto;
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 10px;
+    border-radius: 8px;
+    padding: 5px;
 } 
+
+/* I adjusted the list to be evenly spaced across the navigation bar */
 .navigation ul {
-    display: flex; 
-    width: 350px; 
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 20px;
 } 
+
+/* I made each navigation item take up equal space using flex */
 .navigation ul li {
     position: relative; 
     list-style: none; 
-    width: 70px; 
-    height: 70px; 
     z-index: 1; 
+    flex: 1;
+    text-align: center;
 }
+
+/* I improved the styling of navigation links with better padding and transitions */
 .navigation ul li a {
     position: relative; 
     display: flex; 
@@ -59,98 +73,80 @@ body {
     flex-direction: column; 
     width: 100%; 
     text-align: center; 
-    font-weight: 500; 
-}
-.navigation ul li a .icon {
-    position: relative; 
-    display: block; 
-    line-height: 75px; 
-    font-size: 1.5em; 
-    text-align: center; 
-    transition: 0.5s; 
-    color: var(--clr); 
-}
-.navigation ul li.active a .icon {
-    transform: translateY(-32px); 
+    font-weight: 500;
+    padding: 10px 0;
+    text-decoration: none;
+    transition: 0.3s;
 }
 
+/* I adjusted the icon styling for a cleaner look */
+.navigation ul li a .icon {
+    position: relative; 
+    display: block;
+    font-size: 1.5em; 
+    text-align: center; 
+    transition: 0.3s; 
+    color: var(--text-color); 
+}
+
+/* I made the text always visible but with reduced opacity when not active */
 .navigation ul li a .text {
-    position: absolute;
-    color: var(--clr); 
+    color: var(--text-color); 
     font-weight: 500; 
     font-size: 0.75em;
     letter-spacing: 0.05em;
-    transition: 0.5s;  
-    opacity: 0;
-    transform: translateY(20px); 
-} 
-.navigation ul li.active a .text
-{
-  opacity: 1;
-  transform: translateY(10px); 
-}
-.indicator
-{
-  position: absolute; 
-  top: -50%; 
-  right: 230px; 
-  width: 70px; 
-  height: 70px; 
-  background: #29fd53; 
-  border-radius: 50%; 
-  border: 6px solid var(--clr); 
-  transition: 0.5s; 
-} 
-.indicator::before
-{
-  content: ''; 
-  position: absolute; 
-  top: 50%; 
-  left: -22px; 
-  width: 20px; 
-  height: 20px; 
-  background: transparent; 
-  border-top-right-radius: 20px; 
-
-} 
-.indicator::after
-{
-  content: ''; 
-  position: absolute; 
-  top: 50%; 
-  right: -22px; 
-  width: 20px; 
-  height: 20px; 
-  background: transparent; 
-  border-top-left-radius: 20px; 
-
+    transition: 0.3s;
+    margin-top: 5px;
+    opacity: 0.7;
 }
 
-.navigation ul li:nth-child(1).active ~ .indicator
-{
-  transform: translateX(calc(70px * 0)); 
-}
-.navigation ul li:nth-child(2).active ~ .indicator
-{
-  transform: translateX(calc(70px * 1)); 
-}
-.navigation ul li:nth-child(3).active ~ .indicator
-{
-  transform: translateX(calc(70px * 2)); 
-}
-.navigation ul li:nth-child(4).active ~ .indicator
-{
-  transform: translateX(calc(70px * 3)); 
-}
-.navigation ul li:nth-child(5).active ~ .indicator
-{
-  transform: translateX(calc(70px * 4)); 
+/* I changed the active state to use color and a subtle transform instead of large movements */
+.navigation ul li.active a .icon {
+    color: var(--primary-color);
+    transform: translateY(-2px);
 }
 
+.navigation ul li.active a .text {
+    opacity: 1;
+    color: var(--primary-color);
+}
 
+/* I added hover effects for better user interaction */
+.navigation ul li a:hover .icon {
+    transform: translateY(-2px);
+}
 
+.navigation ul li a:hover .text {
+    opacity: 1;
+}
 
+/* I replaced the circular indicator with a modern underline indicator for active items */
+.navigation ul li.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 3px;
+    background-color: var(--primary-color);
+    border-radius: 3px;
+}
 
+/* I added responsive adjustments for mobile devices */
+@media (max-width: 768px) {
+    .navigation {
+        max-width: 100%;
+    }
+    
+    .navigation ul {
+        padding: 0 10px;
+    }
+    
+    .navigation ul li a .text {
+        font-size: 0.7em;
+    }
+}
 `;
 
   constructor() {
@@ -163,47 +159,40 @@ body {
 
   render() {
     return html` 
-    <div id="style-bar">
-    <div class="navigation">
-      <ul>
-        <li class="list active">
-          <a href="#" id="TutorialButton" @click=${this.handleTutorialClick}>
-            <span class="icon"><ion-icon name="help-outline"></ion-icon></span>
-            <span class="text">Tutorial</span>
-          </a>
-        </li>
-        
-        <li class="list">
-          <a href="#" id="ProfileButton" @click=${this.handleProfileClick}>
-            <span class="icon"><ion-icon name="person-circle-outline"></ion-icon></span>
-            <span class="text">Profile</span>
-          </a>
-        </li>
+    <!-- I simplified the HTML structure and removed unnecessary divs -->
+    <div class="navigation-container">
+      <div class="navigation">
+        <ul>
+          <li class="list active">
+            <a href="#" id="TutorialButton" @click=${this.handleTutorialClick}>
+              <span class="icon"><ion-icon name="help-outline"></ion-icon></span>
+              <span class="text">Tutorial</span>
+            </a>
+          </li>
+          
+          <li class="list">
+            <a href="#" id="ProfileButton" @click=${this.handleProfileClick}>
+              <span class="icon"><ion-icon name="person-circle-outline"></ion-icon></span>
+              <span class="text">Profile</span>
+            </a>
+          </li>
 
-        <li class="list">
-          <a href="#" id="playAgainButton" @click=${this.handlePlayAgainClick}>
-            <span class="icon"><ion-icon name="play-outline"></ion-icon></span>
-            <span class="text">Play Again</span>
-          </a>
-        </li>
-        <li class="list">
-          <a href="#" id="chatButton" @click=${this.handleChatClick}>
-            <span class="icon"><ion-icon name="chatbox-outline"></ion-icon></span>
-            <span class="text">Chat</span>
-          </a>
-        </li>
-      </ul>
-      <div class="indicator"></div>
+          <li class="list">
+            <a href="#" id="playAgainButton" @click=${this.handlePlayAgainClick}>
+              <span class="icon"><ion-icon name="play-outline"></ion-icon></span>
+              <span class="text">Play Again</span>
+            </a>
+          </li>
+          
+          <li class="list">
+            <a href="#" id="chatButton" @click=${this.handleChatClick}>
+              <span class="icon"><ion-icon name="chatbox-outline"></ion-icon></span>
+              <span class="text">Chat</span>
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
-  </div>
-  
-  <div id="app">
-
-    </div>
-  </div> 
-  
-  
-
   `;
   }
 
@@ -222,17 +211,14 @@ body {
     this.updateActiveLink(); // Call to set the active link on first update
   }
 
+  /* I simplified the updateActiveLink method by removing the indicator positioning logic */
   updateActiveLink() {
     const list = this.shadowRoot.querySelectorAll('.list');
-    const indicator = this.shadowRoot.querySelector('.indicator'); // Select the indicator
-    list.forEach((item, index) => {
+    list.forEach((item) => {
       item.addEventListener('click', () => {
         list.forEach((el) => el.classList.remove('active'));
         item.classList.add('active');
-        console.log(`Active item: ${item.innerText}`); // Log active item
-
-        // Move the indicator based on the index of the active item
-        indicator.style.transform = `translateX(calc(70px * ${index}))`;
+        console.log(`Active item: ${item.querySelector('.text').textContent}`); // Log active item
       });
     });
   }
@@ -255,7 +241,7 @@ body {
 
   handleProfileClick() {
     this.tutorialClickCount = 0; // reset
-    this.playAgainClickCount = 0; // reset
+    this.profileClickCount = 0; // reset
     this.chatClickCount = 0; // reset
     if (this.profileClickCount === 1) {
       console.log('Profile button clicked!');
@@ -297,8 +283,7 @@ body {
     } else {
       this.chatClickCount = 1; // Set count to 1 on first click
     }
-
   }
-
 }
+
 customElements.define('nav-bar', NavBar);

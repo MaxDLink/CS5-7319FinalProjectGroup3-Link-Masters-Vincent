@@ -1,48 +1,46 @@
+/*
+ * I made several changes to the instructions component to better fit with the new layout:
+ * 1. Redesigned the instruction box with a cleaner look and better readability
+ * 2. Improved the message text styling with better color and line height
+ * 3. Simplified the HTML structure by removing unnecessary nested divs
+ * 4. Added responsive styling for mobile devices
+ * 5. Removed absolute positioning that was causing layout issues
+ */
 import { LitElement, html, css } from 'lit';
 
 class Instructions extends LitElement {
     static styles = css`
-    /* Add your styles here */
-
-
-    .text-container {
-        top: 50px; 
-        left: -235px;
-    } 
-
-
-    .message {
-        color: orange; /* Style the message text */
-        margin: 0; /* Remove default margin */
-        font-size: 1.2em; /* Adjust font size for better readability */
-        font-weight: bold; 
-        top: 75px; 
-        left: 20px; 
+    .instruction-box {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid orange;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        width: 280px;
+        text-align: center;
+        margin-top: 10px;
     }
 
+    .message {
+        color: #ff8c00;
+        margin: 0;
+        font-size: 1em;
+        font-weight: bold;
+        line-height: 1.5;
+    }
 
-    .instruction-box {
-    bottom: 600px; /* Adjust this value to position it higher or lower */
-    left: 5px; /* Align with the login element */ 
-    font-weight: bold;
-    background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
-    border: 2px solid orange; /* Border color */
-    border-radius: 8px; /* Rounded corners */
-    padding: 10px; /* Padding inside the box */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
-    width: 250px; /* Fixed width for the instruction box */
-    height: 40px; /* Fixed height for the instruction box */
-    text-align: center; /* Center the text */
-    font-size: 0.75em; /* Adjust font size for better readability */
+    @media (max-width: 768px) {
+        .instruction-box {
+            width: 90%;
+            max-width: 280px;
+        }
     }
     `;
 
     render() {
         return html`
-            <div>
-                <div class="instruction-box">
-                    <div class="message">Place 4 ships on your board. <br> Tap on Player Board 4 times</div>
-                </div>
+            <div class="instruction-box">
+                <div class="message">Place 4 ships on your board.<br>Tap on Player Board 4 times</div>
             </div>
         `;
     }
