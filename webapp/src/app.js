@@ -66,69 +66,72 @@ class App extends LitElement {
 
   static styles = css`
   .overall-container {
-    position: relative; /* Set positioning context */
-    width: 100vw; /* Full width */
-    height: 100vh; /* Full height */
-    margin: 0; /* Remove default margin */
-    padding: 0; /* Remove default padding */
-    overflow: hidden; /* Prevent overflow */
-    background-color: gray; /* Set background color */
-    display: flex; /* Use flexbox for layout */
-    flex-direction: column; /* Stack children vertically */
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: gray;
+    display: flex;
+    flex-direction: column;
   } 
 
   .flex-container {
-    display: flex; /* Use flexbox for layout */
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    padding-top: 70px; /* Add padding to account for the fixed nav bar */
+    display: flex;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    justify-content: center; /* Center horizontally */
   }
 
   .left-column {
-    flex: 1; /* Take up equal space */
-    display: flex;
-    flex-direction: column; /* Stack children vertically */
-    justify-content: flex-start; /* Align to top */
-    align-items: center; /* Center content horizontally */
-    padding-top: 20px; /* Add some padding at the top */
+    position: absolute;
+    top: 60px; /* Increased top position to account for navbar */
+    left: 5px;
+    z-index: 5;
+    display: none; /* Hide the left column containing the login */
   }
 
   .login-container {
     width: 100%;
     display: flex;
     justify-content: flex-start;
-    padding-left: 20px;
   }
 
   .instruction-container {
-    margin-top: 30px;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
   }
 
   .right-column {
-    flex: 2; 
     display: flex;
-    justify-content: center; 
-    align-items: center; 
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    padding-top: 70px; /* Added padding at the top to prevent content from being hidden by the navbar */
+    padding-bottom: 10px; /* Reduced bottom padding */
   }
 
-  @media (max-width: 768px) { 
+  /* Media query for mobile devices */
+  @media (max-width: 768px) {
     .flex-container {
-      flex-direction: column; 
-      padding-top: 90px; /* Increase padding for mobile */
+      flex-direction: column;
+      align-items: center;
     }
-    
+
     .left-column {
-      order: 1; 
+      position: absolute;
+      top: 60px; /* Increased top position to account for navbar */
+      left: 5px;
     }
-    
+
     .right-column {
-      order: 2; 
-      display: flex; 
-      width: 100%; 
-    }
-    
-    .instruction-container {
-      margin-top: 10px;
+      width: 100%;
+      padding-top: 80px; /* Increased padding for mobile */
+      padding-bottom: 10px;
     }
   }
   `;
