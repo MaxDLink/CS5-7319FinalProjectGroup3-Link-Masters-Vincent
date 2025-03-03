@@ -103,6 +103,24 @@ export class GameBoard extends LitElement {
   render() {
     return html`
     <div class="game-container">
+      <div class="game-overlay">
+        ${this.animatingFireball ? html`
+          <div class="fireball" style="left: ${this.fireballPosition.x}px; top: ${this.fireballPosition.y}px;">🔥</div>
+        ` : ''}
+        
+        ${this.animatingEnemyFireball ? html`
+          <div class="enemy-fireball" style="left: ${this.enemyFireballPosition.x}px; top: ${this.enemyFireballPosition.y}px;">🔥</div>
+        ` : ''}
+        
+        ${this.winner ? html`
+          <div class="${this.winner === 'Player' ? 'win-banner' : 'lose-banner'}">
+            ${this.winner === 'Player' 
+              ? html`<div><span class="rainbow-text">YOU WIN!</span> <span class="emoji-text">🎉🥳🎉</span></div>` 
+              : html`<div class="lose-text">YOU LOSE! 😔</div>`}
+          </div>
+        ` : ''}
+      </div>
+      
       <div class="game-card">
         <div class="message">${this.message}</div>
         <div class="instruction-text">${this.instructionText}</div>
@@ -145,20 +163,6 @@ export class GameBoard extends LitElement {
             </div>
           </div>
         </div>
-        
-        ${this.winner ? html`
-          <div class="winner-message">
-            ${this.winner === 'Player' ? 'You win! 🎉' : 'Enemy wins! 😢'}
-          </div>
-        ` : ''}
-        
-        ${this.animatingFireball ? html`
-          <div class="fireball" style="left: ${this.fireballPosition.x}px; top: ${this.fireballPosition.y}px;">🔥</div>
-        ` : ''}
-        
-        ${this.animatingEnemyFireball ? html`
-          <div class="enemy-fireball" style="left: ${this.enemyFireballPosition.x}px; top: ${this.enemyFireballPosition.y}px;">🔥</div>
-        ` : ''}
       </div>
     </div>
     `;
@@ -523,9 +527,29 @@ export class GameBoard extends LitElement {
 
   endGame(winner) {
     console.log(`${winner} wins!`);
-    this.winner = winner;
     this.gameEnded = true;
-    // Optionally, add logic to disable further clicks
+    this.winner = winner;
+    
+    // Play victory or defeat sound
+    sounds.initAudioContext();
+    if (winner === 'Player') {
+      sounds.Victory();
+    } else {
+      sounds.Defeat();
+    }
+    
+    // Force a re-render to show the banner
+    this.requestUpdate();
+    
+    // Auto-hide the banner after 3 seconds
+    setTimeout(() => {
+      // We don't actually remove the banner, just trigger a re-render
+      // that will hide it with a CSS animation
+      const bannerElement = document.querySelector(`.${winner === 'Player' ? 'win-banner' : 'lose-banner'}`);
+      if (bannerElement) {
+        bannerElement.classList.add('fade-out');
+      }
+    }, 3000);
   }
 
   resetGame() {
@@ -896,6 +920,16 @@ export class GameBoard extends LitElement {
       overflow: hidden; /* Changed from overflow-y: auto to prevent scrolling */
     }
     
+    .game-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    
     .game-card {
       display: flex;
       flex-direction: column;
@@ -1088,6 +1122,106 @@ export class GameBoard extends LitElement {
       z-index: 1000;
     }
     
+    /* Winner message styles */
+    .winner-message {
+      color: var(--secondary-color);
+      font-size: 2em;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    /* Win/Lose Popup Styles */
+    .win-banner, .lose-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      max-width: 600px;
+      padding: 30px;
+      text-align: center;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      animation: banner-appear 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 1100;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      pointer-events: auto;
+    }
+    
+    .win-banner {
+      background-color: rgba(46, 204, 113, 0.3);
+      border: 3px solid gold;
+    }
+    
+    .lose-banner {
+      background-color: rgba(231, 76, 60, 0.3);
+      border: 3px solid #e74c3c;
+    }
+    
+    .rainbow-text {
+      font-size: 4em;
+      font-weight: bold;
+      background-image: linear-gradient(to right, 
+        #ff0000, #ff8000, #ffff00, #80ff00, #00ff00, #00ff80, #00ffff, 
+        #0080ff, #0000ff, #8000ff, #ff00ff, #ff0080, #ff0000);
+      background-size: 200% auto;
+      color: transparent;
+      background-clip: text;
+      -webkit-background-clip: text;
+      animation: rainbow 2s linear infinite;
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+      margin: 0;
+      padding: 0;
+      line-height: 1.2;
+    }
+    
+    .lose-text {
+      font-size: 4em;
+      font-weight: bold;
+      color: #e74c3c;
+      text-shadow: 0 0 15px rgba(231, 76, 60, 0.7);
+      margin: 0;
+      padding: 0;
+      line-height: 1.2;
+    }
+    
+    .fade-out {
+      animation: fade-out 1s forwards;
+    }
+    
+    .emoji-text {
+      font-size: 4em;
+      font-weight: bold;
+      margin: 0;
+      padding: 0;
+      line-height: 1.2;
+    }
+    
+    @keyframes rainbow {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+    
+    @keyframes banner-appear {
+      0% { 
+        transform: translate(-50%, -50%) scale(0.7);
+        opacity: 0;
+      }
+      100% { 
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes fade-out {
+      from { opacity: 1; }
+      to { 
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+      }
+    }
+    
     @keyframes pulse {
       0% { transform: scale(1); filter: brightness(1); }
       100% { transform: scale(1.3); filter: brightness(1.2); }
@@ -1113,30 +1247,6 @@ export class GameBoard extends LitElement {
       0% { box-shadow: 0 0 0 0 var(--miss-color); }
       70% { box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
       100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
-    }
-    
-    /* Winner message styles */
-    .winner-message {
-      color: var(--secondary-color);
-      font-size: 1.5em;
-      font-weight: bold;
-      text-align: center;
-      margin: 15px 0;
-      padding: 10px;
-      border-radius: 8px;
-      background-color: rgba(0, 0, 0, 0.2);
-      animation: pulse 1.5s infinite alternate;
-    }
-    
-    @keyframes pulse {
-      from {
-        transform: scale(1);
-        text-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
-      }
-      to {
-        transform: scale(1.05);
-        text-shadow: 0 0 20px rgba(46, 204, 113, 0.8);
-      }
     }
     
     /* Message and instruction text styles */
