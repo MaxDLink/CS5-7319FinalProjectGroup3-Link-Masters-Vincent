@@ -9,7 +9,6 @@
  */
 import { LitElement, html, css } from 'lit';
 import './nav-bar.js';
-import './instructions.js';
 import './login.js';
 import './game-board.js';
 import './ship.js';

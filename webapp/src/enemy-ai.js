@@ -1,4 +1,3 @@
-import { sounds } from './sounds.js';
 export class EnemyAI {
     constructor(boardSize = 4) {
       this.boardSize = boardSize;
