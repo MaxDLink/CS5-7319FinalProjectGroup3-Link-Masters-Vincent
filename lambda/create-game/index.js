@@ -1,0 +1,55 @@
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
+import { v4 as uuidv4 } from 'uuid';
+
+const ddbClient = new DynamoDB({});
+const ddbDocClient = DynamoDBDocument.from(ddbClient);
+
+export const handler = async (event) => {
+  if (event.requestContext.http.method === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders() };
+  }
+
+  try {
+    const gameId = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    const params = {
+      TableName: process.env.DYNAMODB_TABLE,
+      Item: {
+        pk: `GAME#${gameId}`,
+        sk: 'METADATA',
+        gameId: gameId,
+        status: 'SETUP', // SETUP, IN_PROGRESS, COMPLETED
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        playerBoard: Array(10).fill(Array(10).fill(null)), // 10x10 empty board
+        enemyBoard: Array(10).fill(Array(10).fill(null))
+      }
+    };
+
+    await ddbDocClient.put(params);
+
+    return {
+      statusCode: 201,
+      headers: corsHeaders(),
+      body: JSON.stringify({ 
+        gameId: gameId,
+        message: 'Game created successfully'
+      })
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      headers: corsHeaders(),
+      body: JSON.stringify({ message: 'Error creating game', error: error.message })
+    };
+  }
+};
+
+const corsHeaders = () => ({
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Content-Type': 'application/json'
+}); 

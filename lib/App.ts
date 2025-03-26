@@ -162,24 +162,90 @@ export class App extends cdk.Stack {
     const api = new HttpApi(this, 'AppApi', {
       apiName: 'AppApi',
       corsPreflight: {
-        allowOrigins: ['*'], // Production and development origins
-        allowMethods: [CorsHttpMethod.GET, CorsHttpMethod.POST, CorsHttpMethod.OPTIONS], // Allow specific HTTP methods
+        allowOrigins: ['*'],
+        allowMethods: [
+          CorsHttpMethod.GET, 
+          CorsHttpMethod.POST, 
+          CorsHttpMethod.PUT, 
+          CorsHttpMethod.DELETE, 
+          CorsHttpMethod.OPTIONS
+        ],
         allowHeaders: ['Content-Type', 'Authorization', 'Access-Control-Request-Headers'],
       },
     });
 
-    // Add a route connected to Lambda
-    api.addRoutes({
-      path: '/load',
-      methods: [HttpMethod.GET],
-      integration: new HttpLambdaIntegration('LambdaIntegration', simpleLambda), 
+    // Create Game Lambda
+    const createGameLambda = new NodejsFunction(this, 'CreateGameLambda', {
+      entry: 'lambda/create-game/index.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        DYNAMODB_TABLE: table.tableName,
+      },
     });
 
-    // Add a save route connected to Lambda
+    // Get Game Lambda
+    const getGameLambda = new NodejsFunction(this, 'GetGameLambda', {
+      entry: 'lambda/get-game/index.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        DYNAMODB_TABLE: table.tableName,
+      },
+    });
+
+    // Update Game Lambda
+    const updateGameLambda = new NodejsFunction(this, 'UpdateGameLambda', {
+      entry: 'lambda/update-game/index.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        DYNAMODB_TABLE: table.tableName,
+      },
+    });
+
+    // Delete Game Lambda
+    const deleteGameLambda = new NodejsFunction(this, 'DeleteGameLambda', {
+      entry: 'lambda/delete-game/index.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        DYNAMODB_TABLE: table.tableName,
+      },
+    });
+
+    // Grant permissions
+    table.grantReadWriteData(createGameLambda);
+    table.grantReadWriteData(getGameLambda);
+    table.grantReadWriteData(updateGameLambda);
+    table.grantReadWriteData(deleteGameLambda);
+
+    // CREATE - Start new game
     api.addRoutes({
-      path: '/save',
+      path: '/games',
       methods: [HttpMethod.POST],
-      integration: new HttpLambdaIntegration('SaveLambdaIntegration', saveLambda), 
+      integration: new HttpLambdaIntegration('CreateGameIntegration', createGameLambda),
+    });
+
+    // READ - Get game state
+    api.addRoutes({
+      path: '/games/{gameId}',
+      methods: [HttpMethod.GET],
+      integration: new HttpLambdaIntegration('GetGameIntegration', getGameLambda),
+    });
+
+    // UPDATE - Update game state (moves, ship positions)
+    api.addRoutes({
+      path: '/games/{gameId}',
+      methods: [HttpMethod.PUT],
+      integration: new HttpLambdaIntegration('UpdateGameIntegration', updateGameLambda),
+    });
+
+    // DELETE - End/delete game
+    api.addRoutes({
+      path: '/games/{gameId}',
+      methods: [HttpMethod.DELETE],
+      integration: new HttpLambdaIntegration('DeleteGameIntegration', deleteGameLambda),
     });
 
 
