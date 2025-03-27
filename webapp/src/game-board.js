@@ -23,7 +23,8 @@ export class GameBoard extends LitElement {
       enemyFireballPosition: { type: Object },
       instructionText: { type: String },
       playerShipPositions: { type: Array },
-      enemyShipPositions: { type: Array }
+      enemyShipPositions: { type: Array },
+      gameId: { type: String }
     };
   }
 
@@ -65,6 +66,9 @@ export class GameBoard extends LitElement {
     
     // Place enemy ships randomly
     this.placeEnemyShips();
+    
+    this.gameId = null;
+    this.createGame();
   }
 
   connectedCallback() {
@@ -869,6 +873,19 @@ export class GameBoard extends LitElement {
         this.shadowRoot.removeChild(explosionContainer);
       }
     }, 1200);
+  }
+
+  async createGame() {
+    try {
+      const response = await fetch('https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      this.gameId = data.gameId;
+      console.log('Game created with ID:', this.gameId);
+    } catch (error) {
+      console.error('Error creating game:', error);
+    }
   }
 
   static get styles() {
