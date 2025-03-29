@@ -44,9 +44,10 @@ export class GameBoard extends LitElement {
     this.isPlayerTurn = true;
     this.gameEnded = false;
     this.winner = null;
+    this.shipsPlaced = 0;
     this.message = `Place your ships! Click on your board to place ${this.boardSize} ships.`;
     this.instructionText = `Tap on Player Board ${this.boardSize} times`;
-    this.shipsPlaced = 0;
+    
     
     // Hit tracking
     this.lastHitPosition = null;
@@ -67,12 +68,30 @@ export class GameBoard extends LitElement {
     // Place enemy ships randomly
     this.placeEnemyShips();
     
-    this.gameId = null;
-    this.createGame();
+    // this.gameId = null;
+    // this.createGame();
   }
 
   connectedCallback() {
     super.connectedCallback();
+    this.gameId = localStorage.getItem('gameId');
+    
+    if (this.gameId) {
+      this.getGame().then(() => {
+        // Update message based on the number of ships placed
+        if (this.shipsPlaced < this.boardSize) {
+          this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
+        } else {
+          this.message = "All ships placed! Click on the enemy board to attack.";
+        }
+        this.requestUpdate();
+      }).catch(error => {
+        console.error('Error fetching game:', error);
+        this.createGame();
+      });
+    } else {
+      this.createGame();
+    }
     // Call updateViewport when the component is connected to the DOM
     // this.updateViewport();
     // window.addEventListener('orientationchange', this.updateViewport.bind(this));
@@ -162,6 +181,7 @@ export class GameBoard extends LitElement {
             </div>
           </div>
         </div>
+        <button @click="${this.deleteGame}">Delete Game</button>
       </div>
     </div>
     `;
@@ -173,84 +193,58 @@ export class GameBoard extends LitElement {
   }
 
   handleEnemyCellClick(row, col) {
-    // If game is ended or not player's turn, do nothing
-    if (this.gameEnded) return;
-    
-    // If player hasn't placed all ships yet, show a message
+    if (this.gameEnded || !this.isPlayerTurn) return;
+
     if (this.shipsPlaced < this.boardSize) {
       this.message = `Place all ${this.boardSize} ships first!`;
       this.requestUpdate();
       return;
     }
-    
-    // If it's not the player's turn, show a message
-    if (!this.isPlayerTurn) {
-      this.message = "It's not your turn yet!";
-      this.requestUpdate();
-      return;
-    }
-    
-    // Check if the cell has already been hit or missed
+
     if (this.enemyBoard[row][col] === 'X' || this.enemyBoard[row][col] === 'O') {
       this.message = 'You already tried that spot!';
       this.requestUpdate();
       return;
     }
-    
-    // Start the fireball animation
+
     this.startFireballAnimation(row, col);
-    
-    // Delay the actual hit logic until animation completes
+
     setTimeout(() => {
       console.log(`Player attacks: ${row}, ${col}`);
-      
-      // Set the last hit position for visual indicator
       this.lastHitPosition = { row, col };
-      
-      // Check if it's a hit or miss
+
       if (this.enemyBoard[row][col] === 'S') {
         console.log('Hit!');
         this.hitResult = 'hit';
-        
-        // sounds.js 
-        sounds.initAudioContext(); // ensure the audio context is initialized
+        sounds.initAudioContext();
         sounds.HitEnemy();
-
-        this.enemyBoard[row][col] = 'X'; // Mark hit
-        
-        // Create explosion animation
+        this.enemyBoard[row][col] = 'X';
         this.createExplosion(row, col, true);
-        
-        // Check if all enemy ships are hit
-        const allHit = this.enemyShipPositions.every(pos => {
-          const { row, col } = pos;
-          return this.enemyBoard[row][col] === 'X';
-        });
-        
-        if (allHit) {
+        this.updateGame();
+
+        if (this.checkWin(this.enemyBoard)) {
           console.log('Player wins!');
           this.endGame('Player');
-          return; // Stop further actions
+          return;
         }
       } else {
         console.log('Miss!');
         this.hitResult = 'miss';
-        this.enemyBoard[row][col] = 'O'; // Mark miss
+        this.enemyBoard[row][col] = 'O';
         this.createWaterSplash(row, col, true);
+        this.updateGame(); // Record the miss immediately
       }
-      
-      this.requestUpdate(); // Ensure the component re-renders
-      
-      // Clear the hit animation after a delay
+
+      this.requestUpdate();
+
       setTimeout(() => {
         this.lastHitPosition = null;
         this.hitResult = null;
         this.requestUpdate();
-        
         this.switchTurn();
         this.enemyMove();
       }, 1000);
-    }, 800); // Time for fireball to reach target
+    }, 800);
   }
   
   handlePlayerCellClick(row, col) {
@@ -272,6 +266,7 @@ export class GameBoard extends LitElement {
       this.playerBoard[row][col] = 'S';
       this.playerShipPositions.push({ row, col });
       this.shipsPlaced++;
+      this.updateGame(); // record the ship placement in DynamoDB 
       
       // Update the message
       if (this.shipsPlaced < this.boardSize) {
@@ -363,65 +358,48 @@ export class GameBoard extends LitElement {
 
   enemyMove() {
     if (this.gameEnded || this.isPlayerTurn) return;
-    
-    // Add a timeout for the enemy's move
+
     setTimeout(() => {
       const move = this.enemyAI.attack(this.playerBoard);
       if (move) {
         const { row, col } = move;
-        
-        // Start the enemy fireball animation
         this.startEnemyFireballAnimation(row, col);
-        
-        // Delay the actual hit logic until animation completes
+
         setTimeout(() => {
-          // Set the last hit position for visual indicator
           this.lastEnemyHitPosition = { row, col };
-          
+
           if (this.playerBoard[row][col] === 'S') {
             console.log('Enemy hit player ship!');
             this.enemyHitResult = 'hit';
-            
-            // sounds.js 
-            sounds.initAudioContext(); // ensure the audio context is initialized
+            sounds.initAudioContext();
             sounds.HitPlayer();
-            
-            this.playerBoard[row][col] = 'X'; // Mark hit
-            
-            // Create explosion animation
+            this.playerBoard[row][col] = 'X';
             this.createExplosion(row, col, false);
-            
-            // Check if all player ships are hit
-            const allHit = this.playerShipPositions.every(pos => {
-              const { row, col } = pos;
-              return this.playerBoard[row][col] === 'X';
-            });
-            
-            if (allHit) {
+            this.updateGame();
+
+            if (this.checkWin(this.playerBoard)) {
               console.log('Enemy wins!');
               this.endGame('Enemy');
-              return; // Stop further actions
+              return;
             }
           } else {
             console.log('Enemy missed!');
             this.enemyHitResult = 'miss';
-            this.playerBoard[row][col] = 'O'; // Mark miss
+            this.playerBoard[row][col] = 'O';
             this.createWaterSplash(row, col, false);
           }
-          
-          this.requestUpdate(); // Ensure the component re-renders
-          
-          // Clear the hit animation after a delay
+
+          this.requestUpdate();
+
           setTimeout(() => {
             this.lastEnemyHitPosition = null;
             this.enemyHitResult = null;
             this.requestUpdate();
-            
             this.switchTurn();
           }, 1000);
-        }, 800); // Time for fireball to reach target
+        }, 800);
       }
-    }, 1000); // Delay before enemy moves
+    }, 1000);
   }
 
   // Start the enemy fireball animation from enemy board to player board
@@ -503,24 +481,23 @@ export class GameBoard extends LitElement {
   }
 
   placeEnemyShips() {
-    const shipCount = this.boardSize; // Number of ships equals board size
+    const shipCount = this.boardSize;
     this.enemyShipPositions = [];
-    
     for (let i = 0; i < shipCount; i++) {
       let placed = false;
-      
       while (!placed) {
         const row = Math.floor(Math.random() * this.boardSize);
         const col = Math.floor(Math.random() * this.boardSize);
-        
-        // Check if position is empty
         if (!this.enemyShipPositions.some(pos => pos.row === row && pos.col === col)) {
           this.enemyShipPositions.push({ row, col });
-          // Mark enemy ships on the board with 'S' (internal representation only)
           this.enemyBoard[row][col] = 'S';
           placed = true;
         }
       }
+    }
+    // only call updateGame if there is a gameId 
+    if (this.gameId) {
+      this.updateGame();
     }
   }
 
@@ -882,9 +859,68 @@ export class GameBoard extends LitElement {
       });
       const data = await response.json();
       this.gameId = data.gameId;
+      // Store gameId in local storage
+      localStorage.setItem('gameId', this.gameId);
       console.log('Game created with ID:', this.gameId);
     } catch (error) {
       console.error('Error creating game:', error);
+    }
+  }
+
+  async updateGame() {
+    try {
+      const gameState = {
+        playerBoard: this.playerBoard,
+        enemyBoard: this.enemyBoard,
+        shipsPlaced: this.shipsPlaced,
+        playerHits: this.playerShipPositions.filter(pos => this.playerBoard[pos.row][pos.col] === 'X').length,
+        enemyHits: this.enemyShipPositions.filter(pos => this.enemyBoard[pos.row][pos.col] === 'X').length,
+        gameStatus: this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS'
+      };
+
+      const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(gameState)
+      });
+
+      const data = await response.json();
+      console.log(`Game ${this.gameId} updated!`, data);
+    } catch (error) {
+      console.error('Error updating game:', error);
+    }
+  }
+
+  async getGame() {
+    try {
+      const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`);
+      const data = await response.json();
+      if (data && data.gameId) {
+        this.playerBoard = data.playerBoard;
+        this.enemyBoard = data.enemyBoard;
+        this.shipsPlaced = data.shipsPlaced; 
+        this.gameEnded = data.status === 'COMPLETED';
+        console.log(`Game ${this.gameId} fetched!`, data);
+        this.requestUpdate(); // updates the UI with the new game state 
+      }
+    } catch (error) {
+      console.error('Error fetching game:', error);
+    }
+  }
+
+  async deleteGame() {
+    try {
+      await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
+        method: 'DELETE'
+      });
+      console.log(`Game ${this.gameId} deleted!`);
+      this.gameId = null;
+      localStorage.removeItem('gameId');
+      this.requestUpdate();
+    } catch (error) {
+      console.error('Error deleting game:', error);
     }
   }
 

@@ -23,8 +23,8 @@ export const handler = async (event) => {
         status: 'SETUP', // SETUP, IN_PROGRESS, COMPLETED
         createdAt: timestamp,
         updatedAt: timestamp,
-        playerBoard: Array(10).fill(Array(10).fill(null)), // 10x10 empty board
-        enemyBoard: Array(10).fill(Array(10).fill(null))
+        playerBoard: Array(4).fill(Array(4).fill(null)), // 4x4 empty board
+        enemyBoard: Array(4).fill(Array(4).fill(null))
       }
     };
 

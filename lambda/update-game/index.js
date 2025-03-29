@@ -28,10 +28,13 @@ export const handler = async (event) => {
         pk: `GAME#${gameId}`,
         sk: 'METADATA'
       },
-      UpdateExpression: 'SET playerBoard = :pb, enemyBoard = :eb, updatedAt = :ua, gameStatus = :gs',
+      UpdateExpression: 'SET playerBoard = :pb, enemyBoard = :eb, shipsPlaced = :sp, playerHits = :ph, enemyHits = :eh, updatedAt = :ua, gameStatus = :gs',
       ExpressionAttributeValues: {
         ':pb': body.playerBoard,
         ':eb': body.enemyBoard,
+        ':sp': body.shipsPlaced,
+        ':ph': body.playerHits,
+        ':eh': body.enemyHits,
         ':ua': timestamp,
         ':gs': body.gameStatus
       },
