@@ -49,3 +49,18 @@ We are calling an extra switchTurn call, which is offsetting the turns by 1. We 
 
     - navbar buttons work on single click
 
+3/30/25 
+
+TODO: 
+
+style help page to the same as the game page 
+
+fix mobile formatting by removing border so that it fits on phone cleanly 
+
+fix sound issue on victory screen. Make sure winner-popup.js is being used and not causing the issue with sound on victory screen 
+
+look at cleaning the code by moving the RESTFUL API functions out of game-board.js etc. 
+
+diagram the architecture in draw.io and share it with the team 
+
+Clean up branches and move on to event bus arch. 
