@@ -207,21 +207,21 @@ export class NavBar extends LitElement {
     this.profileClickCount = 0;
     this.playAgainClickCount = 0;
     this.chatClickCount = 0;
+    this.tutorialClickCount = 1; // enter after first click 
     if (this.tutorialClickCount === 1) {
       console.log('Tutorial button clicked!');
       document.body.innerHTML = '';
       const tutorialElement = document.createElement('tutorial-element');
       document.body.appendChild(tutorialElement);
-      this.tutorialClickCount = 0;
-    } else {
-      this.tutorialClickCount = 1;
-    }
+      this.tutorialClickCount = 0; // reset for future clicks 
+    } 
   }
 
   handleProfileClick() {
     this.tutorialClickCount = 0;
     this.playAgainClickCount = 0;
     this.chatClickCount = 0;
+    this.profileClickCount = 1; // enter after first click 
     if (this.profileClickCount === 1) {
       console.log('Profile button clicked!');
       
@@ -259,48 +259,42 @@ export class NavBar extends LitElement {
         });
       }
       
-      this.profileClickCount = 0;
-    } else {
-      this.profileClickCount = 1;
-    }
+      this.profileClickCount = 0; // reset for future clicks 
+    } 
   }
 
   handlePlayAgainClick() {  
     this.tutorialClickCount = 0;
     this.profileClickCount = 0;
     this.chatClickCount = 0;
+    this.playAgainClickCount = 1; // enter after first click 
     if (this.playAgainClickCount === 1) {
       console.log('Play Again button clicked!');
       
-      // Find the game-board element and call its resetGame method
-      const gameBoard = document.querySelector('game-board');
-      if (gameBoard) {
-        gameBoard.resetGame();
-        console.log('Game board reset');
-      } else {
-        console.log('Game board not found, reloading page');
-        window.location.reload();
-      }
+      // Dispatch a custom event that the game-board can listen for
+      const resetEvent = new CustomEvent('game-reset', {
+        bubbles: true,
+        composed: true // This allows the event to cross shadow DOM boundaries
+      });
+      this.dispatchEvent(resetEvent);
+      console.log('Reset event dispatched');
       
-      this.playAgainClickCount = 0;
-    } else {
-      this.playAgainClickCount = 1;
-    }
+      this.playAgainClickCount = 0; // reset for future clicks 
+    } 
   }
 
   handleChatClick() { 
     this.tutorialClickCount = 0;
     this.profileClickCount = 0;
     this.playAgainClickCount = 0;
+    this.chatClickCount = 1; // enter after first click 
     if (this.chatClickCount === 1) {
       console.log('Chat button clicked!');
       const app = document.createElement('div');
       app.innerHTML = `<chat-box></chat-box>`;
       document.body.appendChild(app);  
-      this.chatClickCount = 0;
-    } else {
-      this.chatClickCount = 1;
-    }
+      this.chatClickCount = 0; // reset for future clicks 
+    } 
   }
 }
 

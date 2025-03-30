@@ -24,8 +24,7 @@ updated game-board.js to reflect updateGame function changes in frontend UI
 
 updated updateGame function to record misses on the enemy board in DynamoDB 
 
-
-TODO: check if refresh allows player to go twice in a row
+Brainstorming about turn state issue: 
 - hit and refresh --> player goes again, turns not recorded 
 - its a delay in the switchTurn call in handleEnemyCellClick and handlePlayerCellClick. Moved the switchTurn call higher up out of the setTimeout function to call it directly after hit or miss is displayed 
 - on refresh, it is always player's turn, so the constructor is the problem. Make sure to set isPlayerTurn is not set in the constructor so that the correct turn is recorded in the backend even after refresh
@@ -45,9 +44,8 @@ We are calling an extra switchTurn call, which is offsetting the turns by 1. We 
     - placed switchTurn in the handleEnemyCellClick in the setTimeout if and else statement to ensure that the enemy goes after the player and that the turn state is recorded in DynamoDB. I also added a check in the connectedCallback function to ensure the enemy goes if it is their turn on page load. SwitchTurn is called in the enemyMove function as well in the if and else statements so that turns switch. 
 
     - had to add a check in the connectedCallback function to ensure the enemy goes if it is their turn on page load. Had to not enter the if statement if the gameId is not set, so that the enemy does not go in the placeship phase. Later this could be changed to check if the player has placed their four ships since that is more logical, but it wasn't working when I tried it... 
-TODO: 
- 
-- check if switchTurn is being called twice or if it is resolved. Moved switchTurn above the fireBall animation and put updateGame() directly below it to record the new turn state in DynamoDB 
 
+    - Removed the delete button and assigned its functioanlity to the restart button. The restart button deletes the gameId from DynamoDB and resets the game-board. Added a custom event to the nav-bar component to reset the game-board when the restart button is clicked. Added an event listener in the game-board component to listen for the custom event and call the resetGame function in the connectedCallback function 
 
-TODO: remove delete button and delete the gameId when the game is over or the restart button is clicked  
+    - navbar buttons work on single click
+

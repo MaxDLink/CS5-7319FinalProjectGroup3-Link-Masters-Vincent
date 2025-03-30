@@ -76,6 +76,12 @@ export class GameBoard extends LitElement {
     super.connectedCallback();
     this.gameId = localStorage.getItem('gameId');
     
+    // Add event listener for the game-reset event
+    window.addEventListener('game-reset', () => {
+      console.log('Game reset event received');
+      this.resetGame();
+    });
+    
     // Check if it's enemy's turn and trigger enemy move if needed
     if (!this.isPlayerTurn && !this.gameEnded && this.gameId !== null) {
       console.log('enemy moving after page load');
@@ -190,7 +196,6 @@ export class GameBoard extends LitElement {
             </div>
           </div>
         </div>
-        <button @click="${this.deleteGame}">Delete Game</button>
       </div>
     </div>
     `;
@@ -534,39 +539,45 @@ export class GameBoard extends LitElement {
   resetGame() {
     console.log("Resetting game...");
     
-    // Reset game state
-    this.winner = '';
-    this.gameEnded = false;
-    
-    // Reset boards
-    this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
-    this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
-    
-    // Reset ship placement
-    this.shipsPlaced = 0;
-    
-    // Reset messages
-    this.message = `Place ${this.boardSize} ships on your board`;
-    this.instructionText = `Tap on Player Board ${this.boardSize} times`;
-    
-    // Reset turn state
-    this.isPlayerTurn = false;
-    
-    // Reset animation properties
-    this.animatingFireball = false;
-    this.fireballPosition = null;
-    this.lastHitPosition = null;
-    this.hitResult = null;
-    this.lastEnemyHitPosition = null;
-    this.enemyHitResult = null;
-    this.animatingEnemyFireball = false;
-    this.enemyFireballPosition = null;
-    
-    // Place new enemy ships
-    this.placeEnemyShips();
-    
-    // Force update
-    this.requestUpdate();
+    // Delete the current game first
+    this.deleteGame().then(() => {
+      // Reset game state
+      this.winner = '';
+      this.gameEnded = false;
+      
+      // Reset boards
+      this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+      this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+      
+      // Reset ship placement
+      this.shipsPlaced = 0;
+      
+      // Reset messages
+      this.message = `Place ${this.boardSize} ships on your board`;
+      this.instructionText = `Tap on Player Board ${this.boardSize} times`;
+      
+      // Reset turn state
+      this.isPlayerTurn = false;
+      
+      // Reset animation properties
+      this.animatingFireball = false;
+      this.fireballPosition = null;
+      this.lastHitPosition = null;
+      this.hitResult = null;
+      this.lastEnemyHitPosition = null;
+      this.enemyHitResult = null;
+      this.animatingEnemyFireball = false;
+      this.enemyFireballPosition = null;
+      
+      // Place new enemy ships
+      this.placeEnemyShips();
+      
+      // Create a new game
+      this.createGame();
+      
+      // Force update
+      this.requestUpdate();
+    });
   }
 
   firstUpdated() {
@@ -934,13 +945,14 @@ export class GameBoard extends LitElement {
 
   async deleteGame() {
     try {
-      await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
-        method: 'DELETE'
-      });
-      console.log(`Game ${this.gameId} deleted!`);
-      this.gameId = null;
-      localStorage.removeItem('gameId');
-      this.requestUpdate();
+      if (this.gameId) {
+        await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
+          method: 'DELETE'
+        });
+        console.log(`Game ${this.gameId} deleted!`);
+        this.gameId = null;
+        localStorage.removeItem('gameId');
+      }
     } catch (error) {
       console.error('Error deleting game:', error);
     }
