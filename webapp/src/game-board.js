@@ -41,13 +41,13 @@ export class GameBoard extends LitElement {
     this.enemyAI = new EnemyAI(this.boardSize);
     
     // Game state
-    this.isPlayerTurn = true;
     this.gameEnded = false;
     this.winner = null;
     this.shipsPlaced = 0;
     this.message = `Place your ships! Click on your board to place ${this.boardSize} ships.`;
     this.instructionText = `Tap on Player Board ${this.boardSize} times`;
     
+    if(!this.gameId) this.isPlayerTurn = null; // if the gameId is not set, then the turn is not set. In all other cases, the turn is set in the backend 
     
     // Hit tracking
     this.lastHitPosition = null;
@@ -76,6 +76,13 @@ export class GameBoard extends LitElement {
     super.connectedCallback();
     this.gameId = localStorage.getItem('gameId');
     
+    // Check if it's enemy's turn and trigger enemy move if needed
+    if (!this.isPlayerTurn && !this.gameEnded && this.gameId !== null) {
+      console.log('enemy moving after page load');
+      setTimeout(() => this.enemyMove(), 1000);
+    }
+
+    
     if (this.gameId) {
       this.getGame().then(() => {
         // Update message based on the number of ships placed
@@ -92,6 +99,8 @@ export class GameBoard extends LitElement {
     } else {
       this.createGame();
     }
+
+    
     // Call updateViewport when the component is connected to the DOM
     // this.updateViewport();
     // window.addEventListener('orientationchange', this.updateViewport.bind(this));
@@ -192,7 +201,7 @@ export class GameBoard extends LitElement {
     return board.every(row => row.every(cell => cell !== 'S'));
   }
 
-  handleEnemyCellClick(row, col) {
+  handleEnemyCellClick(row, col) { // when the player clicks on the enemy board 
     if (this.gameEnded || !this.isPlayerTurn) return;
 
     if (this.shipsPlaced < this.boardSize) {
@@ -219,8 +228,9 @@ export class GameBoard extends LitElement {
         sounds.initAudioContext();
         sounds.HitEnemy();
         this.enemyBoard[row][col] = 'X';
+        this.switchTurn(); // the player went, so switch the turn to the enemy 
+        this.updateGame(); // record the hit & turn state in DynamoDB 
         this.createExplosion(row, col, true);
-        this.updateGame();
 
         if (this.checkWin(this.enemyBoard)) {
           console.log('Player wins!');
@@ -231,17 +241,17 @@ export class GameBoard extends LitElement {
         console.log('Miss!');
         this.hitResult = 'miss';
         this.enemyBoard[row][col] = 'O';
+        this.switchTurn(); // the player went, so switch the turn to the enemy 
+        this.updateGame(); // record the miss & turn state in DynamoDB 
         this.createWaterSplash(row, col, true);
-        this.updateGame(); // Record the miss immediately
       }
-
+       
       this.requestUpdate();
 
       setTimeout(() => {
         this.lastHitPosition = null;
         this.hitResult = null;
         this.requestUpdate();
-        this.switchTurn();
         this.enemyMove();
       }, 1000);
     }, 800);
@@ -374,8 +384,9 @@ export class GameBoard extends LitElement {
             sounds.initAudioContext();
             sounds.HitPlayer();
             this.playerBoard[row][col] = 'X';
-            this.createExplosion(row, col, false);
-            this.updateGame();
+            this.createExplosion(row, col, false); 
+            this.switchTurn(); // the enemy went, so switch the turn to the player 
+            this.updateGame(); // record the hit & turn state in DynamoDB 
 
             if (this.checkWin(this.playerBoard)) {
               console.log('Enemy wins!');
@@ -387,6 +398,8 @@ export class GameBoard extends LitElement {
             this.enemyHitResult = 'miss';
             this.playerBoard[row][col] = 'O';
             this.createWaterSplash(row, col, false);
+            this.switchTurn(); // the enemy went, so switch the turn to the player 
+            this.updateGame(); // record the miss & turn state in DynamoDB 
           }
 
           this.requestUpdate();
@@ -395,7 +408,6 @@ export class GameBoard extends LitElement {
             this.lastEnemyHitPosition = null;
             this.enemyHitResult = null;
             this.requestUpdate();
-            this.switchTurn();
           }, 1000);
         }, 800);
       }
@@ -873,9 +885,11 @@ export class GameBoard extends LitElement {
         playerBoard: this.playerBoard,
         enemyBoard: this.enemyBoard,
         shipsPlaced: this.shipsPlaced,
+        // grabs hits and misses from the player and enemy boards 
         playerHits: this.playerShipPositions.filter(pos => this.playerBoard[pos.row][pos.col] === 'X').length,
         enemyHits: this.enemyShipPositions.filter(pos => this.enemyBoard[pos.row][pos.col] === 'X').length,
-        gameStatus: this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS'
+        gameStatus: this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS',
+        isPlayerTurn: this.isPlayerTurn
       };
 
       const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
@@ -894,19 +908,27 @@ export class GameBoard extends LitElement {
   }
 
   async getGame() {
+
     try {
       const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`);
       const data = await response.json();
       if (data && data.gameId) {
+        // grabs the player and enemy boards from DynamoDB, this includes hits and misses 
         this.playerBoard = data.playerBoard;
         this.enemyBoard = data.enemyBoard;
         this.shipsPlaced = data.shipsPlaced; 
         this.gameEnded = data.status === 'COMPLETED';
+        this.isPlayerTurn = data.isPlayerTurn;
         console.log(`Game ${this.gameId} fetched!`, data);
-        this.requestUpdate(); // updates the UI with the new game state 
+        console.log(`isPlayerTurn: ${this.isPlayerTurn}`);
+        this.requestUpdate(); // updates the UI with the new game state
       }
     } catch (error) {
       console.error('Error fetching game:', error);
+      // If there's an error, clear the gameId and create a new game
+      localStorage.removeItem('gameId');
+      this.gameId = null;
+      await this.createGame();
     }
   }
 

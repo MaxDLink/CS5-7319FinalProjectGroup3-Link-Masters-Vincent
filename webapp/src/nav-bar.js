@@ -3,6 +3,8 @@ import './tutorial.js'; // import the tutorial element for the tutorial button
 import './profile-lit.js'; // import the profile element for the profile button 
 import './ChatBox.js'; // import the chat box element for the chat button 
 
+// Remove the Ionicons import and use a simpler approach
+
 export class NavBar extends LitElement {
   static styles = css`
   @import url('https://fonts.googleapis.com/css?family=Poppins:300,400,500,600');
@@ -156,28 +158,28 @@ export class NavBar extends LitElement {
         <ul>
           <li class="list">
             <a href="#" id="playAgainButton" @click=${this.handlePlayAgainClick}>
-              <span class="icon"><ion-icon name="refresh-outline"></ion-icon></span>
+              <span class="icon">↻</span>
               <span class="text">Restart</span>
             </a>
           </li>
           
           <li class="list">
             <a href="#" id="TutorialButton" @click=${this.handleTutorialClick}>
-              <span class="icon"><ion-icon name="help-outline"></ion-icon></span>
+              <span class="icon">?</span>
               <span class="text">Help</span>
             </a>
           </li>
           
           <li class="list">
             <a href="#" id="ProfileButton" @click=${this.handleProfileClick}>
-              <span class="icon"><ion-icon name="person-outline"></ion-icon></span>
+              <span class="icon">👤</span>
               <span class="text">Profile</span>
             </a>
           </li>
           
           <li class="list">
             <a href="#" id="chatButton" @click=${this.handleChatClick}>
-              <span class="icon"><ion-icon name="chatbubble-outline"></ion-icon></span>
+              <span class="icon">💬</span>
               <span class="text">Chat</span>
             </a>
           </li>
@@ -188,17 +190,6 @@ export class NavBar extends LitElement {
   }
 
   firstUpdated() {
-    // Load ionicons
-    const scriptModule = document.createElement('script');
-    scriptModule.type = 'module';
-    scriptModule.src = 'https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js';
-    document.head.appendChild(scriptModule);
-
-    const scriptNomodule = document.createElement('script');
-    scriptNomodule.nomodule = true;
-    scriptNomodule.src = 'https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js';
-    document.head.appendChild(scriptNomodule);
-
     this.updateActiveLink();
   }
 

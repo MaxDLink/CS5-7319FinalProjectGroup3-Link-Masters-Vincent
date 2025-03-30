@@ -21,6 +21,7 @@ export const handler = async (event) => {
         sk: 'METADATA',
         gameId: gameId,
         status: 'SETUP', // SETUP, IN_PROGRESS, COMPLETED
+        isPlayerTurn: true,
         createdAt: timestamp,
         updatedAt: timestamp,
         playerBoard: Array(4).fill(Array(4).fill(null)), // 4x4 empty board

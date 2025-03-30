@@ -27,5 +27,27 @@ updated updateGame function to record misses on the enemy board in DynamoDB
 
 TODO: check if refresh allows player to go twice in a row
 - hit and refresh --> player goes again, turns not recorded 
+- its a delay in the switchTurn call in handleEnemyCellClick and handlePlayerCellClick. Moved the switchTurn call higher up out of the setTimeout function to call it directly after hit or miss is displayed 
+- on refresh, it is always player's turn, so the constructor is the problem. Make sure to set isPlayerTurn is not set in the constructor so that the correct turn is recorded in the backend even after refresh
+- isPlayerTurn must be set to null in the constructor so that the updateGame function can set it to the correct value, otherwise it will not be able to find it and the update will fail to work 
+- isPlayerTurn is only needed in the constructor when we create a gameId, so have a simple if statement to check if needed: if(!gameId) this.isPlayerTurn = null; 
+- inital assumption that createGame sets isPlayerTurn to true when it does not exist in constructor is incorrect. This was what was causing error with updateGame function call... 
 
-TODO: remove delete button and delete the gameId when the game is over 
+
+We are calling an extra switchTurn call, which is offsetting the turns by 1. We need to figure out why this is happening and fix it.  
+
+    - the switchTurn call was also being called in the enemyMove function, so I removed it and only called in in the handleEnemyCellClick function. The handleEnemyCellclick function calls the enemyMove function so we were double calling when we had switchTurn in both functions 
+
+    - Need to fix CORS issues. The cors errors were caused by the navbar file trying to load ionicons? Fixed with local import from dist folder? removed the ionicons import and used simple emoji icons instead, we can change this later
+
+    - GET 404 when gameId does not exist in DynamoDB. The gameId is only cleared when the delete button is clicked, so remember to click the delete button until the gameId is cleared out completely  
+
+    - placed switchTurn in the handleEnemyCellClick in the setTimeout if and else statement to ensure that the enemy goes after the player and that the turn state is recorded in DynamoDB. I also added a check in the connectedCallback function to ensure the enemy goes if it is their turn on page load. SwitchTurn is called in the enemyMove function as well in the if and else statements so that turns switch. 
+
+    - had to add a check in the connectedCallback function to ensure the enemy goes if it is their turn on page load. Had to not enter the if statement if the gameId is not set, so that the enemy does not go in the placeship phase. Later this could be changed to check if the player has placed their four ships since that is more logical, but it wasn't working when I tried it... 
+TODO: 
+ 
+- check if switchTurn is being called twice or if it is resolved. Moved switchTurn above the fireBall animation and put updateGame() directly below it to record the new turn state in DynamoDB 
+
+
+TODO: remove delete button and delete the gameId when the game is over or the restart button is clicked  

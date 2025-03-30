@@ -55,6 +55,13 @@ export class App extends cdk.Stack {
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        }
+      ],
     });
     // Deploy the HTML file to the S3 bucket
     new BucketDeployment(this, 'WebAppDeployment', {
@@ -162,7 +169,7 @@ export class App extends cdk.Stack {
     const api = new HttpApi(this, 'AppApi', {
       apiName: 'AppApi',
       corsPreflight: {
-        allowOrigins: ['*'],
+        allowOrigins: ['*'],  // In production, specify your actual domain instead of '*'
         allowMethods: [
           CorsHttpMethod.GET, 
           CorsHttpMethod.POST, 
