@@ -53,6 +53,10 @@ We are calling an extra switchTurn call, which is offsetting the turns by 1. We 
 
 TODO: 
 
+Rename rest endpoints in game-board.js to proper convention 
+
+take over the profile backend logic from user-exp branch and use it for our profile button 
+
 style help page to the same as the game page 
 
 fix mobile formatting by removing border so that it fits on phone cleanly 
