@@ -51,9 +51,10 @@ We are calling an extra switchTurn call, which is offsetting the turns by 1. We 
 
 3/30/25 
 
-TODO: 
+Contemplated adding a PATCH endpoint to update one field at a time, but instead we could add optimistic locking to the updateGame function later. This optimistic locking would check if the game state has changed since the last update and if so, it would return a conflict error to the client. The client would then have to refresh the page and try again. 
 
-Rename rest endpoints in game-board.js to proper convention 
+
+TODO: 
 
 take over the profile backend logic from user-exp branch and use it for our profile button 
 
