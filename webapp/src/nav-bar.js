@@ -230,37 +230,61 @@ export class NavBar extends LitElement {
       
       if (isLoggedIn) {
         // Show profile if logged in
-        const app = document.createElement('div');
-        app.innerHTML = `<profile-element></profile-element>`;
-        document.body.appendChild(app);
+        this.showUserProfile();
       } else {
         // Show login dialog if not logged in
-        const loginDialog = document.createElement('div');
-        loginDialog.style.position = 'fixed';
-        loginDialog.style.top = '50%';
-        loginDialog.style.left = '50%';
-        loginDialog.style.transform = 'translate(-50%, -50%)';
-        loginDialog.style.zIndex = '1000';
-        loginDialog.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
-        loginDialog.style.padding = '20px';
-        loginDialog.style.borderRadius = '10px';
-        loginDialog.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.5)';
-        loginDialog.innerHTML = `
-          <h3 style="color: white; margin-bottom: 15px; text-align: center;">Please Sign In</h3>
-          <login-element></login-element>
-          <button id="close-login" style="background: none; border: none; color: white; position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 18px;">✕</button>
-        `;
-        document.body.appendChild(loginDialog);
-        
-        // Add event listener to close button
-        const closeButton = loginDialog.querySelector('#close-login');
-        closeButton.addEventListener('click', () => {
-          document.body.removeChild(loginDialog);
-        });
+        this.showLoginDialog();
       }
       
       this.profileClickCount = 0; // reset for future clicks 
     } 
+  }
+
+  showUserProfile() {
+    // Remove any existing profile elements first
+    const existingProfile = document.querySelector('profile-element');
+    if (existingProfile) {
+      existingProfile.remove();
+    }
+    
+    // Create and append the profile element
+    const profileElement = document.createElement('profile-element');
+    document.body.appendChild(profileElement);
+  }
+
+  showLoginDialog() {
+    const loginDialog = document.createElement('div');
+    loginDialog.id = 'login-dialog';
+    loginDialog.style.position = 'fixed';
+    loginDialog.style.top = '50%';
+    loginDialog.style.left = '50%';
+    loginDialog.style.transform = 'translate(-50%, -50%)';
+    loginDialog.style.zIndex = '1000';
+    loginDialog.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
+    loginDialog.style.padding = '20px';
+    loginDialog.style.borderRadius = '10px';
+    loginDialog.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.5)';
+    loginDialog.innerHTML = `
+      <h3 style="color: white; margin-bottom: 15px; text-align: center;">Please Sign In</h3>
+      <login-element id="login-element"></login-element>
+      <button id="close-login" style="background: none; border: none; color: white; position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 18px;">✕</button>
+    `;
+    document.body.appendChild(loginDialog);
+    
+    // Add event listener to close button
+    const closeButton = loginDialog.querySelector('#close-login');
+    closeButton.addEventListener('click', () => {
+      document.body.removeChild(loginDialog);
+    });
+    
+    // Add event listener for successful login
+    const loginElement = loginDialog.querySelector('#login-element');
+    loginElement.addEventListener('login-success', () => {
+      // Remove the login dialog
+      document.body.removeChild(loginDialog);
+      // Show the user profile
+      this.showUserProfile();
+    });
   }
 
   handlePlayAgainClick() {  

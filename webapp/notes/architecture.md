@@ -53,6 +53,7 @@ We are calling an extra switchTurn call, which is offsetting the turns by 1. We 
 
 Contemplated adding a PATCH endpoint to update one field at a time, but instead we could add optimistic locking to the updateGame function later. This optimistic locking would check if the game state has changed since the last update and if so, it would return a conflict error to the client. The client would then have to refresh the page and try again. 
 
+fixed the profile button displaying the profile. Profile button event listener and login.js event dispatching added to profile-lit.js and login.js respectively
 
 TODO: 
 
