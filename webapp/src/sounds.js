@@ -11,7 +11,6 @@
 class Sounds {
   constructor() {
     this.audioContext = null;
-    
   }
 
   /**
@@ -115,9 +114,91 @@ class Sounds {
       noiseSource.stop(this.audioContext.currentTime + 1);
   }
 
+  /**
+   * Plays a victory sound
+   */
+  Victory() {
+    this.initAudioContext();
+    
+    // Create oscillator for a triumphant fanfare
+    const oscillator1 = this.audioContext.createOscillator();
+    const oscillator2 = this.audioContext.createOscillator();
+    
+    oscillator1.type = "triangle";
+    oscillator2.type = "sine";
+    
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.value = 0.3;
+    
+    // Connect both oscillators to gain node
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+    
+    // Fanfare sequence
+    const now = this.audioContext.currentTime;
+    
+    // First note
+    oscillator1.frequency.setValueAtTime(440, now);
+    oscillator2.frequency.setValueAtTime(554, now); // Major third
+    
+    // Second note (higher)
+    oscillator1.frequency.setValueAtTime(554, now + 0.2);
+    oscillator2.frequency.setValueAtTime(659, now + 0.2);
+    
+    // Final triumphant note
+    oscillator1.frequency.setValueAtTime(659, now + 0.4);
+    oscillator2.frequency.setValueAtTime(880, now + 0.4);
+    
+    // Start and stop oscillators
+    oscillator1.start(now);
+    oscillator2.start(now);
+    oscillator1.stop(now + 1.5);
+    oscillator2.stop(now + 1.5);
+    
+    // Create envelope
+    gainNode.gain.setValueAtTime(0.3, now);
+    gainNode.gain.linearRampToValueAtTime(0.5, now + 0.5);
+    gainNode.gain.linearRampToValueAtTime(0, now + 1.5);
+  }
+
+  /**
+   * Plays a defeat sound
+   */
+  Defeat() {
+    this.initAudioContext();
+    
+    // Create a sad, descending sound
+    const oscillator = this.audioContext.createOscillator();
+    oscillator.type = "sawtooth";
+    
+    const filter = this.audioContext.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 800;
+    
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.value = 0.2;
+    
+    // Connect nodes
+    oscillator.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+    
+    // Descending pitch
+    const now = this.audioContext.currentTime;
+    oscillator.frequency.setValueAtTime(330, now);
+    oscillator.frequency.exponentialRampToValueAtTime(110, now + 1.5);
+    
+    // Envelope
+    gainNode.gain.setValueAtTime(0.2, now);
+    gainNode.gain.linearRampToValueAtTime(0.3, now + 0.1);
+    gainNode.gain.linearRampToValueAtTime(0, now + 1.5);
+    
+    // Start and stop
+    oscillator.start(now);
+    oscillator.stop(now + 1.5);
+  }
 }
 
-
-
-const sounds = new Sounds()
+const sounds = new Sounds();
 export {sounds}; 

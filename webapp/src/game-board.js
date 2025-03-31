@@ -24,7 +24,9 @@ export class GameBoard extends LitElement {
       instructionText: { type: String },
       playerShipPositions: { type: Array },
       enemyShipPositions: { type: Array },
-      gameId: { type: String }
+      gameId: { type: String },
+      wins: { type: Number },
+      losses: { type: Number }
     };
   }
 
@@ -65,6 +67,11 @@ export class GameBoard extends LitElement {
     this.playerShipPositions = [];
     this.enemyShipPositions = [];
     
+    if(!this.gameId){
+      // Initialize win/loss counts on new game 
+      this.wins = 0;
+      this.losses = 0;
+    }
     // Place enemy ships randomly
     this.placeEnemyShips();
     
@@ -239,6 +246,8 @@ export class GameBoard extends LitElement {
 
         if (this.checkWin(this.enemyBoard)) {
           console.log('Player wins!');
+          sounds.initAudioContext();
+          sounds.Victory(); // add victory sound 
           this.endGame('Player');
           return;
         }
@@ -395,6 +404,8 @@ export class GameBoard extends LitElement {
 
             if (this.checkWin(this.playerBoard)) {
               console.log('Enemy wins!');
+              sounds.initAudioContext();
+              sounds.Defeat(); // add defeat sound 
               this.endGame('Enemy');
               return;
             }
@@ -523,17 +534,66 @@ export class GameBoard extends LitElement {
     this.gameEnded = true;
     this.winner = winner;
     
+    // Update win/loss counters
+    if (winner === 'Player') {
+      this.wins += 1;
+      // Dispatch event for profile component
+      window.dispatchEvent(new CustomEvent('game-won', { detail: { wins: this.wins } }));
+    } else {
+      this.losses += 1;
+      // Dispatch event for profile component
+      window.dispatchEvent(new CustomEvent('game-lost', { detail: { losses: this.losses } }));
+    }
+    
+    // Update game status in database
+    this.updateGame();
+    
+    // Update user stats if logged in
+    if (localStorage.getItem('isLoggedIn') === 'true') {
+      const userId = localStorage.getItem('userId');
+      if (userId) {
+        // Determine which stat to update
+        const statType = winner === 'Player' ? 'wins' : 'losses';
+        this.updateUserStats(userId, statType);
+      }
+    }
+    
     // Use the winner popup component
     setTimeout(() => {
       const winnerPopup = this.shadowRoot.querySelector('#winnerPopup');
-      console.log('WinnerPopup element:', winnerPopup);
-      
       if (winnerPopup) {
         winnerPopup.show(winner);
       } else {
         console.error('Winner popup component not found!');
       }
-    }, 100); // Small delay to ensure component is rendered
+    }, 100);
+  }
+
+  async updateUserStats(userId, statType) {
+    try {
+      console.log(`Updating user ${userId} ${statType}`);
+      
+      // Use the dedicated user-stats endpoint
+      const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/users/stats`, {
+        method: 'POST',  // Changed from PUT to POST to match your Lambda
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: userId,
+          statType: statType
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update user stats: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('User stats updated successfully:', result);
+    } catch (error) {
+      console.error('Error updating user stats:', error);
+    }
   }
 
   resetGame() {
@@ -568,6 +628,9 @@ export class GameBoard extends LitElement {
       this.enemyHitResult = null;
       this.animatingEnemyFireball = false;
       this.enemyFireballPosition = null;
+      
+      // Note: We're intentionally NOT resetting wins and losses here
+      // as they should persist across game resets
       
       // Place new enemy ships
       this.placeEnemyShips();
@@ -900,7 +963,9 @@ export class GameBoard extends LitElement {
         playerHits: this.playerShipPositions.filter(pos => this.playerBoard[pos.row][pos.col] === 'X').length,
         enemyHits: this.enemyShipPositions.filter(pos => this.enemyBoard[pos.row][pos.col] === 'X').length,
         gameStatus: this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS',
-        isPlayerTurn: this.isPlayerTurn
+        isPlayerTurn: this.isPlayerTurn,
+        wins: this.wins,     // Include wins in update
+        losses: this.losses  // Include losses in update
       };
 
       const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
@@ -930,6 +995,11 @@ export class GameBoard extends LitElement {
         this.shipsPlaced = data.shipsPlaced; 
         this.gameEnded = data.status === 'COMPLETED';
         this.isPlayerTurn = data.isPlayerTurn;
+        
+        // Get win/loss counts if they exist
+        if (data.wins !== undefined) this.wins = data.wins;
+        if (data.losses !== undefined) this.losses = data.losses;
+        
         console.log(`Game ${this.gameId} fetched!`, data);
         console.log(`isPlayerTurn: ${this.isPlayerTurn}`);
         this.requestUpdate(); // updates the UI with the new game state

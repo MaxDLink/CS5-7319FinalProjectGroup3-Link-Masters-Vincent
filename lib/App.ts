@@ -221,40 +221,54 @@ export class App extends cdk.Stack {
       },
     });
 
+    // Update User Stats Lambda
+    const updateUserStatsLambda = new NodejsFunction(this, 'UpdateUserStatsLambda', {
+      entry: 'lambda/update-user-stats/index.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        DYNAMODB_TABLE: table.tableName,
+      },
+    });
+
     // Grant permissions
     table.grantReadWriteData(createGameLambda);
     table.grantReadWriteData(getGameLambda);
     table.grantReadWriteData(updateGameLambda);
     table.grantReadWriteData(deleteGameLambda);
+    table.grantReadWriteData(updateUserStatsLambda);
 
-    // CREATE - Start new game
+    // Add routes to API
     api.addRoutes({
       path: '/games',
       methods: [HttpMethod.POST],
       integration: new HttpLambdaIntegration('CreateGameIntegration', createGameLambda),
     });
 
-    // READ - Get game state
     api.addRoutes({
       path: '/games/{gameId}',
       methods: [HttpMethod.GET],
       integration: new HttpLambdaIntegration('GetGameIntegration', getGameLambda),
     });
 
-    // UPDATE - Update game state (moves, ship positions)
     api.addRoutes({
       path: '/games/{gameId}',
       methods: [HttpMethod.PUT],
       integration: new HttpLambdaIntegration('UpdateGameIntegration', updateGameLambda),
     });
 
-    // DELETE - End/delete game
     api.addRoutes({
       path: '/games/{gameId}',
       methods: [HttpMethod.DELETE],
       integration: new HttpLambdaIntegration('DeleteGameIntegration', deleteGameLambda),
     });
 
+    // Add the new route for user stats
+    api.addRoutes({
+      path: '/users/stats',
+      methods: [HttpMethod.POST],
+      integration: new HttpLambdaIntegration('UpdateUserStatsIntegration', updateUserStatsLambda),
+    });
 
   } 
 } 

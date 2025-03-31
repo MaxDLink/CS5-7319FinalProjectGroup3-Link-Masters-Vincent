@@ -25,7 +25,9 @@ export const handler = async (event) => {
         createdAt: timestamp,
         updatedAt: timestamp,
         playerBoard: Array(4).fill(Array(4).fill(null)), // 4x4 empty board
-        enemyBoard: Array(4).fill(Array(4).fill(null))
+        enemyBoard: Array(4).fill(Array(4).fill(null)),
+        wins: 0,  // Add wins field with default 0
+        losses: 0 // Add losses field with default 0
       }
     };
 

@@ -55,11 +55,23 @@ Contemplated adding a PATCH endpoint to update one field at a time, but instead 
 
 fixed the profile button displaying the profile. Profile button event listener and login.js event dispatching added to profile-lit.js and login.js respectively
 
+ 
+
+Fixed victory and defeat sounds by adding sounds.initAudioContext() in game-board.js and sounds.Victory() and sounds.Defeat() in game-board.js when the game is over 
+
+
+todo: display wins/losses on profile page -- when winning or losing a game, update the wins/losses in profile page. Use events in game-board.js and profile-lit.js to update the profile page with wins/losses when the game is over. Added load profile function to profile-lit.js to load the profile data from DynamoDB when the profile page is loaded, which includes the wins and losses 
+
+    - issue is that dynamoDB object does not have its wins/losses updated when the game is over 
+
+    - use our existing RESTFUL API endpoints to update the wins/losses in the profile page and make a new lambda function to handle the update --> add win and loss fields to createGame lambda and update them with this.wins and this.losses in game-board.js when the game is over
+    
+
 TODO: 
 
 take over the profile backend logic from user-exp branch and use it for our profile button 
 
-style help page to the same as the game page 
+style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? 
 
 fix mobile formatting by removing border so that it fits on phone cleanly 
 
