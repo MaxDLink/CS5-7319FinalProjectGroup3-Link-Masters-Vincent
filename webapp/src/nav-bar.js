@@ -143,12 +143,19 @@ export class NavBar extends LitElement {
   }
   `;
 
+  static properties = {
+    chatBoxVisible: { type: Boolean }
+  };
+
+  static chatBoxInstance = null;
+
   constructor() {
     super();
     this.tutorialClickCount = 0;
     this.profileClickCount = 0;
     this.playAgainClickCount = 0;
     this.chatClickCount = 0;
+    this.chatBoxVisible = false;
   }
 
   render() {
@@ -378,38 +385,34 @@ export class NavBar extends LitElement {
     this.tutorialClickCount = 0;
     this.profileClickCount = 0;
     this.playAgainClickCount = 0;
-    this.chatClickCount = 1; // enter after first click 
-    if (this.chatClickCount === 1) {
-      console.log('Chat button clicked!');
-      
-      // Remove any existing chat box
-      const existingChatBox = document.querySelector('chat-box');
-      if (existingChatBox) {
-        existingChatBox.remove();
-        this.chatClickCount = 0;
-        return;
+    this.chatBoxVisible = !this.chatBoxVisible;
+
+    if (this.chatBoxVisible) {
+      // If we don't have a chat box instance yet, create one
+      if (!NavBar.chatBoxInstance) {
+        const chatContainer = document.createElement('div');
+        chatContainer.style.position = 'relative';
+        const chatBox = document.createElement('chat-box');
+        chatContainer.appendChild(chatBox);
+        NavBar.chatBoxInstance = chatContainer;
       }
 
-      // Create chat box container
-      const chatContainer = document.createElement('div');
-      chatContainer.style.position = 'relative';
-      
-      // Create and append the chat box
-      const chatBox = document.createElement('chat-box');
-      chatContainer.appendChild(chatBox);
-      
       // Find the chat button in the nav bar
       const chatButton = this.shadowRoot.querySelector('#chatButton');
       const chatButtonRect = chatButton.getBoundingClientRect();
       
       // Position the container relative to the chat button
-      chatContainer.style.position = 'fixed';
-      chatContainer.style.top = `${chatButtonRect.bottom + window.scrollY}px`;
-      chatContainer.style.left = `${chatButtonRect.left}px`;
+      NavBar.chatBoxInstance.style.position = 'fixed';
+      NavBar.chatBoxInstance.style.top = `${chatButtonRect.bottom + window.scrollY}px`;
+      NavBar.chatBoxInstance.style.left = `${chatButtonRect.left}px`;
       
-      document.body.appendChild(chatContainer);
-      this.chatClickCount = 0; // reset for future clicks 
-    } 
+      document.body.appendChild(NavBar.chatBoxInstance);
+    } else {
+      // Hide the chat box
+      if (NavBar.chatBoxInstance && NavBar.chatBoxInstance.parentNode) {
+        NavBar.chatBoxInstance.parentNode.removeChild(NavBar.chatBoxInstance);
+      }
+    }
   }
 }
 

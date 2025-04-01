@@ -537,8 +537,18 @@ export class GameBoard extends LitElement {
     // Update win/loss counters
     if (winner === 'Player') {
       this.wins += 1;
+      // Add victory message to chat
+      const chatBox = document.querySelector('chat-box');
+      if (chatBox) {
+        chatBox.addGameMessage("🏆 Congratulations! You've sunk all my ships! Well played!", 'game win');
+      }
     } else {
       this.losses += 1;
+      // Add defeat message to chat
+      const chatBox = document.querySelector('chat-box');
+      if (chatBox) {
+        chatBox.addGameMessage("💥 Game Over! I've sunk all your ships! Better luck next time!", 'game lose');
+      }
     }
     
     // Store the latest wins and losses in localStorage

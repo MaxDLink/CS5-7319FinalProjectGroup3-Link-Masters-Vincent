@@ -123,6 +123,29 @@ class ChatBox extends LitElement {
     button:active {
       transform: translateY(0);
     }
+
+    .message.game {
+      background: rgba(46, 204, 113, 0.2);
+      border: 1px solid rgba(46, 204, 113, 0.3);
+      color: #2ecc71;
+      font-weight: 500;
+      text-align: center;
+      align-self: center;
+      max-width: 90%;
+      padding: 12px 20px;
+    }
+
+    .message.game.lose {
+      background: rgba(231, 76, 60, 0.2);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      color: #e74c3c;
+    }
+
+    .message.game.win {
+      background: rgba(46, 204, 113, 0.2);
+      border: 1px solid rgba(46, 204, 113, 0.3);
+      color: #2ecc71;
+    }
   `;
 
   static properties = {
@@ -132,13 +155,27 @@ class ChatBox extends LitElement {
   constructor() {
     super();
     this.messages = [];
+    this.addGameMessage("👋 Welcome to Battleship! I'll be your opponent. Good luck!", 'game');
+  }
+
+  addGameMessage(message, type = 'game') {
+    this.messages = [...this.messages, { 
+      text: message, 
+      user: false, 
+      type: type 
+    }];
+    this._autoScroll();
   }
 
   sendMessage() {
     const input = this.shadowRoot.getElementById('chatInput');
     const message = input.value.trim();
     if (message) {
-      this.messages = [...this.messages, { text: message, user: true }];
+      this.messages = [...this.messages, { 
+        text: message, 
+        user: true,
+        type: 'user'
+      }];
       input.value = '';
       this._autoScroll();
     }
@@ -155,7 +192,7 @@ class ChatBox extends LitElement {
     return html`
       <div class="messages">
         ${this.messages.map(
-          (msg) => html`<div class="message ${msg.user ? 'user' : ''}">${msg.text}</div>`
+          (msg) => html`<div class="message ${msg.user ? 'user' : ''} ${msg.type}">${msg.text}</div>`
         )}
       </div>
       <div class="input-box">
