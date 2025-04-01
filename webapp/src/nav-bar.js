@@ -267,30 +267,90 @@ export class NavBar extends LitElement {
     loginDialog.style.left = '50%';
     loginDialog.style.transform = 'translate(-50%, -50%)';
     loginDialog.style.zIndex = '1000';
-    loginDialog.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
-    loginDialog.style.padding = '20px';
-    loginDialog.style.borderRadius = '10px';
+    loginDialog.style.backgroundColor = 'var(--card-bg-color, #1e1e1e)';
+    loginDialog.style.padding = '30px';
+    loginDialog.style.borderRadius = '15px';
     loginDialog.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.5)';
+    loginDialog.style.backdropFilter = 'blur(10px)';
+    loginDialog.style.border = '1px solid var(--border-color, rgba(255, 255, 255, 0.1))';
+    loginDialog.style.color = 'var(--text-color, #ffffff)';
+    loginDialog.style.fontFamily = "'Poppins', sans-serif";
+    loginDialog.style.minWidth = '200px';
+    
     loginDialog.innerHTML = `
-      <h3 style="color: white; margin-bottom: 15px; text-align: center;">Please Sign In</h3>
-      <login-element id="login-element"></login-element>
-      <button id="close-login" style="background: none; border: none; color: white; position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 18px;">✕</button>
+      <h3 style="color: var(--text-color, #ffffff); margin-bottom: 20px; text-align: center; font-size: 1.5em; font-weight: 500;">Please Sign In</h3>
+      <div style="display: flex; justify-content: center;">
+        <button id="sign-in-button" style="
+          background-color: var(--bg-color, rgba(30, 30, 30, 0.8));
+          color: var(--text-color, #ffffff);
+          border: none;
+          padding: 8px 20px;
+          border-radius: 20px;
+          cursor: pointer;
+          font-size: 0.85em;
+          font-family: 'Poppins', sans-serif;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        ">Sign In</button>
+      </div>
+      <button id="close-login" style="
+        background: none;
+        border: none;
+        color: var(--text-color, #ffffff);
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        cursor: pointer;
+        font-size: 1.2em;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+        ">✕</button>
     `;
+    
     document.body.appendChild(loginDialog);
     
-    // Add event listener to close button
-    const closeButton = loginDialog.querySelector('#close-login');
-    closeButton.addEventListener('click', () => {
-      document.body.removeChild(loginDialog);
+    // Add hover effects
+    const signInButton = loginDialog.querySelector('#sign-in-button');
+    signInButton.addEventListener('mouseover', () => {
+      signInButton.style.backgroundColor = 'var(--hover-color, rgba(255, 255, 255, 0.1))';
+      signInButton.style.transform = 'scale(1.05)';
+    });
+    signInButton.addEventListener('mouseout', () => {
+      signInButton.style.backgroundColor = 'var(--bg-color, rgba(30, 30, 30, 0.8))';
+      signInButton.style.transform = 'scale(1)';
     });
     
-    // Add event listener for successful login
-    const loginElement = loginDialog.querySelector('#login-element');
-    loginElement.addEventListener('login-success', () => {
-      // Remove the login dialog
+    // Add click handler for sign in
+    signInButton.addEventListener('click', () => {
+      const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com";
+      const clientId = "tj2n9mnpm20nn9d015ahkr7da";
+      const redirectUri = encodeURIComponent(`${window.location.origin}/`);
+      const loginUrl = `${cognitoDomain}/login?client_id=${clientId}&response_type=code&scope=email+openid+profile&redirect_uri=${redirectUri}`;
+      
+      // Redirect to Cognito login page
+      window.location.href = loginUrl;
       document.body.removeChild(loginDialog);
-      // Show the user profile
-      this.showUserProfile();
+    });
+
+    // Close button hover effect
+    const closeButton = loginDialog.querySelector('#close-login');
+    closeButton.addEventListener('mouseover', () => {
+      closeButton.style.backgroundColor = 'var(--hover-color, rgba(255, 255, 255, 0.1))';
+    });
+    closeButton.addEventListener('mouseout', () => {
+      closeButton.style.backgroundColor = 'transparent';
+    });
+    
+    // Close button click handler
+    closeButton.addEventListener('click', () => {
+      document.body.removeChild(loginDialog);
     });
   }
 

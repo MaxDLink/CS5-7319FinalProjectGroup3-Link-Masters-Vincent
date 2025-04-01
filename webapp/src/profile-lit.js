@@ -11,10 +11,10 @@ class ProfileElement extends LitElement {
       height: 100vh;
       width: 100vw;
       z-index: 9999;
-      background-color: white;
+      background-color: var(--background-color, #121212);
       margin: 0;
       padding: 0;
-      font-family: Arial, sans-serif;
+      font-family: 'Poppins', sans-serif;
     }
 
     div {
@@ -23,38 +23,44 @@ class ProfileElement extends LitElement {
       justify-content: center;
       align-items: center;
       height: 100%;
+      color: var(--text-color, #ffffff);
     }
 
     button {
       margin: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
+      padding: 8px 12px;
+      font-size: 0.85em;
       cursor: pointer;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      background-color: #007BFF;
-      color: white;
-      transition: background-color 0.3s ease;
+      border: none;
+      border-radius: 20px;
+      background-color: var(--bg-color, rgba(30, 30, 30, 0.8));
+      color: var(--text-color, #ffffff);
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
 
     button:hover {
-      background-color: #0056b3;
+      background-color: var(--hover-color, rgba(255, 255, 255, 0.1));
+      transform: scale(1.05);
     }
 
     .stats-card {
-      background: #f8f9fa;
+      background: var(--card-bg-color, #1e1e1e);
       border-radius: 10px;
       padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
       margin: 2rem;
       min-width: 300px;
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
     }
 
     .profile-name {
       font-size: 2rem;
       font-weight: bold;
       margin-bottom: 1.5rem;
-      color: #2c3e50;
+      color: var(--text-color, #ffffff);
     }
 
     .stats-container {

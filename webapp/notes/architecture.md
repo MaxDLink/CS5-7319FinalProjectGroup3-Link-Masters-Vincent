@@ -1,3 +1,7 @@
+
+
+We decided to transition to a darker color scheme to be easier on the eyes. We also removed the enemy marking misses as this was unnecessary. We show the enemy hits, player hits, and player misses only to simplify our UI. We also got rid of the attack indicator and show the enemy and player attacking directly from their boards. 
+
 3/26/25
 
 added restful endpoints for CRUD in app.ts
@@ -59,8 +63,9 @@ fixed the profile button displaying the profile. Profile button event listener a
 
 Fixed victory and defeat sounds by adding sounds.initAudioContext() in game-board.js and sounds.Victory() and sounds.Defeat() in game-board.js when the game is over 
 
+3/31/25 
 
-todo: display wins/losses on profile page -- when winning or losing a game, update the wins/losses in profile page. Use events in game-board.js and profile-lit.js to update the profile page with wins/losses when the game is over. Added load profile function to profile-lit.js to load the profile data from DynamoDB when the profile page is loaded, which includes the wins and losses 
+Display wins/losses on profile page -- when winning or losing a game, update the wins/losses in profile page. Use events in game-board.js and profile-lit.js to update the profile page with wins/losses when the game is over. Added load profile function to profile-lit.js to load the profile data from DynamoDB when the profile page is loaded, which includes the wins and losses 
 
     - issue is that dynamoDB object does not have its wins/losses updated when the game is over 
 
@@ -75,8 +80,10 @@ take over the profile backend logic from user-exp branch and use it for our prof
 
 Now lets make the logout button work and reset the wins/losses from localStorage when the user logs out. We can use a direct URL approach to logout from cognito and still keep the game page to redirect to after logout 
 
-
 Style sign in button when clicking profile 
+
+TODO: 
+
 
 style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? 
 
