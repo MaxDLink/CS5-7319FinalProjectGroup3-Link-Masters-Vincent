@@ -381,9 +381,33 @@ export class NavBar extends LitElement {
     this.chatClickCount = 1; // enter after first click 
     if (this.chatClickCount === 1) {
       console.log('Chat button clicked!');
-      const app = document.createElement('div');
-      app.innerHTML = `<chat-box></chat-box>`;
-      document.body.appendChild(app);  
+      
+      // Remove any existing chat box
+      const existingChatBox = document.querySelector('chat-box');
+      if (existingChatBox) {
+        existingChatBox.remove();
+        this.chatClickCount = 0;
+        return;
+      }
+
+      // Create chat box container
+      const chatContainer = document.createElement('div');
+      chatContainer.style.position = 'relative';
+      
+      // Create and append the chat box
+      const chatBox = document.createElement('chat-box');
+      chatContainer.appendChild(chatBox);
+      
+      // Find the chat button in the nav bar
+      const chatButton = this.shadowRoot.querySelector('#chatButton');
+      const chatButtonRect = chatButton.getBoundingClientRect();
+      
+      // Position the container relative to the chat button
+      chatContainer.style.position = 'fixed';
+      chatContainer.style.top = `${chatButtonRect.bottom + window.scrollY}px`;
+      chatContainer.style.left = `${chatButtonRect.left}px`;
+      
+      document.body.appendChild(chatContainer);
       this.chatClickCount = 0; // reset for future clicks 
     } 
   }
