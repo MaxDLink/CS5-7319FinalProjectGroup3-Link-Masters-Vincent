@@ -67,9 +67,15 @@ todo: display wins/losses on profile page -- when winning or losing a game, upda
     - use our existing RESTFUL API endpoints to update the wins/losses in the profile page and make a new lambda function to handle the update --> add win and loss fields to createGame lambda and update them with this.wins and this.losses in game-board.js when the game is over
     
 
-TODO: 
 
 take over the profile backend logic from user-exp branch and use it for our profile button 
+
+    - make sure the wins and losses exist after the restart button is clicked ... this means they cannot be linked to the createGame lambda or they have to not be wiped after game restart .... When the user logs out, then the wins and losses should be wiped? What is good user exp? 
+    - reading wins and losses from localStorage instead of DynamoDB to send from game-board.js to profile-lit.js. Local storage works and keeps consistent between restarts 
+
+Now lets make the logout button work and reset the wins/losses from localStorage when the user logs out. We can use a direct URL approach to logout from cognito and still keep the game page to redirect to after logout 
+
+
 
 style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? 
 

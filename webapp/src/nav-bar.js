@@ -250,6 +250,13 @@ export class NavBar extends LitElement {
     // Create and append the profile element
     const profileElement = document.createElement('profile-element');
     document.body.appendChild(profileElement);
+    
+    // Force a refresh of the profile data
+    setTimeout(() => {
+      if (profileElement.loadUserProfile) {
+        profileElement.loadUserProfile();
+      }
+    }, 100);
   }
 
   showLoginDialog() {

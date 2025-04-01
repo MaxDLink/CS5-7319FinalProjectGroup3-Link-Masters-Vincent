@@ -537,28 +537,23 @@ export class GameBoard extends LitElement {
     // Update win/loss counters
     if (winner === 'Player') {
       this.wins += 1;
-      // Dispatch event for profile component
-      window.dispatchEvent(new CustomEvent('game-won', { detail: { wins: this.wins } }));
     } else {
       this.losses += 1;
-      // Dispatch event for profile component
-      window.dispatchEvent(new CustomEvent('game-lost', { detail: { losses: this.losses } }));
     }
+    
+    // Store the latest wins and losses in localStorage
+    localStorage.setItem('playerWins', this.wins);
+    localStorage.setItem('playerLosses', this.losses);
+    
+    // Dispatch event with the updated stats
+    window.dispatchEvent(new CustomEvent('stats-updated', { 
+      detail: { wins: this.wins, losses: this.losses } 
+    }));
     
     // Update game status in database
     this.updateGame();
     
-    // Update user stats if logged in
-    if (localStorage.getItem('isLoggedIn') === 'true') {
-      const userId = localStorage.getItem('userId');
-      if (userId) {
-        // Determine which stat to update
-        const statType = winner === 'Player' ? 'wins' : 'losses';
-        this.updateUserStats(userId, statType);
-      }
-    }
-    
-    // Use the winner popup component
+    // Show winner popup
     setTimeout(() => {
       const winnerPopup = this.shadowRoot.querySelector('#winnerPopup');
       if (winnerPopup) {
@@ -567,33 +562,6 @@ export class GameBoard extends LitElement {
         console.error('Winner popup component not found!');
       }
     }, 100);
-  }
-
-  async updateUserStats(userId, statType) {
-    try {
-      console.log(`Updating user ${userId} ${statType}`);
-      
-      // Use the dedicated user-stats endpoint
-      const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/users/stats`, {
-        method: 'POST',  // Changed from PUT to POST to match your Lambda
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: userId,
-          statType: statType
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to update user stats: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('User stats updated successfully:', result);
-    } catch (error) {
-      console.error('Error updating user stats:', error);
-    }
   }
 
   resetGame() {

@@ -1,28 +1,20 @@
 import { LitElement, html, css } from 'lit';
-import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
-import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
-import { DynamoDBClient, GetItemCommand, UpdateItemCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { UserManager } from 'oidc-client-ts';
 
 class ProfileElement extends LitElement {
   static styles = css`
     :host {
       display: block;
-      position: fixed; /* Ensures the element is fixed to the viewport */
+      position: fixed;
       top: 0;
       left: 0;
-      height: 100vh; /* Fill the full height of the viewport */
-      width: 100vw;  /* Fill the full width of the viewport */
-      z-index: 9999; /* Ensure it's above all other elements */
-      background-color: white; /* Add a background color to cover everything */
+      height: 100vh;
+      width: 100vw;
+      z-index: 9999;
+      background-color: white;
       margin: 0;
       padding: 0;
-      font-family: Arial, sans-serif; /* Set a clean font style */
-    }
-
-    h1 {
-      margin-top: 0;
-      text-align: center;
+      font-family: Arial, sans-serif;
     }
 
     div {
@@ -116,213 +108,62 @@ class ProfileElement extends LitElement {
       scope: "email openid profile"
     });
     
-    // Bind event handlers to maintain 'this' context
-    this.handleGameWon = this.handleGameWon.bind(this);
-    this.handleGameLost = this.handleGameLost.bind(this);
+    // Bind the event handler
+    this.handleStatsUpdated = this.handleStatsUpdated.bind(this);
   }
 
-  async connectedCallback() {
+  connectedCallback() {
     super.connectedCallback();
     console.log('Profile element connected to DOM');
     
-    // Initialize UserManager if not already done
-    if (!this.userManager) {
-      this.initializeUserManager();
-    }
+    // Load user info and stats
+    this.loadUserProfile();
     
-    // Check if user is logged in
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    if (isLoggedIn) {
-      this.loading = true;
-      // Force a fresh load of the profile data
-      await this.loadUserProfile();
-    }
+    // Listen for stats updates
+    window.addEventListener('stats-updated', this.handleStatsUpdated);
+  }
+  
+  disconnectedCallback() {
+    super.disconnectedCallback();
     
-    // Add event listener for profile button clicks
-    this.addEventListener('profile-button-clicked', this.handleProfileButtonClick);
+    // Remove event listener
+    window.removeEventListener('stats-updated', this.handleStatsUpdated);
   }
 
-  async getAWSCredentials(idToken) {
-    const client = new CognitoIdentityClient({ region: "us-east-1" });
-    try {
-      const credentials = await fromCognitoIdentityPool({
-        client,
-        identityPoolId: "us-east-1:c3790fe5-2ba0-4b01-b4ec-59182be5e818",
-        logins: {
-          [`cognito-idp.us-east-1.amazonaws.com/us-east-1_m9CtZ8Zr3`]: idToken,
-        },
-      })();
-      return credentials;
-    } catch (err) {
-      console.error("Error obtaining AWS credentials:", err);
-      throw err;
-    }
+  handleStatsUpdated(event) {
+    console.log('Stats updated event received:', event.detail);
+    this.wins = event.detail.wins;
+    this.losses = event.detail.losses;
+    this.requestUpdate();
   }
 
-  async fetchUserProfile(credentials, userId) {
-    const dynamoClient = new DynamoDBClient({
-      region: "us-east-1",
-      credentials,
-    });
-    
-    const command = new GetItemCommand({
-      TableName: "App-MyTable794EDED1-1DVU471JFF49V",
-      Key: {
-        pk: { S: `USER#${userId}` },
-        sk: { S: "PROFILE" },
-      },
-    });
-
+  async loadUserProfile() {
+    console.log('Loading user profile...');
     try {
-      const response = await dynamoClient.send(command);
-      const item = response.Item;
-      
-      if (item) {
-        // Update the component properties with the retrieved data
-        this.profileName = item.name?.S || this.profileName;
-        this.wins = item.wins ? parseInt(item.wins.N, 10) : 0;
-        this.losses = item.losses ? parseInt(item.losses.N, 10) : 0;
+      // Get user from Cognito
+      const user = await this.userManager.getUser();
+      if (user) {
+        this.profileName = user.profile.email || user.profile.name || 'Player';
       } else {
-        // Create a new profile if one doesn't exist
-        await this.createUserProfile(userId, credentials);
-      }
-    } catch (error) {
-      console.error("Error retrieving user profile:", error);
-    }
-  }
-
-  async createNewUserProfile(userId, credentials) {
-    const dynamoClient = new DynamoDBClient({
-      region: "us-east-1",
-      credentials,
-    });
-    
-    const params = {
-      TableName: "App-MyTable794EDED1-1DVU471JFF49V",
-      Item: {
-        pk: { S: `USER#${userId}` },
-        sk: { S: "PROFILE" },
-        name: { S: this.profileName },
-        wins: { N: "0" },
-        losses: { N: "0" },
-        createdAt: { S: new Date().toISOString() }
-      }
-    };
-
-    try {
-      const putCommand = new PutItemCommand(params);
-      await dynamoClient.send(putCommand);
-      console.log("Created new profile for user", userId);
-    } catch (error) {
-      console.error("Error creating new user profile:", error);
-    }
-  }
-
-  // Method to update stats in DynamoDB
-  async updateStatsInDB(userId, statType, credentials) {
-    console.log(`Updating ${statType} for user ${userId}`);
-    const dynamoClient = new DynamoDBClient({
-      region: "us-east-1",
-      credentials
-    });
-    
-    // First check if the user profile exists
-    const userProfile = await this.getUserStats(userId, credentials);
-    
-    if (!userProfile) {
-      console.log('User profile not found, creating new profile');
-      await this.createUserProfile(userId, credentials);
-    }
-    
-    // Now update the specific stat
-    const params = {
-      TableName: "App-MyTable794EDED1-1DVU471JFF49V", // Your DynamoDB table name
-      Key: {
-        pk: { S: `USER#${userId}` },
-        sk: { S: "PROFILE" }
-      },
-      UpdateExpression: `SET ${statType} = :newValue`,
-      ExpressionAttributeValues: {
-        ":newValue": { N: (statType === 'wins' ? this.wins + 1 : this.losses + 1).toString() }
-      },
-      ReturnValues: "UPDATED_NEW"
-    };
-    
-    try {
-      console.log('Sending update command to DynamoDB with params:', JSON.stringify(params, null, 2));
-      const command = new UpdateItemCommand(params);
-      const response = await dynamoClient.send(command);
-      console.log(`Successfully updated ${statType} for user ${userId}`, response);
-      
-      // Verify the update by fetching the profile again
-      const updatedProfile = await this.getUserStats(userId, credentials);
-      console.log('Updated profile:', updatedProfile);
-      
-      return response;
-    } catch (error) {
-      console.error(`Error updating ${statType}:`, error);
-      console.error('Error details:', error.stack);
-      throw error;
-    }
-  }
-
-  // Method to update wins
-  async updateWins() {
-    console.log('updateWins called');
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-      console.error('No userId found in localStorage');
-      return;
-    }
-    
-    try {
-      const user = await this.userManager.getUser();
-      if (!user) {
-        console.error('No user found from userManager');
-        return;
+        this.profileName = 'Guest Player';
       }
       
-      console.log('Getting AWS credentials');
-      const credentials = await this.getAWSCredentials(user.id_token);
-      console.log('Updating wins in DB');
-      await this.updateStatsInDB(userId, 'wins', credentials);
-      this.wins++; // Update the UI immediately
-      console.log('Wins incremented to', this.wins);
+      // Get wins and losses from localStorage
+      this.wins = parseInt(localStorage.getItem('playerWins') || '0', 10);
+      this.losses = parseInt(localStorage.getItem('playerLosses') || '0', 10);
+      
+      console.log('Loaded stats:', { wins: this.wins, losses: this.losses });
+      
+      this.loading = false;
       this.requestUpdate();
     } catch (error) {
-      console.error("Error updating wins:", error);
-    }
-  }
-
-  // Method to update losses
-  async updateLosses() {
-    console.log('updateLosses called');
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-      console.error('No userId found in localStorage');
-      return;
-    }
-    
-    try {
-      const user = await this.userManager.getUser();
-      if (!user) {
-        console.error('No user found from userManager');
-        return;
-      }
-      
-      console.log('Getting AWS credentials');
-      const credentials = await this.getAWSCredentials(user.id_token);
-      console.log('Updating losses in DB');
-      await this.updateStatsInDB(userId, 'losses', credentials);
-      this.losses++; // Update the UI immediately
-      console.log('Losses incremented to', this.losses);
-      this.requestUpdate();
-    } catch (error) {
-      console.error("Error updating losses:", error);
+      console.error('Error loading profile:', error);
+      this.loading = false;
     }
   }
 
   render() {
+    console.log('Rendering profile with wins:', this.wins, 'losses:', this.losses);
     return html`
       <div>
         ${this.loading ? 
@@ -356,180 +197,40 @@ class ProfileElement extends LitElement {
     }
   }
 
-  logout() {
-    // Clear local storage
+  async logout() {
+    console.log('Logout initiated');
+    
+    // Clear all game-related data from localStorage
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userId');
+    localStorage.removeItem('playerWins');
+    localStorage.removeItem('playerLosses');
+    localStorage.removeItem('gameId');
     
-    // Use the UserManager to sign out
-    this.userManager.signoutRedirect().then(() => {
-      console.log('Logout initiated');
-    }).catch(error => {
+    // Dispatch an event to notify other components about logout
+    window.dispatchEvent(new CustomEvent('user-logged-out'));
+    
+    // Remove this component from the DOM to return to the game
+    if (this.parentNode) {
+      this.parentNode.removeChild(this);
+    }
+    
+    try {
+      // First try to sign out locally
+      await this.userManager.removeUser();
+      
+      // Use the same direct URL approach that works in login.js
+      const clientId = "tj2n9mnpm20nn9d015ahkr7da";
+      const logoutUri = `${window.location.origin}/`;
+      const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com";
+      
+      // Redirect to Cognito logout page
+      window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
+    } catch (error) {
       console.error('Logout error:', error);
-    });
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    
-    // Remove event listeners when component is removed
-    window.removeEventListener('game-won', this.handleGameWon);
-    window.removeEventListener('game-lost', this.handleGameLost);
-  }
-
-  // Event handlers
-  async handleGameWon(event) {
-    console.log('Game won event received in profile component', event);
-    try {
-      await this.updateWins();
-      console.log('Wins updated successfully, new count:', this.wins);
-      this.requestUpdate(); // Force UI update
-    } catch (error) {
-      console.error('Error updating wins:', error);
-    }
-  }
-  
-  async handleGameLost(event) {
-    console.log('Game lost event received in profile component', event);
-    try {
-      await this.updateLosses();
-      console.log('Losses updated successfully, new count:', this.losses);
-      this.requestUpdate(); // Force UI update
-    } catch (error) {
-      console.error('Error updating losses:', error);
-    }
-  }
-
-  // Handle profile button clicks
-  async handleProfileButtonClick(event) {
-    console.log('Profile button clicked event received');
-    this.loading = true;
-    // Force a fresh load of the profile data
-    await this.loadUserProfile();
-  }
-
-  // Modify the loadUserProfile method to ensure it always gets fresh data
-  async loadUserProfile() {
-    console.log('Loading user profile...');
-    try {
-      const user = await this.userManager.getUser();
-      if (!user) {
-        console.error('No user found from userManager');
-        this.loading = false;
-        return;
-      }
       
-      // Get user ID from token or localStorage
-      const userId = user.profile.sub || localStorage.getItem('userId');
-      if (!userId) {
-        console.error('No userId found');
-        this.loading = false;
-        return;
-      }
-      
-      // Store userId in localStorage for future use
-      localStorage.setItem('userId', userId);
-      
-      // Set profile name from user info
-      this.profileName = user.profile.email || user.profile.name || 'Player';
-      
-      // Get AWS credentials
-      const credentials = await this.getAWSCredentials(user.id_token);
-      
-      // Make sure we clear any cached values
-      this.wins = 0;
-      this.losses = 0;
-      
-      // Force a fresh fetch from DynamoDB
-      const userStats = await this.getUserStats(userId, credentials);
-      
-      if (userStats) {
-        this.wins = userStats.wins?.N ? parseInt(userStats.wins.N, 10) : 0;
-        this.losses = userStats.losses?.N ? parseInt(userStats.losses.N, 10) : 0;
-        console.log('Loaded stats from DB:', { wins: this.wins, losses: this.losses });
-      } else {
-        console.log('No user stats found, creating profile');
-        await this.createUserProfile(userId, credentials);
-      }
-      
-      this.loading = false;
-      this.requestUpdate();
-      console.log('Profile loaded successfully:', { name: this.profileName, wins: this.wins, losses: this.losses });
-    } catch (error) {
-      console.error('Error in loadUserProfile:', error);
-      this.loading = false;
-    }
-  }
-
-  // Get user stats from DynamoDB
-  async getUserStats(userId, credentials) {
-    console.log('Getting user stats from DynamoDB for userId:', userId);
-    
-    const dynamoClient = new DynamoDBClient({
-      region: "us-east-1",
-      credentials
-    });
-    
-    const params = {
-      TableName: "App-MyTable794EDED1-1DVU471JFF49V", // Your DynamoDB table name
-      Key: {
-        pk: { S: `USER#${userId}` },
-        sk: { S: "PROFILE" }
-      }
-    };
-    
-    try {
-      console.log('GetItem params:', JSON.stringify(params, null, 2));
-      const command = new GetItemCommand(params);
-      const response = await dynamoClient.send(command);
-      console.log('DynamoDB response (raw):', JSON.stringify(response, null, 2));
-      
-      // Log the actual values we're extracting
-      if (response.Item) {
-        console.log('Extracted values:', {
-          wins: response.Item.wins?.N ? parseInt(response.Item.wins.N, 10) : 0,
-          losses: response.Item.losses?.N ? parseInt(response.Item.losses.N, 10) : 0
-        });
-      }
-      
-      return response.Item;
-    } catch (error) {
-      console.error('Error getting user stats:', error);
-      return null;
-    }
-  }
-
-  // Create a new user profile in DynamoDB
-  async createUserProfile(userId, credentials) {
-    console.log('Creating new user profile...');
-    const dynamoClient = new DynamoDBClient({
-      region: "us-east-1",
-      credentials
-    });
-    
-    const params = {
-      TableName: "App-MyTable794EDED1-1DVU471JFF49V", // Your DynamoDB table name
-      Item: {
-        pk: { S: `USER#${userId}` },
-        sk: { S: "PROFILE" },
-        wins: { N: "0" },
-        losses: { N: "0" },
-        createdAt: { S: new Date().toISOString() }
-      }
-    };
-    
-    try {
-      const command = new PutItemCommand(params);
-      await dynamoClient.send(command);
-      console.log('New profile created successfully');
-    } catch (error) {
-      console.error('Error creating user profile:', error);
-    }
-  }
-
-  updated(changedProperties) {
-    if (changedProperties.has('wins') || changedProperties.has('losses')) {
-      console.log('Stats updated in component:', { wins: this.wins, losses: this.losses });
+      // If there's an error, at least try to reload the page
+      window.location.reload();
     }
   }
 }
