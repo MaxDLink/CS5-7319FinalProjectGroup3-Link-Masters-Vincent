@@ -2,7 +2,7 @@
 
 We decided to transition to a darker color scheme to be easier on the eyes. We also removed the enemy marking misses as this was unnecessary. We show the enemy hits, player hits, and player misses only to simplify our UI. We also got rid of the attack indicator and show the enemy and player attacking directly from their boards. 
 
-3/26/25
+## 3/26/25
 
 added restful endpoints for CRUD in app.ts
 
@@ -12,7 +12,7 @@ changed game-board.js to create a new game id with the create endpoint
 and stores it into DynamoDB
 
 
-3/29/25 
+## 3/29/25 
 
 implemented GET endpoint in game-board.js to retrieve game state from DynamoDB based on gameId 
 
@@ -53,7 +53,7 @@ We are calling an extra switchTurn call, which is offsetting the turns by 1. We 
 
     - navbar buttons work on single click
 
-3/30/25 
+## 3/30/25 
 
 Contemplated adding a PATCH endpoint to update one field at a time, but instead we could add optimistic locking to the updateGame function later. This optimistic locking would check if the game state has changed since the last update and if so, it would return a conflict error to the client. The client would then have to refresh the page and try again. 
 
@@ -63,7 +63,7 @@ fixed the profile button displaying the profile. Profile button event listener a
 
 Fixed victory and defeat sounds by adding sounds.initAudioContext() in game-board.js and sounds.Victory() and sounds.Defeat() in game-board.js when the game is over 
 
-3/31/25 
+## 3/31/25 
 
 Display wins/losses on profile page -- when winning or losing a game, update the wins/losses in profile page. Use events in game-board.js and profile-lit.js to update the profile page with wins/losses when the game is over. Added load profile function to profile-lit.js to load the profile data from DynamoDB when the profile page is loaded, which includes the wins and losses 
 
@@ -82,10 +82,10 @@ Now lets make the logout button work and reset the wins/losses from localStorage
 
 Style sign in button when clicking profile 
 
-TODO: 
+## TODO: 
 
 
-style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? 
+style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? --> use game-board-mixins.js file for this. Do not touch the backend attributes, just demonstrate game functionality like placing ships and enemy attacking player 
 
 Style chat box and make AI chat at the end of the game 
 
