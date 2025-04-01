@@ -76,12 +76,12 @@ take over the profile backend logic from user-exp branch and use it for our prof
 Now lets make the logout button work and reset the wins/losses from localStorage when the user logs out. We can use a direct URL approach to logout from cognito and still keep the game page to redirect to after logout 
 
 
+Style sign in button when clicking profile 
 
 style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? 
 
 Style chat box and make AI chat at the end of the game 
 
-Style sign in button when clicking profile 
 
 fix mobile formatting by removing border so that it fits on phone cleanly 
 
