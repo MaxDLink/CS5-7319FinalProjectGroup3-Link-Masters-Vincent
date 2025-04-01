@@ -79,12 +79,18 @@ Now lets make the logout button work and reset the wins/losses from localStorage
 
 style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? 
 
+Style chat box and make AI chat at the end of the game 
+
+Style sign in button when clicking profile 
+
 fix mobile formatting by removing border so that it fits on phone cleanly 
 
-fix sound issue on victory screen. Make sure winner-popup.js is being used and not causing the issue with sound on victory screen 
+Make sure winner-popup.js is being used 
+
+Work on general flow between logging in, winning/losing, logging out, etc. 
 
 look at cleaning the code by moving the RESTFUL API functions out of game-board.js etc. 
 
-diagram the architecture in draw.io and share it with the team 
+diagram the architecture in draw.io and share it with the team --> connector and component diagram, at least 10 components 
 
 Clean up branches and move on to event bus arch. 
