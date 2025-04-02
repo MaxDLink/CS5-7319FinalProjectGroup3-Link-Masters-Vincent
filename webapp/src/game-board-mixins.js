@@ -1,6 +1,7 @@
 import { css, html } from 'lit';
 import { GameBoard } from './game-board.js';
 import { sounds } from './sounds.js';
+import { LitElement } from 'lit';
 
 /**
  * Base mixin for tutorial game boards
@@ -785,4 +786,609 @@ export const PlayerAttackBoard = PlayerAttackMixin(GameBoard);
 customElements.define('game-board-overview', GameBoardOverview);
 customElements.define('ship-placement-board', ShipPlacementBoard);
 customElements.define('enemy-attack-board', EnemyAttackBoard);
-customElements.define('player-attack-board', PlayerAttackBoard); 
+customElements.define('player-attack-board', PlayerAttackBoard);
+
+/**
+ * Custom game board for battleship that doesn't inherit from GameBoard
+ */
+export class CustomBattleBoard extends LitElement {
+  static get properties() {
+    return {
+      enemyBoard: { type: Array },
+      playerBoard: { type: Array },
+      message: { type: String },
+      instructionText: { type: String }
+    };
+  }
+
+  constructor() {
+    super();
+    // Fixed 4x1 board dimensions
+    this.boardWidth = 4;
+    this.boardHeight = 1;
+    
+    // Initialize enemy and player boards
+    this.enemyBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
+    this.playerBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
+    
+    // Set up player board with ships and skulls for display
+    this.playerBoard[0][0] = 'X'; // skull
+    this.playerBoard[0][1] = 'X'; // skull
+    this.playerBoard[0][2] = 'S'; // ship
+    this.playerBoard[0][3] = 'S'; // ship
+    
+    // Default messages
+    this.message = 'Enemy hit your ship!';
+    this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
+  }
+
+  render() {
+    return html`
+      <div class="game-card">
+        <h2 class="title">${this.message}</h2>
+        <p class="instruction">${this.instructionText}</p>
+        
+        <div class="board-section">
+          <h3 class="board-title">Enemy Board</h3>
+          <div class="board enemy-board">
+            ${this.enemyBoard[0].map((cell, index) => html`
+              <div class="cell" data-position="${index}"></div>
+            `)}
+          </div>
+        </div>
+        
+        <div class="board-section">
+          <h3 class="board-title">Player Board</h3>
+          <div class="board player-board">
+            ${this.playerBoard[0].map((cell, index) => html`
+              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'S' ? 'ship' : ''}"
+                   data-position="${index}">
+                ${cell === 'X' ? html`<span class="skull">💀</span>` : 
+                  cell === 'S' ? html`<span class="ship-icon">🚢</span>` : ''}
+              </div>
+            `)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  static get styles() {
+    return css`
+      :host {
+        --board-width: 280px;
+        --cell-size: calc(var(--board-width) / 4);
+        display: flex;
+        justify-content: center;
+        width: 100%;
+      }
+
+      .game-card {
+        background-color: #1e1e1e;
+        border-radius: 16px;
+        padding: 20px;
+        width: 100%;
+        max-width: 600px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .title {
+        color: #ffffff;
+        margin: 0 0 8px 0;
+        text-align: center;
+        font-size: 1.5em;
+      }
+
+      .instruction {
+        color: #ffffff;
+        text-align: center;
+        margin: 0 0 20px 0;
+        font-size: 1em;
+      }
+
+      .board-section {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 20px 0;
+      }
+
+      .board-title {
+        font-size: 1.2em;
+        color: #3498db;
+        margin: 0 0 10px 0;
+        text-align: center;
+      }
+
+      .board {
+        width: var(--board-width);
+        height: var(--cell-size);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: 1fr;
+        gap: 4px;
+        background-color: #2a2a2a;
+        padding: 8px;
+        border-radius: 8px;
+      }
+
+      .cell {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: 1;
+        background-color: #3a3a3a;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .cell.hit {
+        background-color: rgba(231, 76, 60, 0.7);
+      }
+
+      .cell.ship {
+        background-color: rgba(52, 152, 219, 0.7);
+      }
+
+      .skull, .ship-icon {
+        font-size: 1.5em;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 600px) {
+        :host {
+          --board-width: 240px;
+        }
+      }
+    `;
+  }
+}
+
+// Define the custom elements
+customElements.define('custom-battle-board', CustomBattleBoard);
+
+/**
+ * Enemy attack board with custom implementation
+ */
+export class CustomEnemyAttackBoard extends CustomBattleBoard {
+  static get properties() {
+    return {
+      ...super.properties,
+      isVisible: { type: Boolean },
+      hasStartedAttacking: { type: Boolean },
+      animatingEnemyFireball: { type: Boolean },
+      enemyFireballPosition: { type: Object }
+    };
+  }
+
+  constructor() {
+    super();
+    this.message = 'Enemy hit your ship!';
+    this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
+    
+    // Set player board with all ships for this view
+    this.playerBoard[0][0] = 'S'; // ship (will become skull)
+    this.playerBoard[0][1] = 'S'; // ship (will become skull)
+    this.playerBoard[0][2] = 'S'; // ship 
+    this.playerBoard[0][3] = 'S'; // ship
+    
+    // Observer and animation state
+    this.isVisible = false;
+    this.hasStartedAttacking = false;
+    this.animatingEnemyFireball = false;
+    this.enemyFireballPosition = null;
+    this.attackCount = 0;
+    this.maxAttacks = 4;
+  }
+
+  firstUpdated() {
+    super.firstUpdated?.();
+    this.setupVisibilityObserver();
+  }
+
+  setupVisibilityObserver() {
+    // Create intersection observer
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          this.isVisible = entry.isIntersecting;
+          if (this.isVisible && !this.hasStartedAttacking) {
+            console.log('Enemy attack section is visible, starting attack sequence...');
+            this.hasStartedAttacking = true;
+            this.startAttackSequence();
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.7 // Requires 70% visibility to trigger
+      }
+    );
+
+    // Start observing the component
+    requestAnimationFrame(() => {
+      const boardSection = this.shadowRoot?.querySelector('.game-card');
+      if (boardSection) {
+        observer.observe(boardSection);
+        console.log('Observing enemy attack board section');
+      } else {
+        console.warn('Board section not found for observation');
+      }
+    });
+  }
+
+  startAttackSequence() {
+    console.log('Starting enemy attack sequence');
+    // Schedule all four attacks with increasing delays
+    for (let i = 0; i < this.maxAttacks; i++) {
+      setTimeout(() => {
+        if (this.isVisible) {
+          this.performAttack(i);
+        }
+      }, 2000 * (i + 1)); // 2 seconds between each attack
+    }
+  }
+
+  async performAttack(position) {
+    if (!this.isVisible) return;
+
+    const col = position;
+
+    // Get board elements after they're definitely in the DOM
+    const enemyBoard = this.shadowRoot?.querySelector('.enemy-board');
+    const playerBoard = this.shadowRoot?.querySelector('.player-board');
+    const targetCell = playerBoard?.querySelectorAll('.cell')[col];
+
+    if (!enemyBoard || !playerBoard || !targetCell) {
+      console.warn('Required elements not found for enemy attack animation');
+      return;
+    }
+
+    // Start enemy fireball animation
+    const enemyRect = enemyBoard.getBoundingClientRect();
+    const targetRect = targetCell.getBoundingClientRect();
+
+    // Calculate positions for exact targeting
+    const startX = enemyRect.left + enemyRect.width / 2;
+    const startY = enemyRect.top + enemyRect.height / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+
+    // Create and append fireball element
+    const fireball = document.createElement('div');
+    fireball.className = 'fireball';
+    fireball.textContent = '🔥';
+    fireball.style.position = 'fixed';
+    fireball.style.zIndex = '100';
+    fireball.style.fontSize = '24px';
+    fireball.style.transform = 'translate(-50%, -50%)';
+    document.body.appendChild(fireball);
+
+    // Animate the fireball
+    const animationDuration = 1000;
+    const startTime = performance.now();
+
+    const animateFireball = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      const easeOutQuad = t => t * (2 - t);
+      const easedProgress = easeOutQuad(progress);
+      
+      fireball.style.left = `${startX + (endX - startX) * easedProgress}px`;
+      fireball.style.top = `${startY + (endY - startY) * easedProgress}px`;
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateFireball);
+      } else {
+        // Animation complete, remove fireball
+        document.body.removeChild(fireball);
+        
+        // Process the hit
+        setTimeout(() => {
+          // Mark ship as hit
+          this.playerBoard[0][col] = 'X';
+          this.message = 'Enemy hit your ship!';
+          this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
+          sounds.initAudioContext();
+          sounds.HitPlayer();
+          
+          this.requestUpdate();
+        }, 100);
+      }
+    };
+
+    requestAnimationFrame(animateFireball);
+  }
+
+  render() {
+    return html`
+      <div class="game-card">
+        <h2 class="title">${this.message}</h2>
+        <p class="instruction">${this.instructionText}</p>
+        
+        <div class="board-section">
+          <h3 class="board-title">Enemy Board</h3>
+          <div class="board enemy-board">
+            ${this.enemyBoard[0].map((cell, index) => html`
+              <div class="cell" data-position="${index}"></div>
+            `)}
+          </div>
+        </div>
+        
+        <div class="board-section">
+          <h3 class="board-title">Player Board</h3>
+          <div class="board player-board">
+            ${this.playerBoard[0].map((cell, index) => html`
+              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'S' ? 'ship' : ''}"
+                   data-position="${index}">
+                ${cell === 'X' ? html`<span class="skull">💀</span>` : 
+                  cell === 'S' ? html`<span class="ship-icon">🚢</span>` : ''}
+              </div>
+            `)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  static get styles() {
+    return css`
+      ${super.styles}
+      
+      .fireball {
+        position: fixed;
+        z-index: 100;
+        pointer-events: none;
+        font-size: 1.5em;
+      }
+    `;
+  }
+}
+
+// Define the custom elements
+customElements.define('custom-enemy-attack-board', CustomEnemyAttackBoard);
+
+/**
+ * Player attack board with custom implementation
+ */
+export class CustomPlayerAttackBoard extends CustomBattleBoard {
+  static get properties() {
+    return {
+      ...super.properties,
+      animatingFireball: { type: Boolean },
+      fireballPosition: { type: Object },
+      hits: { type: Number },
+      maxHits: { type: Number },
+      enemyShipPositions: { type: Array }
+    };
+  }
+
+  constructor() {
+    super();
+    this.message = 'Your turn to attack!';
+    this.instructionText = 'Click on the enemy board to attack.';
+    
+    // Set player board with ships
+    this.playerBoard[0][0] = 'X'; // hit ship (skull)
+    this.playerBoard[0][1] = 'X'; // hit ship (skull)
+    this.playerBoard[0][2] = 'S'; // ship
+    this.playerBoard[0][3] = 'S'; // ship
+    
+    // Attack state
+    this.animatingFireball = false;
+    this.fireballPosition = null;
+    this.hits = 0;
+    this.maxHits = 4;
+    this.enemyShipPositions = [0, 1, 2, 3]; // All positions are ships in this demo
+  }
+
+  firstUpdated() {
+    super.firstUpdated?.();
+    // Add click handlers to enemy cells
+    this.shadowRoot.querySelectorAll('.enemy-board .cell').forEach(cell => {
+      cell.addEventListener('click', (e) => this.handleEnemyCellClick(e));
+    });
+  }
+
+  handleEnemyCellClick(event) {
+    const cell = event.target.closest('.cell');
+    if (!cell) return;
+    
+    const cellIndex = cell.dataset.position;
+    if (!cellIndex) return;
+    
+    const col = parseInt(cellIndex, 10);
+    
+    // Don't allow attacking the same cell twice
+    if (this.enemyBoard[0][col] === 'X' || this.enemyBoard[0][col] === 'O') {
+      return;
+    }
+    
+    this.performPlayerAttack(col);
+  }
+
+  performPlayerAttack(col) {
+    // Get board elements
+    const playerBoard = this.shadowRoot?.querySelector('.player-board');
+    const enemyBoard = this.shadowRoot?.querySelector('.enemy-board');
+    const targetCell = enemyBoard?.querySelectorAll('.cell')[col];
+
+    if (!playerBoard || !enemyBoard || !targetCell) {
+      console.warn('Required elements not found for player attack animation');
+      return;
+    }
+
+    // Calculate exact coordinates for the animation
+    const playerRect = playerBoard.getBoundingClientRect();
+    const targetRect = targetCell.getBoundingClientRect();
+
+    // Start and end positions
+    const startX = playerRect.left + playerRect.width / 2;
+    const startY = playerRect.top + playerRect.height / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+
+    // Create and append fireball element
+    const fireball = document.createElement('div');
+    fireball.className = 'fireball';
+    fireball.textContent = '🔥';
+    fireball.style.position = 'fixed';
+    fireball.style.zIndex = '100';
+    fireball.style.fontSize = '24px';
+    fireball.style.transform = 'translate(-50%, -50%)';
+    document.body.appendChild(fireball);
+
+    // Animate the fireball
+    const animationDuration = 800;
+    const startTime = performance.now();
+
+    const animateFireball = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      const easeOutQuad = t => t * (2 - t);
+      const easedProgress = easeOutQuad(progress);
+      
+      fireball.style.left = `${startX + (endX - startX) * easedProgress}px`;
+      fireball.style.top = `${startY + (endY - startY) * easedProgress}px`;
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateFireball);
+      } else {
+        // Animation complete, remove fireball
+        document.body.removeChild(fireball);
+        
+        // Process the hit
+        setTimeout(() => {
+          if (this.enemyShipPositions.includes(col)) {
+            // Hit
+            this.enemyBoard[0][col] = 'X';
+            this.hits++;
+            this.message = 'Hit! You sunk an enemy ship!';
+            this.instructionText = 'Great shot! Keep attacking to find all enemy ships.';
+            sounds.initAudioContext();
+            sounds.HitEnemy();
+            
+            // Add explosion effect
+            const explosionEl = document.createElement('div');
+            explosionEl.className = 'explosion';
+            explosionEl.textContent = '💥';
+            explosionEl.style.position = 'absolute';
+            explosionEl.style.left = '50%';
+            explosionEl.style.top = '50%';
+            explosionEl.style.transform = 'translate(-50%, -50%)';
+            explosionEl.style.zIndex = '10';
+            explosionEl.style.fontSize = '24px';
+            targetCell.appendChild(explosionEl);
+            
+            setTimeout(() => {
+              if (targetCell.contains(explosionEl)) {
+                targetCell.removeChild(explosionEl);
+              }
+            }, 1000);
+
+            if (this.hits === this.maxHits) {
+              this.message = 'Victory! You sunk all enemy ships!';
+              this.instructionText = 'You\'ve completed the tutorial!';
+              sounds.initAudioContext();
+              sounds.Victory();
+            }
+          } else {
+            // Miss
+            this.enemyBoard[0][col] = 'O';
+            this.message = 'Miss! Try again!';
+            this.instructionText = 'Keep searching for enemy ships.';
+            
+            // Add water splash effect
+            const splashEl = document.createElement('div');
+            splashEl.className = 'splash';
+            splashEl.textContent = '💦';
+            splashEl.style.position = 'absolute';
+            splashEl.style.left = '50%';
+            splashEl.style.top = '50%';
+            splashEl.style.transform = 'translate(-50%, -50%)';
+            splashEl.style.zIndex = '10';
+            splashEl.style.fontSize = '24px';
+            targetCell.appendChild(splashEl);
+            
+            setTimeout(() => {
+              if (targetCell.contains(splashEl)) {
+                targetCell.removeChild(splashEl);
+              }
+            }, 1000);
+          }
+          
+          this.requestUpdate();
+        }, 100);
+      }
+    };
+
+    requestAnimationFrame(animateFireball);
+  }
+
+  render() {
+    return html`
+      <div class="game-card">
+        <h2 class="title">${this.message}</h2>
+        <p class="instruction">${this.instructionText}</p>
+        
+        <div class="board-section">
+          <h3 class="board-title">Enemy Board</h3>
+          <div class="board enemy-board">
+            ${this.enemyBoard[0].map((cell, index) => html`
+              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'O' ? 'miss' : ''}"
+                   data-position="${index}">
+                ${cell === 'X' ? '💥' : 
+                  cell === 'O' ? '💦' : ''}
+              </div>
+            `)}
+          </div>
+        </div>
+        
+        <div class="board-section">
+          <h3 class="board-title">Player Board</h3>
+          <div class="board player-board">
+            ${this.playerBoard[0].map((cell, index) => html`
+              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'S' ? 'ship' : ''}"
+                   data-position="${index}">
+                ${cell === 'X' ? html`<span class="skull">💀</span>` : 
+                  cell === 'S' ? html`<span class="ship-icon">🚢</span>` : ''}
+              </div>
+            `)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  static get styles() {
+    return css`
+      ${super.styles}
+      
+      .fireball {
+        position: fixed;
+        z-index: 100;
+        pointer-events: none;
+        font-size: 1.5em;
+      }
+      
+      .cell.hit {
+        background-color: rgba(46, 204, 113, 0.7);
+      }
+      
+      .cell.miss {
+        background-color: rgba(231, 76, 60, 0.7);
+      }
+    `;
+  }
+}
+
+// Define the custom elements
+customElements.define('custom-player-attack-board', CustomPlayerAttackBoard); 

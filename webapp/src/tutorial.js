@@ -4,8 +4,8 @@ import './game-board.js'
 import {
   GameBoardOverview,
   ShipPlacementBoard,
-  EnemyAttackBoard,
-  PlayerAttackBoard,
+  CustomEnemyAttackBoard,
+  CustomPlayerAttackBoard,
   // VictoryScreenBoard
 } from './game-board-mixins.js'
 
@@ -172,7 +172,7 @@ export class Tutorial extends LitElement {
         <h2>Enemy Attacks</h2>
         <p>The enemy will attack your board. Watch out for their attacks!</p>
         <div class="game-board-container">
-          <enemy-attack-board></enemy-attack-board>
+          <custom-enemy-attack-board></custom-enemy-attack-board>
         </div>
       </section>
 
@@ -180,7 +180,7 @@ export class Tutorial extends LitElement {
         <h2>Your Turn to Attack</h2>
         <p>Now it's your turn to attack the enemy's board. Try to find and sink their ships!</p>
         <div class="game-board-container">
-          <player-attack-board></player-attack-board>
+          <custom-player-attack-board></custom-player-attack-board>
         </div>
       </section>
 
@@ -188,7 +188,7 @@ export class Tutorial extends LitElement {
         <h2>Victory!</h2>
         <p>Keep attacking until you sink all enemy ships to win the game!</p>
         <div class="game-board-container">
-          <victory-screen-board></victory-screen-board>
+          <custom-battle-board></custom-battle-board>
         </div>
       </section>
 
