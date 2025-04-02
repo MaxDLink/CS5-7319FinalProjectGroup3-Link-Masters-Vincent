@@ -87,7 +87,11 @@ Style sign in button when clicking profile
 
 style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? --> use game-board-mixins.js file for this. Do not touch the backend attributes, just demonstrate game functionality like placing ships and enemy attacking player 
 
-Style chat box and make AI chat at the end of the game 
+    - not using observer for attacks from enemy. Using updated lifecycle method instead because observer was causing issues 
+
+make AI chat at the end of the game 
+
+make profile show up when signed in. Currently loops back to sign in 
 
 
 fix mobile formatting by removing border so that it fits on phone cleanly 

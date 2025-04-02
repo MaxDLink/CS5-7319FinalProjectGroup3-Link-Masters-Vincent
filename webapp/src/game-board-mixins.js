@@ -20,23 +20,161 @@ const TutorialBaseMixin = (Base) =>
         playerBoard: { type: Array },
         enemyBoard: { type: Array },
         shipsPlaced: { type: Number },
-        maxShips: { type: Number }
+        maxShips: { type: Number },
+        isPlayerTurn: { type: Boolean },
+        lastHitPosition: { type: Object },
+        lastEnemyHitPosition: { type: Object },
+        hitResult: { type: String },
+        enemyHitResult: { type: String },
+        animatingFireball: { type: Boolean },
+        fireballPosition: { type: Object },
+        animatingEnemyFireball: { type: Boolean },
+        enemyFireballPosition: { type: Object }
       };
     }
 
     constructor() {
       super();
-      this.boardWidth = 4;  // Width of the board (number of columns)
-      this.boardHeight = 1; // Height of the board (number of rows)
-      this.maxShips = 4;    // Total number of ships that can be placed
+      // Board configuration
+      this.boardWidth = 4;
+      this.boardHeight = 1;
+      this.maxShips = 4;
+      
+      // Game state
       this.gameEnded = false;
       this.winner = null;
       this.message = '';
       this.instructionText = '';
       this.isTutorialMode = true;
       this.shipsPlaced = 0;
+      this.isPlayerTurn = true;
+      
+      // Initialize boards
       this.playerBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
       this.enemyBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
+      
+      // Hit tracking
+      this.lastHitPosition = null;
+      this.lastEnemyHitPosition = null;
+      this.hitResult = null;
+      this.enemyHitResult = null;
+      
+      // Animation state
+      this.animatingFireball = false;
+      this.fireballPosition = null;
+      this.animatingEnemyFireball = false;
+      this.enemyFireballPosition = null;
+      
+      // Ship positions
+      this.playerShipPositions = [];
+      this.enemyShipPositions = [];
+      
+      // Override backend-related properties
+      this.gameId = null;
+      this.wins = 0;
+      this.losses = 0;
+    }
+
+    async connectedCallback() {
+      // Initialize properties before calling super
+      if (!this.gameId) {
+        this.gameId = null;
+        this.isPlayerTurn = true;
+        this.gameEnded = false;
+      }
+
+      // Call super if it exists, but don't wait for it
+      if (super.connectedCallback) {
+        try {
+          super.connectedCallback();
+        } catch (error) {
+          console.warn('Error in parent connectedCallback, continuing with tutorial initialization:', error);
+        }
+      }
+
+      // Add event listener for game reset
+      window.addEventListener('game-reset', () => {
+        this.resetGame();
+      });
+
+      // Request an update to render initial state
+      this.requestUpdate();
+    }
+
+    // Override backend-related methods to do nothing in tutorial mode
+    async createGame() {
+      // Do nothing in tutorial mode
+      return Promise.resolve({ gameId: null });
+    }
+
+    async updateGame() {
+      // Do nothing in tutorial mode
+      return Promise.resolve();
+    }
+
+    async getGame() {
+      // Do nothing in tutorial mode
+      return Promise.resolve({
+        gameId: null,
+        playerBoard: this.playerBoard,
+        enemyBoard: this.enemyBoard,
+        shipsPlaced: this.shipsPlaced,
+        status: 'IN_PROGRESS',
+        isPlayerTurn: this.isPlayerTurn
+      });
+    }
+
+    async deleteGame() {
+      // Do nothing in tutorial mode
+      return Promise.resolve();
+    }
+
+    // Override game state methods
+    switchTurn() {
+      // Do nothing in tutorial mode
+      return;
+    }
+
+    checkWin() {
+      // Do nothing in tutorial mode
+      return false;
+    }
+
+    endGame() {
+      // Do nothing in tutorial mode
+      return;
+    }
+
+    resetGame() {
+      // Reset only local state
+      this.winner = null;
+      this.gameEnded = false;
+      this.playerBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
+      this.enemyBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
+      this.shipsPlaced = 0;
+      this.message = '';
+      this.instructionText = '';
+      this.isPlayerTurn = true;
+      this.requestUpdate();
+    }
+
+    // Override animation methods to ensure they work in tutorial mode
+    createExplosion(row, col, isEnemyBoard) {
+      if (!this.shadowRoot) return;
+      try {
+        super.createExplosion?.(row, col, isEnemyBoard);
+      } catch (error) {
+        console.warn('Error creating explosion effect:', error);
+      }
+    }
+
+    createWaterSplash(row, col, isEnemyBoard) {
+      if (!this.shadowRoot) return;
+      try {
+        super.createWaterSplash?.(row, col, isEnemyBoard);
+      } catch (error) {
+        console.warn('Error creating water splash effect:', error);
+      }
     }
 
     static styles = [
@@ -225,13 +363,13 @@ const GameBoardOverviewMixin = (Base) =>
       super();
       this.message = 'Welcome to Battle Ship!';
       this.instructionText = 'This is your game board. You\'ll place your ships here.';
-      this.playerBoard = Array(this.boardWidth).fill().map(() => Array(this.boardHeight).fill(''));
-      this.enemyBoard = Array(this.boardWidth).fill().map(() => Array(this.boardHeight).fill(''));
+      this.playerBoard = Array(1).fill().map(() => Array(4).fill(''));
+      this.enemyBoard = Array(1).fill().map(() => Array(4).fill(''));
     }
 
     handlePlayerCellClick(row, col) {
-      // Highlight the clicked cell to show interactivity
-      const cell = this.shadowRoot.querySelector(`.player-section .cell:nth-child(${row * this.boardWidth + col + 1})`);
+      // Just highlight the cell to show interactivity
+      const cell = this.shadowRoot.querySelector(`.player-section .cell:nth-child(${col + 1})`);
       if (cell) {
         cell.classList.add('tutorial-highlight');
         setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
@@ -239,8 +377,8 @@ const GameBoardOverviewMixin = (Base) =>
     }
 
     handleEnemyCellClick(row, col) {
-      // Highlight the clicked cell to show interactivity
-      const cell = this.shadowRoot.querySelector(`.enemy-section .cell:nth-child(${row * this.boardWidth + col + 1})`);
+      // Just highlight the cell to show interactivity
+      const cell = this.shadowRoot.querySelector(`.enemy-section .cell:nth-child(${col + 1})`);
       if (cell) {
         cell.classList.add('tutorial-highlight');
         setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
@@ -255,24 +393,20 @@ const ShipPlacementMixin = (Base) =>
   class extends TutorialBaseMixin(Base) {
     constructor() {
       super();
-      this.message = 'Place your ships!';
+      this.message = 'Click on the player board cells to place your ships!';
       this.instructionText = 'Click on your board to place your ships.';
       this.shipsPlaced = 0;
-      // Initialize boards using the dimensions from parent
-      this.playerBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
-      this.enemyBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
-      this.isTutorialMode = true;
+      // Initialize empty 1x4 boards
+      this.playerBoard = Array(1).fill().map(() => Array(4).fill(''));
+      this.enemyBoard = Array(1).fill().map(() => Array(4).fill(''));
     }
 
     handlePlayerCellClick(row, col) {
-      console.log('Player clicked:', row, col);
       if (this.shipsPlaced >= this.maxShips) return;
       
       if (this.playerBoard[row][col] === '') {
-        // Create a new board with the ship placed
-        this.playerBoard = this.playerBoard.map((r, i) => 
-          i === row ? r.map((c, j) => j === col ? 'S' : c) : r
-        );
+        // Place a ship
+        this.playerBoard[row][col] = 'S';
         this.shipsPlaced++;
         sounds.initAudioContext();
         sounds.HitPlayer();
@@ -297,7 +431,7 @@ const ShipPlacementMixin = (Base) =>
     }
 
     handleEnemyCellClick(row, col) {
-      this.message = 'First place all your ships!';
+      this.message = 'Place your ships first!';
       this.instructionText = `Place ${this.maxShips - this.shipsPlaced} more ships on your board.`;
       setTimeout(() => {
         if (this.shipsPlaced < this.maxShips) {
@@ -314,139 +448,160 @@ const ShipPlacementMixin = (Base) =>
  */
 const EnemyAttackMixin = (Base) =>
   class extends TutorialBaseMixin(Base) {
+    static get properties() {
+      return {
+        ...super.properties,
+        isVisible: { type: Boolean }
+      };
+    }
+
     constructor() {
       super();
       this.message = 'Watch out! The enemy is attacking!';
       this.instructionText = 'The enemy will attack your ships.';
-      // Pre-fill the board with ships for demonstration
-      this.playerBoard = Array(this.boardWidth).fill().map(() => Array(this.boardWidth).fill('S'));
-      this.enemyBoard = Array(this.boardWidth).fill().map(() => Array(this.boardWidth).fill(''));
+      // Initialize player board with ships and empty enemy board
+      this.playerBoard = Array(1).fill().map(() => Array(4).fill('S'));
+      this.enemyBoard = Array(1).fill().map(() => Array(4).fill(''));
       this.attackCount = 0;
-      this.maxAttacks = 3;
+      this.maxAttacks = 4;
       this.hasStartedAttacking = false;
-      // Indicate this is tutorial mode
-      this.isTutorialMode = true;
-      
-      // Add properties for fireball animation
-      this.animatingEnemyFireball = false;
-      this.enemyFireballPosition = { x: 0, y: 0 };
+      this.isVisible = false;
+      // Override turn-based properties
+      this.isPlayerTurn = false;
+      this.gameEnded = false;
     }
 
-    connectedCallback() {
-      super.connectedCallback();
-      // Use IntersectionObserver to detect when section is visible
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting && !this.hasStartedAttacking) {
-            this.hasStartedAttacking = true;
-            // Start demo attacks when visible
-            setTimeout(() => this.startEnemyAttacks(), 1000);
-          }
-        });
-      }, { threshold: 0.5 });
-
-      observer.observe(this);
+    firstUpdated() {
+      super.firstUpdated?.();
+      this.setupVisibilityObserver();
     }
 
-    startEnemyAttacks() {
-      if (this.attackCount < this.maxAttacks) {
+    setupVisibilityObserver() {
+      // Create intersection observer
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach(entry => {
+            this.isVisible = entry.isIntersecting;
+            if (this.isVisible && !this.hasStartedAttacking) {
+              console.log('Enemy attack section is visible, starting attack sequence...');
+              this.hasStartedAttacking = true;
+              this.startAttackSequence();
+            }
+          });
+        },
+        {
+          root: null,
+          rootMargin: '0px',
+          threshold: 0.7 // Requires 70% visibility to trigger
+        }
+      );
+
+      // Start observing the board section
+      requestAnimationFrame(() => {
+        const boardSection = this.shadowRoot?.querySelector('.board-section');
+        if (boardSection) {
+          observer.observe(boardSection);
+          console.log('Observing enemy attack board section');
+        } else {
+          console.warn('Board section not found for observation');
+        }
+      });
+    }
+
+    startAttackSequence() {
+      console.log('Starting enemy attack sequence');
+      // Schedule all four attacks with increasing delays
+      for (let i = 0; i < this.maxAttacks; i++) {
         setTimeout(() => {
-          this.simulateEnemyAttack();
-          this.attackCount++;
-          if (this.attackCount < this.maxAttacks) {
-            this.startEnemyAttacks();
+          if (this.isVisible) {
+            this.performAttack(i);
           }
-        }, 2000);
+        }, 2000 * (i + 1)); // 2 seconds between each attack
       }
     }
 
-    simulateEnemyAttack() {
-      const row = Math.floor(Math.random() * this.boardWidth);
-      const col = Math.floor(Math.random() * this.boardWidth);
-      
-      // Start fireball animation before the attack
-      this.startEnemyFireballAnimation(row, col);
+    async performAttack(position) {
+      if (!this.isVisible) return;
 
-      // Delay the attack result until after the animation
-      setTimeout(() => {
-        if (this.playerBoard[row][col] === 'S') {
-          this.playerBoard[row][col] = 'X';
-          this.message = 'Enemy hit your ship!';
-          this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
-          sounds.initAudioContext();
-          sounds.HitPlayer();
-          this.createExplosion(row, col, false);
-        } else {
-          this.playerBoard[row][col] = 'O';
-          this.message = 'Enemy missed!';
-          this.instructionText = 'When the enemy misses, it\'s marked with an O.';
-          this.createWaterSplash(row, col, false);
-        }
-        this.requestUpdate();
-      }, 1000); // Wait for fireball animation to complete
-    }
+      const row = 0;
+      const col = position;
 
-    startEnemyFireballAnimation(targetRow, targetCol) {
-      // Get the positions of the player board and enemy board
-      const playerBoard = this.shadowRoot.querySelector('.player-section .board');
-      const enemyBoard = this.shadowRoot.querySelector('.enemy-section .board');
-      const targetCell = playerBoard.querySelectorAll('.cell')[targetRow * this.boardWidth + targetCol];
-      
+      // Get board elements
+      const playerBoard = this.shadowRoot?.querySelector('.player-section .board');
+      const enemyBoard = this.shadowRoot?.querySelector('.enemy-section .board');
+      const targetCell = playerBoard?.querySelectorAll('.cell')[col];
+
       if (!playerBoard || !enemyBoard || !targetCell) {
-        console.error('Could not find elements for enemy animation');
+        console.warn('Required elements not found for enemy attack animation');
         return;
       }
-      
-      // Get the positions
+
+      // Start enemy fireball animation
       const enemyRect = enemyBoard.getBoundingClientRect();
       const targetRect = targetCell.getBoundingClientRect();
-      
-      // Calculate start and end positions
+
+      // Calculate positions
       const startX = enemyRect.left + enemyRect.width / 2;
       const startY = enemyRect.top + enemyRect.height / 2;
       const endX = targetRect.left + targetRect.width / 2;
       const endY = targetRect.top + targetRect.height / 2;
-      
-      // Start animation
+
+      // Set up enemy fireball
       this.animatingEnemyFireball = true;
       this.enemyFireballPosition = { x: startX, y: startY };
-      
-      // Force a synchronous update
       this.requestUpdate();
-      
+
       // Animate the fireball
-      const animationDuration = 800; // ms
+      const animationDuration = 1000;
       const startTime = performance.now();
-      
-      const animate = (currentTime) => {
+
+      const animateFireball = (currentTime) => {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / animationDuration, 1);
         
-        // Use easing function for smooth animation
-        const easeProgress = progress * (2 - progress);
+        const easeOutQuad = t => t * (2 - t);
+        const easedProgress = easeOutQuad(progress);
         
-        // Update fireball position
         this.enemyFireballPosition = {
-          x: startX + (endX - startX) * easeProgress,
-          y: startY + (endY - startY) * easeProgress
+          x: startX + (endX - startX) * easedProgress,
+          y: startY + (endY - startY) * easedProgress
         };
         
         this.requestUpdate();
         
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          requestAnimationFrame(animateFireball);
         } else {
-          this.animatingEnemyFireball = false;
-          this.requestUpdate();
+          setTimeout(() => {
+            this.animatingEnemyFireball = false;
+            this.requestUpdate();
+
+            // Process the hit
+            if (this.playerBoard[row][col] === 'S') {
+              this.playerBoard[row][col] = 'X';
+              this.message = 'Enemy hit your ship!';
+              this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
+              sounds.initAudioContext();
+              sounds.HitPlayer();
+              
+              try {
+                this.createExplosion(row, col, false);
+              } catch (error) {
+                console.warn('Error creating explosion effect:', error);
+              }
+            }
+            
+            this.requestUpdate();
+          }, 100);
         }
       };
-      
-      requestAnimationFrame(animate);
+
+      requestAnimationFrame(animateFireball);
     }
 
     handlePlayerCellClick(row, col) {
       // Just visual feedback during enemy attacks
-      const cell = this.shadowRoot.querySelector(`.player-section .cell:nth-child(${row * this.boardWidth + col + 1})`);
+      const cell = this.shadowRoot?.querySelector(`.player-section .cell:nth-child(${col + 1})`);
       if (cell) {
         cell.classList.add('tutorial-highlight');
         setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
@@ -460,6 +615,10 @@ const EnemyAttackMixin = (Base) =>
         this.message = 'Watch out! The enemy is attacking!';
       }, 1000);
     }
+
+    disconnectedCallback() {
+      super.disconnectedCallback?.();
+    }
   };
 
 /**
@@ -471,97 +630,118 @@ const PlayerAttackMixin = (Base) =>
       super();
       this.message = 'Your turn to attack!';
       this.instructionText = 'Click on the enemy\'s board to attack.';
-      this.playerBoard = Array(this.boardWidth).fill().map(() => Array(this.boardWidth).fill('S'));
-      this.enemyBoard = Array(this.boardWidth).fill().map(() => Array(this.boardWidth).fill(''));
+      // Initialize player board with ships and enemy board with hidden ships
+      this.playerBoard = Array(1).fill().map(() => Array(4).fill('S'));
+      this.enemyBoard = Array(1).fill().map(() => Array(4).fill('S'));
       this.hits = 0;
-      this.maxHits = 2;
-      
-      // Place some enemy ships
-      this.placeEnemyShips();
+      this.maxHits = 4;
     }
 
-    placeEnemyShips() {
-      const shipCount = 2;
-      let placed = 0;
-      
-      while (placed < shipCount) {
-        const row = Math.floor(Math.random() * this.boardWidth);
-        const col = Math.floor(Math.random() * this.boardWidth);
-        
-        if (this.enemyBoard[row][col] === '') {
-          this.enemyBoard[row][col] = 'S';
-          placed++;
-        }
-      }
+    firstUpdated() {
+      super.firstUpdated?.();
+      // Ensure the boards are rendered before allowing interactions
+      this.requestUpdate();
     }
 
     handleEnemyCellClick(row, col) {
       if (this.enemyBoard[row][col] === 'X' || this.enemyBoard[row][col] === 'O') return;
       
-      if (this.enemyBoard[row][col] === 'S') {
-        this.enemyBoard[row][col] = 'X';
-        this.hits++;
-        this.message = 'Hit! You sunk an enemy ship!';
-        this.instructionText = 'Great shot! Keep attacking to find all enemy ships.';
-        sounds.initAudioContext();
-        sounds.HitEnemy();
-        this.createExplosion(row, col, true);
+      // Get board elements after they're definitely in the DOM
+      const playerBoard = this.shadowRoot?.querySelector('.player-section .board');
+      const enemyBoard = this.shadowRoot?.querySelector('.enemy-section .board');
+      const targetCell = enemyBoard?.querySelectorAll('.cell')[col]; // Since we're using 1x4 board
 
-        if (this.hits === this.maxHits) {
-          this.message = 'Victory! You sunk all enemy ships!';
-          this.instructionText = 'You\'ve completed the tutorial!';
-          this.gameEnded = true;
-          this.winner = 'Player';
-          sounds.initAudioContext();
-          sounds.Victory();
-        }
-      } else {
-        this.enemyBoard[row][col] = 'O';
-        this.message = 'Miss! Try again!';
-        this.instructionText = 'Keep searching for enemy ships.';
-        this.createWaterSplash(row, col, true);
+      if (!playerBoard || !enemyBoard || !targetCell) {
+        console.warn('Required elements not found for animation');
+        return;
       }
-      
+
+      // Start fireball animation
+      const playerRect = playerBoard.getBoundingClientRect();
+      const targetRect = targetCell.getBoundingClientRect();
+
+      // Calculate start and end positions
+      const startX = playerRect.left + playerRect.width / 2;
+      const startY = playerRect.top + playerRect.height / 2;
+      const endX = targetRect.left + targetRect.width / 2;
+      const endY = targetRect.top + targetRect.height / 2;
+
+      // Set up fireball animation
+      this.animatingFireball = true;
+      this.fireballPosition = { x: startX, y: startY };
       this.requestUpdate();
+
+      // Animate the fireball
+      const animationDuration = 800;
+      const startTime = performance.now();
+
+      const animateFireball = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        
+        const easeOutQuad = t => t * (2 - t);
+        const easedProgress = easeOutQuad(progress);
+        
+        this.fireballPosition = {
+          x: startX + (endX - startX) * easedProgress,
+          y: startY + (endY - startY) * easedProgress
+        };
+        
+        this.requestUpdate();
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateFireball);
+        } else {
+          setTimeout(() => {
+            this.animatingFireball = false;
+            this.requestUpdate();
+            
+            // Process the hit after fireball animation
+            if (this.enemyBoard[row][col] === 'S') {
+              this.enemyBoard[row][col] = 'X';
+              this.hits++;
+              this.message = 'Hit! You sunk an enemy ship!';
+              this.instructionText = 'Great shot! Keep attacking to find all enemy ships.';
+              sounds.initAudioContext();
+              sounds.HitEnemy();
+              
+              // Create explosion effect after fireball hits
+              try {
+                this.createExplosion(row, col, true);
+              } catch (error) {
+                console.warn('Error creating explosion effect:', error);
+              }
+
+              if (this.hits === this.maxHits) {
+                this.message = 'Victory! You sunk all enemy ships!';
+                this.instructionText = 'You\'ve completed the tutorial!';
+                sounds.initAudioContext();
+                sounds.Victory();
+              }
+            } else {
+              this.enemyBoard[row][col] = 'O';
+              this.message = 'Miss! Try again!';
+              this.instructionText = 'Keep searching for enemy ships.';
+              
+              // Create water splash effect for misses
+              try {
+                this.createWaterSplash(row, col, true);
+              } catch (error) {
+                console.warn('Error creating water splash effect:', error);
+              }
+            }
+            
+            this.requestUpdate();
+          }, 100);
+        }
+      };
+
+      requestAnimationFrame(animateFireball);
     }
 
     handlePlayerCellClick(row, col) {
       // Allow player to see their ships but not modify them
-      const cell = this.shadowRoot.querySelector(`.player-section .cell:nth-child(${row * this.boardWidth + col + 1})`);
-      if (cell) {
-        cell.classList.add('tutorial-highlight');
-        setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
-      }
-    }
-  };
-
-/**
- * Mixin for the victory screen tutorial
- */
-const VictoryScreenMixin = (Base) =>
-  class extends TutorialBaseMixin(Base) {
-    constructor() {
-      super();
-      this.message = 'Victory!';
-      this.instructionText = 'You\'ve sunk all enemy ships!';
-      this.playerBoard = Array(this.boardWidth).fill().map(() => Array(this.boardWidth).fill('S'));
-      this.enemyBoard = Array(this.boardWidth).fill().map(() => Array(this.boardWidth).fill('X'));
-      this.gameEnded = true;
-      this.winner = 'Player';
-    }
-
-    handlePlayerCellClick(row, col) {
-      // Highlight cells to show the final state
-      const cell = this.shadowRoot.querySelector(`.player-section .cell:nth-child(${row * this.boardWidth + col + 1})`);
-      if (cell) {
-        cell.classList.add('tutorial-highlight');
-        setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
-      }
-    }
-
-    handleEnemyCellClick(row, col) {
-      // Highlight cells to show the final state
-      const cell = this.shadowRoot.querySelector(`.enemy-section .cell:nth-child(${row * this.boardWidth + col + 1})`);
+      const cell = this.shadowRoot?.querySelector(`.player-section .cell:nth-child(${col + 1})`);
       if (cell) {
         cell.classList.add('tutorial-highlight');
         setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
@@ -574,11 +754,9 @@ export const GameBoardOverview = GameBoardOverviewMixin(GameBoard);
 export const ShipPlacementBoard = ShipPlacementMixin(GameBoard);
 export const EnemyAttackBoard = EnemyAttackMixin(GameBoard);
 export const PlayerAttackBoard = PlayerAttackMixin(GameBoard);
-export const VictoryScreenBoard = VictoryScreenMixin(GameBoard);
 
 // Register the custom elements
 customElements.define('game-board-overview', GameBoardOverview);
 customElements.define('ship-placement-board', ShipPlacementBoard);
 customElements.define('enemy-attack-board', EnemyAttackBoard);
-customElements.define('player-attack-board', PlayerAttackBoard);
-customElements.define('victory-screen-board', VictoryScreenBoard); 
+customElements.define('player-attack-board', PlayerAttackBoard); 
