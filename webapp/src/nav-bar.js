@@ -2,6 +2,7 @@ import {html, css, LitElement} from 'lit';
 import './tutorial.js'; // import the tutorial element for the tutorial button 
 import './profile-lit.js'; // import the profile element for the profile button 
 import './ChatBox.js'; // import the chat box element for the chat button 
+import { UserManager } from 'oidc-client-ts'; // Import UserManager for proper auth checking
 
 export class NavBar extends LitElement {
   static styles = css`
@@ -142,7 +143,8 @@ export class NavBar extends LitElement {
   `;
 
   static properties = {
-    chatBoxVisible: { type: Boolean }
+    chatBoxVisible: { type: Boolean },
+    userManager: { type: Object }
   };
 
   static chatBoxInstance = null;
@@ -154,6 +156,15 @@ export class NavBar extends LitElement {
     this.playAgainClickCount = 0;
     this.chatClickCount = 0;
     this.chatBoxVisible = false;
+    
+    // Initialize UserManager with the same config used in profile-lit.js
+    this.userManager = new UserManager({
+      authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_m9CtZ8Zr3",
+      client_id: "tj2n9mnpm20nn9d015ahkr7da",
+      redirect_uri: `${window.location.origin}/`,
+      response_type: "code",
+      scope: "email openid profile"
+    });
   }
 
   render() {
@@ -222,23 +233,110 @@ export class NavBar extends LitElement {
     } 
   }
 
-  handleProfileClick() {
+  async handleProfileClick() {
     this.tutorialClickCount = 0;
     this.playAgainClickCount = 0;
     this.chatClickCount = 0;
-    this.profileClickCount = 1; // enter after first click 
+    this.profileClickCount = 1;
+    
     if (this.profileClickCount === 1) {
       console.log('Profile button clicked!');
       
-      // Simply create and append the profile element directly
-      // This approach was working in the old code without explicitly checking login
-      const app = document.createElement('div');
-      app.innerHTML = `<profile-element></profile-element>`;
-      document.body.appendChild(app);
+      try {
+        // Check if user is logged in using UserManager directly
+        const user = await this.userManager.getUser();
+        
+        if (user && !user.expired) {
+          // User is authenticated, show profile
+          const app = document.createElement('div');
+          app.innerHTML = `<profile-element></profile-element>`;
+          document.body.appendChild(app);
+        } else {
+          // User is not logged in, show login dialog
+          this.showLoginDialog();
+        }
+      } catch (error) {
+        console.error('Error checking authentication status:', error);
+        // On error, fall back to showing the login dialog
+        this.showLoginDialog();
+      }
       
-      // Keep profileClickCount at 1 so that clicking again still works
       this.profileClickCount = 1;
     }
+  }
+  
+  showLoginDialog() {
+    // Remove any existing login dialogs
+    const existingDialog = document.getElementById('login-dialog');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
+    
+    // Create a simple modal dialog
+    const loginDialog = document.createElement('div');
+    loginDialog.id = 'login-dialog';
+    loginDialog.style.position = 'fixed';
+    loginDialog.style.top = '50%';
+    loginDialog.style.left = '50%';
+    loginDialog.style.transform = 'translate(-50%, -50%)';
+    loginDialog.style.background = 'var(--bg-color, rgba(30, 30, 30, 0.9))';
+    loginDialog.style.padding = '30px';
+    loginDialog.style.borderRadius = '15px';
+    loginDialog.style.zIndex = '1000';
+    loginDialog.style.color = '#fff';
+    loginDialog.style.maxWidth = '400px';
+    loginDialog.style.textAlign = 'center';
+    loginDialog.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
+    loginDialog.style.backdropFilter = 'blur(10px)';
+    
+    loginDialog.innerHTML = `
+      <h2 style="margin-bottom: 20px; font-family: 'Poppins', sans-serif;">Sign In Required</h2>
+      <p style="margin-bottom: 25px; font-family: 'Poppins', sans-serif;">Please sign in to view your profile and stats.</p>
+      <div style="display: flex; justify-content: space-between;">
+        <button id="cancel-btn" style="
+          background: rgba(220, 53, 69, 0.8);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+        ">Cancel</button>
+        <button id="signin-btn" style="
+          background: rgba(13, 110, 253, 0.8);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+        ">Sign In</button>
+      </div>
+    `;
+    
+    document.body.appendChild(loginDialog);
+    
+    // Add event listeners
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+      document.body.removeChild(loginDialog);
+    });
+    
+    document.getElementById('signin-btn').addEventListener('click', async () => {
+      try {
+        // Use UserManager for proper redirect
+        await this.userManager.signinRedirect();
+        // Remove dialog after redirect is initiated
+        document.body.removeChild(loginDialog);
+      } catch (error) {
+        console.error('Login redirect error:', error);
+        // If the redirect fails, show an error message
+        const errorMsg = document.createElement('p');
+        errorMsg.style.color = 'red';
+        errorMsg.style.marginTop = '10px';
+        errorMsg.textContent = 'Sign-in failed. Please try again.';
+        loginDialog.appendChild(errorMsg);
+      }
+    });
   }
 
   handlePlayAgainClick() {  
