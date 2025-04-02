@@ -177,20 +177,21 @@ const TutorialBaseMixin = (Base) =>
       }
     }
 
-    static styles = [
-      super.styles,
-      css`
+    static styles = css`
         :host {
           --board-size: 4;
-          --board-width: 280px; /* Fixed board width */
-          --cell-size: calc(var(--board-width) / 4); /* Cells will be 1/4 of board width */
+          --board-width: 280px;
+          --cell-size: calc(var(--board-width) / 4);
+          --ship-color: rgba(52, 152, 219, 0.7);
+          --hit-color: rgba(46, 204, 113, 0.7);
+          --miss-color: rgba(231, 76, 60, 0.7);
           display: flex;
           justify-content: center;
           width: 100%;
         }
 
         .game-card {
-          background-color: var(--background-color);
+          background-color: #1e1e1e;
           border-radius: 16px;
           padding: 20px;
           width: 100%;
@@ -214,11 +215,27 @@ const TutorialBaseMixin = (Base) =>
           flex-direction: column;
           align-items: center;
           gap: 15px;
+          position: relative;
+        }
+
+        .board-section .board {
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+          max-width: var(--board-width);
+        }
+
+        .board-section .cell {
+          flex: 1;
+          min-width: 0;
+          min-height: 0;
         }
 
         .board {
           width: var(--board-width);
-          height: calc(var(--board-width) / 4); /* Make board 1/4 as tall as wide */
+          height: calc(var(--board-width) / 4);
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           grid-template-rows: 1fr;
@@ -227,6 +244,7 @@ const TutorialBaseMixin = (Base) =>
           padding: 10px;
           border-radius: 12px;
           box-sizing: border-box;
+          position: relative;
         }
 
         .cell {
@@ -242,11 +260,31 @@ const TutorialBaseMixin = (Base) =>
           background-color: #2a2a2a;
           border: 1px solid #333;
           border-radius: 4px;
+          box-sizing: border-box;
+          position: relative;
+          margin: 0;
+          padding: 0;
         }
 
         .cell:hover {
           background-color: #3a3a3a;
           transform: scale(1.02);
+        }
+
+        .cell.ship {
+          background-color: var(--ship-color);
+        }
+
+        .cell.hit {
+          background-color: var(--hit-color);
+        }
+
+        .cell.miss {
+          background-color: var(--miss-color);
+        }
+
+        .cell.player-ship-hit {
+          background-color: var(--miss-color);
         }
 
         .tutorial-highlight {
@@ -260,7 +298,7 @@ const TutorialBaseMixin = (Base) =>
         }
 
         .message, .instruction-text {
-          color: var(--text-color);
+          color: #ffffff;
           text-align: center;
           margin: 10px 0;
           width: 100%;
@@ -271,18 +309,6 @@ const TutorialBaseMixin = (Base) =>
           color: #3498db;
           margin: 0;
           text-align: center;
-        }
-
-        .ship {
-          background-color: var(--ship-color);
-        }
-
-        .hit {
-          background-color: var(--hit-color);
-        }
-
-        .miss {
-          background-color: var(--miss-color);
         }
 
         /* Responsive adjustments */
@@ -305,8 +331,7 @@ const TutorialBaseMixin = (Base) =>
             font-size: 1em;
           }
         }
-      `
-    ];
+    `;
 
     render() {
       return html`
@@ -320,9 +345,10 @@ const TutorialBaseMixin = (Base) =>
               <div class="board">
                 ${Array(1).fill().map((_, row) => 
                   Array(4).fill().map((_, col) => html`
-                    <div class="cell 
-                         ${this.enemyBoard[row][col] === 'X' ? 'hit' : ''} 
-                         ${this.enemyBoard[row][col] === 'O' ? 'miss' : ''}"
+                    <div class="cell
+                         ${this.enemyBoard[row][col] === 'X' ? 'hit' : ''}
+                         ${this.enemyBoard[row][col] === 'O' ? 'miss' : ''}
+                         ${this.enemyBoard[row][col] === 'S' ? 'ship' : ''}"
                          @click="${() => this.handleEnemyCellClick(row, col)}">
                       ${this.enemyBoard[row][col] === 'X' ? '💥' : 
                         this.enemyBoard[row][col] === 'O' ? '💦' : ''}
@@ -337,8 +363,8 @@ const TutorialBaseMixin = (Base) =>
               <div class="board">
                 ${Array(1).fill().map((_, row) => 
                   Array(4).fill().map((_, col) => html`
-                    <div class="cell 
-                         ${this.playerBoard[row][col] === 'X' ? 'hit' : ''} 
+                    <div class="cell
+                         ${this.playerBoard[row][col] === 'X' ? 'player-ship-hit' : ''}
                          ${this.playerBoard[row][col] === 'S' ? 'ship' : ''}"
                          @click="${() => this.handlePlayerCellClick(row, col)}">
                       ${this.playerBoard[row][col] === 'X' ? '💀' : 
@@ -529,7 +555,8 @@ const EnemyAttackMixin = (Base) =>
       // Get board elements
       const playerBoard = this.shadowRoot?.querySelector('.player-section .board');
       const enemyBoard = this.shadowRoot?.querySelector('.enemy-section .board');
-      const targetCell = playerBoard?.querySelectorAll('.cell')[col];
+      const cells = this.shadowRoot?.querySelectorAll('.player-section .cell');
+      const targetCell = cells?.[col];
 
       if (!playerBoard || !enemyBoard || !targetCell) {
         console.warn('Required elements not found for enemy attack animation');
@@ -630,9 +657,10 @@ const PlayerAttackMixin = (Base) =>
       super();
       this.message = 'Your turn to attack!';
       this.instructionText = 'Click on the enemy\'s board to attack.';
-      // Initialize player board with ships and enemy board with hidden ships
+      // Initialize player board with ships but enemy board empty (ships are hidden)
       this.playerBoard = Array(1).fill().map(() => Array(4).fill('S'));
-      this.enemyBoard = Array(1).fill().map(() => Array(4).fill('S'));
+      this.enemyBoard = Array(1).fill().map(() => Array(4).fill('')); // Changed from 'S' to ''
+      this.enemyShipPositions = [0, 1, 2, 3]; // Track ship positions internally
       this.hits = 0;
       this.maxHits = 4;
     }
@@ -649,7 +677,7 @@ const PlayerAttackMixin = (Base) =>
       // Get board elements after they're definitely in the DOM
       const playerBoard = this.shadowRoot?.querySelector('.player-section .board');
       const enemyBoard = this.shadowRoot?.querySelector('.enemy-section .board');
-      const targetCell = enemyBoard?.querySelectorAll('.cell')[col]; // Since we're using 1x4 board
+      const targetCell = enemyBoard?.querySelectorAll('.cell')[col];
 
       if (!playerBoard || !enemyBoard || !targetCell) {
         console.warn('Required elements not found for animation');
@@ -697,7 +725,7 @@ const PlayerAttackMixin = (Base) =>
             this.requestUpdate();
             
             // Process the hit after fireball animation
-            if (this.enemyBoard[row][col] === 'S') {
+            if (this.enemyShipPositions.includes(col)) { // Check against internal ship positions
               this.enemyBoard[row][col] = 'X';
               this.hits++;
               this.message = 'Hit! You sunk an enemy ship!';
@@ -705,7 +733,6 @@ const PlayerAttackMixin = (Base) =>
               sounds.initAudioContext();
               sounds.HitEnemy();
               
-              // Create explosion effect after fireball hits
               try {
                 this.createExplosion(row, col, true);
               } catch (error) {
@@ -723,7 +750,6 @@ const PlayerAttackMixin = (Base) =>
               this.message = 'Miss! Try again!';
               this.instructionText = 'Keep searching for enemy ships.';
               
-              // Create water splash effect for misses
               try {
                 this.createWaterSplash(row, col, true);
               } catch (error) {

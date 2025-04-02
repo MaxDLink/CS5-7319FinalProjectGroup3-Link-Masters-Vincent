@@ -6,7 +6,7 @@ import {
   ShipPlacementBoard,
   EnemyAttackBoard,
   PlayerAttackBoard,
-  VictoryScreenBoard
+  // VictoryScreenBoard
 } from './game-board-mixins.js'
 
 
@@ -154,7 +154,7 @@ export class Tutorial extends LitElement {
 
       <section>
         <h2>Game Boards</h2>
-        <p>There are two game boards: your board and the enemy's board. Each board is a 4x4 grid where ships can be placed.</p>
+        <p>There are two game boards: your board and the enemy's board. Each board is a grid where ships can be placed.</p>
         <div class="game-board-container">
           <game-board-overview></game-board-overview>
         </div>

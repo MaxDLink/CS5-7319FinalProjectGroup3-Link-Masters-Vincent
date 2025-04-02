@@ -1029,16 +1029,20 @@ export class GameBoard extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center; /* Changed from flex-start to center */
+      justify-content: flex-start;
       min-height: 100vh;
       width: 100%;
-      padding: 10px;
-      padding-top: 80px; /* Add padding to top to account for the navbar */
-      padding-bottom: 10px; /* Reduced padding at bottom since navbar is now at top */
+      padding: 0;
+      margin: 0;
       box-sizing: border-box;
       background-color: var(--background-color);
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden; /* Changed from overflow-y: auto to prevent scrolling */
+      overflow: hidden;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
     }
     
     .game-overlay {
@@ -1056,23 +1060,27 @@ export class GameBoard extends LitElement {
       flex-direction: column;
       align-items: center;
       width: var(--card-width);
-      padding: 15px;
+      padding: 10px;
       border-radius: 16px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       background-color: var(--card-bg-color);
       box-sizing: border-box;
-      margin: 10px 0;
-      max-height: 90vh; /* Increased from 80vh to use more vertical space */
-      overflow: hidden;
+      position: absolute;
+      top: 0;
+      transform: translateY(60px);
+      z-index: 2;
+      max-height: calc(100vh - 20px);
+      overflow-y: auto;
     }
     
     .boards-wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       width: 100%;
-      gap: 25px; /* Increased from 20px to add more space between boards */
+      gap: 12px;
+      padding: 0;
+      margin: 0;
     }
     
     .board-section {
@@ -1085,7 +1093,7 @@ export class GameBoard extends LitElement {
     
     .board-title {
       color: var(--primary-color);
-      margin: 10px 0;
+      margin: 5px 0; /* Reduced margin */
       text-align: center;
       font-weight: 600;
       letter-spacing: 0.5px;
@@ -1317,49 +1325,32 @@ export class GameBoard extends LitElement {
     
     /* Media query for very small screens */
     @media (max-width: 480px) {
-      .game-container {
-        padding: 5px;
-      }
-      
       .game-card {
-        padding: 10px;
-        width: 92vw;
-        margin: 5px 0;
-        max-height: 85vh;
+        transform: translateY(0);
       }
       
       .boards-wrapper {
         gap: 10px;
       }
       
-      .board-title {
-        font-size: 0.9em;
-        margin: 5px 0;
-      }
-      
       :host {
-        --cell-font-size: 0.8em;
-        --board-max-width: 60vmin;
-        --board-height: 60vmin;
+        --board-max-width: 80vmin;
+        --board-height: 80vmin;
       }
     }
     
     /* Media query for portrait orientation (mobile) */
     @media (orientation: portrait) and (max-width: 768px) {
       .game-container {
-        padding: 5px;
-        padding-top: 70px; /* Top padding for navbar on mobile */
-        padding-bottom: 5px;
+        padding: 0;
       }
       
       .game-card {
-        padding: 10px;
-        margin: 5px 0;
-        max-height: 95vh; /* Use almost all available vertical space on mobile */
+        transform: translateY(5px);
       }
       
       .boards-wrapper {
-        gap: 20px;
+        gap: 12px; /* Further reduced gap for mobile */
       }
       
       .board-title {
@@ -1368,8 +1359,8 @@ export class GameBoard extends LitElement {
       }
       
       :host {
-        --cell-font-size: 1em;
-        --card-width: min(95vw, 500px); /* Use more horizontal space on mobile */
+        --board-max-width: 85vmin; /* Increased board size */
+        --board-height: 85vmin;
       }
     }
     
