@@ -185,14 +185,6 @@ export class Tutorial extends LitElement {
       </section>
 
       <section>
-        <h2>Victory!</h2>
-        <p>Keep attacking until you sink all enemy ships to win the game!</p>
-        <div class="game-board-container">
-          <custom-player-attack-board></custom-player-attack-board>
-        </div>
-      </section>
-
-      <section>
         <h2>Ready to Play?</h2>
         <p>Now that you know how to play, click the button below to start a new game!</p>
         <div class="button-container">
