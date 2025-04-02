@@ -10,10 +10,6 @@ class ChatBox extends LitElement {
       font-family: 'Poppins', sans-serif;
       overflow: hidden;
       background: rgba(30, 30, 30, 0.8);
-      position: absolute;
-      top: 100%;
-      right: 0;
-      margin-top: 10px;
       z-index: 1000;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(10px);

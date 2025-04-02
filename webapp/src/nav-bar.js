@@ -368,27 +368,27 @@ export class NavBar extends LitElement {
     if (this.chatBoxVisible) {
       // If we don't have a chat box instance yet, create one
       if (!NavBar.chatBoxInstance) {
-        const chatContainer = document.createElement('div');
-        chatContainer.style.position = 'relative';
-        const chatBox = document.createElement('chat-box');
-        chatContainer.appendChild(chatBox);
-        NavBar.chatBoxInstance = chatContainer;
+        NavBar.chatBoxInstance = document.createElement('chat-box');
       }
 
       // Find the chat button in the nav bar
       const chatButton = this.shadowRoot.querySelector('#chatButton');
       const chatButtonRect = chatButton.getBoundingClientRect();
       
-      // Position the container relative to the chat button
-      NavBar.chatBoxInstance.style.position = 'fixed';
-      NavBar.chatBoxInstance.style.top = `${chatButtonRect.bottom + window.scrollY}px`;
-      NavBar.chatBoxInstance.style.left = `${chatButtonRect.left}px`;
+      // Position the chat box relative to the chat button
+      const chatBoxContainer = document.createElement('div');
+      chatBoxContainer.style.position = 'fixed';
+      chatBoxContainer.style.top = `${chatButtonRect.bottom + window.scrollY}px`;
+      chatBoxContainer.style.right = `${window.innerWidth - chatButtonRect.right}px`;
+      chatBoxContainer.style.zIndex = '1001';
       
-      document.body.appendChild(NavBar.chatBoxInstance);
+      chatBoxContainer.appendChild(NavBar.chatBoxInstance);
+      document.body.appendChild(chatBoxContainer);
+      NavBar.chatBoxInstance.container = chatBoxContainer;
     } else {
       // Hide the chat box
-      if (NavBar.chatBoxInstance && NavBar.chatBoxInstance.parentNode) {
-        NavBar.chatBoxInstance.parentNode.removeChild(NavBar.chatBoxInstance);
+      if (NavBar.chatBoxInstance && NavBar.chatBoxInstance.container) {
+        document.body.removeChild(NavBar.chatBoxInstance.container);
       }
     }
   }
