@@ -1156,7 +1156,7 @@ export class CustomEnemyAttackBoard extends CustomBattleBoard {
 customElements.define('custom-enemy-attack-board', CustomEnemyAttackBoard);
 
 /**
- * Player attack board with custom implementation
+ * Player attack board with custom implementation - Interactive Demo
  */
 export class CustomPlayerAttackBoard extends CustomBattleBoard {
   static get properties() {
@@ -1166,32 +1166,39 @@ export class CustomPlayerAttackBoard extends CustomBattleBoard {
       fireballPosition: { type: Object },
       hits: { type: Number },
       maxHits: { type: Number },
-      enemyShipPositions: { type: Array }
+      enemyShipPositions: { type: Array },
+      victoryMode: { type: Boolean }
     };
   }
 
   constructor() {
     super();
-    this.message = 'Your turn to attack!';
-    this.instructionText = 'Click on the enemy board to attack.';
+    // Set initial message
+    this.message = 'Your Turn to Attack!';
+    this.instructionText = 'Now it\'s your turn to attack the enemy\'s board. Try to find and sink their ships!';
     
-    // Set player board with ships
-    this.playerBoard[0][0] = 'X'; // hit ship (skull)
-    this.playerBoard[0][1] = 'X'; // hit ship (skull)
+    // Set ALL player board cells with ships
+    this.playerBoard[0][0] = 'S'; // ship
+    this.playerBoard[0][1] = 'S'; // ship
     this.playerBoard[0][2] = 'S'; // ship
     this.playerBoard[0][3] = 'S'; // ship
     
-    // Attack state
+    // Initialize enemy board with NO hits - all empty cells
+    this.enemyBoard = Array(1).fill().map(() => Array(4).fill('')); // All cells are empty
+    
+    // Animation state
     this.animatingFireball = false;
     this.fireballPosition = null;
-    this.hits = 0;
+    this.hits = 0; // No hits yet
     this.maxHits = 4;
-    this.enemyShipPositions = [0, 1, 2, 3]; // All positions are ships in this demo
+    this.enemyShipPositions = [0, 1, 2, 3]; // All positions have ships (hidden)
+    this.victoryMode = false; // Not in victory mode yet
   }
 
   firstUpdated() {
     super.firstUpdated?.();
-    // Add click handlers to enemy cells
+    
+    // Add click handlers to enemy cells for interactive fireball attacks
     this.shadowRoot.querySelectorAll('.enemy-board .cell').forEach(cell => {
       cell.addEventListener('click', (e) => this.handleEnemyCellClick(e));
     });
@@ -1206,11 +1213,10 @@ export class CustomPlayerAttackBoard extends CustomBattleBoard {
     
     const col = parseInt(cellIndex, 10);
     
-    // Don't allow attacking the same cell twice
-    if (this.enemyBoard[0][col] === 'X' || this.enemyBoard[0][col] === 'O') {
-      return;
-    }
+    // Don't allow re-attacking already hit cells
+    if (this.enemyBoard[0][col] === 'X') return;
     
+    // Perform attack
     this.performPlayerAttack(col);
   }
 
@@ -1265,64 +1271,28 @@ export class CustomPlayerAttackBoard extends CustomBattleBoard {
         // Animation complete, remove fireball
         document.body.removeChild(fireball);
         
-        // Process the hit
+        // Process the hit - always a hit in this demo
         setTimeout(() => {
-          if (this.enemyShipPositions.includes(col)) {
-            // Hit
-            this.enemyBoard[0][col] = 'X';
-            this.hits++;
-            this.message = 'Hit! You sunk an enemy ship!';
-            this.instructionText = 'Great shot! Keep attacking to find all enemy ships.';
+          // Mark cell as hit
+          this.enemyBoard[0][col] = 'X';
+          this.hits++;
+          
+          // Always play hit sound
+          sounds.initAudioContext();
+          sounds.HitEnemy();
+          
+          // Update message based on hit count
+          if (this.hits === this.maxHits) {
+            this.message = 'Victory! You sunk all enemy ships!';
+            this.instructionText = 'You\'ve completed the tutorial!';
+            this.victoryMode = true;
+            
+            // Play victory sound
             sounds.initAudioContext();
-            sounds.HitEnemy();
-            
-            // Add explosion effect
-            const explosionEl = document.createElement('div');
-            explosionEl.className = 'explosion';
-            explosionEl.textContent = '💥';
-            explosionEl.style.position = 'absolute';
-            explosionEl.style.left = '50%';
-            explosionEl.style.top = '50%';
-            explosionEl.style.transform = 'translate(-50%, -50%)';
-            explosionEl.style.zIndex = '10';
-            explosionEl.style.fontSize = '24px';
-            targetCell.appendChild(explosionEl);
-            
-            setTimeout(() => {
-              if (targetCell.contains(explosionEl)) {
-                targetCell.removeChild(explosionEl);
-              }
-            }, 1000);
-
-            if (this.hits === this.maxHits) {
-              this.message = 'Victory! You sunk all enemy ships!';
-              this.instructionText = 'You\'ve completed the tutorial!';
-              sounds.initAudioContext();
-              sounds.Victory();
-            }
+            sounds.Victory();
           } else {
-            // Miss
-            this.enemyBoard[0][col] = 'O';
-            this.message = 'Miss! Try again!';
-            this.instructionText = 'Keep searching for enemy ships.';
-            
-            // Add water splash effect
-            const splashEl = document.createElement('div');
-            splashEl.className = 'splash';
-            splashEl.textContent = '💦';
-            splashEl.style.position = 'absolute';
-            splashEl.style.left = '50%';
-            splashEl.style.top = '50%';
-            splashEl.style.transform = 'translate(-50%, -50%)';
-            splashEl.style.zIndex = '10';
-            splashEl.style.fontSize = '24px';
-            targetCell.appendChild(splashEl);
-            
-            setTimeout(() => {
-              if (targetCell.contains(splashEl)) {
-                targetCell.removeChild(splashEl);
-              }
-            }, 1000);
+            this.message = 'Hit! You sunk an enemy ship!';
+            this.instructionText = `Great shot! Keep attacking to find all enemy ships. (${this.hits}/${this.maxHits})`;
           }
           
           this.requestUpdate();
@@ -1343,10 +1313,9 @@ export class CustomPlayerAttackBoard extends CustomBattleBoard {
           <h3 class="board-title">Enemy Board</h3>
           <div class="board enemy-board">
             ${this.enemyBoard[0].map((cell, index) => html`
-              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'O' ? 'miss' : ''}"
+              <div class="cell ${cell === 'X' ? 'hit' : ''}"
                    data-position="${index}">
-                ${cell === 'X' ? '💥' : 
-                  cell === 'O' ? '💦' : ''}
+                ${cell === 'X' ? '💥' : ''}
               </div>
             `)}
           </div>
@@ -1385,6 +1354,30 @@ export class CustomPlayerAttackBoard extends CustomBattleBoard {
       
       .cell.miss {
         background-color: rgba(231, 76, 60, 0.7);
+      }
+      
+      .title {
+        font-size: 1.8em;
+        margin-bottom: 10px;
+      }
+      
+      .instruction {
+        margin-bottom: 20px;
+      }
+      
+      @keyframes explode-anim {
+        0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+      }
+      
+      .enemy-board .cell {
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .enemy-board .cell:hover {
+        background-color: #3a3a3a;
+        transform: scale(1.05);
       }
     `;
   }
