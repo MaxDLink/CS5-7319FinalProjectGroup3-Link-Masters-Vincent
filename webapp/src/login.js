@@ -76,8 +76,16 @@ export class Login extends LitElement {
       this.user = user;
       if (this.user) {
         console.log('User Logged In');
+        localStorage.setItem('isLoggedIn', 'true');
+        // Dispatch login-success event
+        this.dispatchEvent(new CustomEvent('login-success', {
+          bubbles: true,
+          composed: true,
+          detail: { user: this.user }
+        }));
       } else {
         console.log('User Not Logged In');
+        localStorage.setItem('isLoggedIn', 'false');
       }
       // fire an event to the app to update the route
       this.dispatchEvent(new CustomEvent('login', {detail: {isLoggedIn: this.user ? true : false}}))
@@ -91,6 +99,13 @@ export class Login extends LitElement {
           this.userManager.getUser().then(user => {
             this.user = user
             console.log(this.user)
+            localStorage.setItem('isLoggedIn', 'true');
+            // Dispatch login-success event after redirect callback
+            this.dispatchEvent(new CustomEvent('login-success', {
+              bubbles: true,
+              composed: true,
+              detail: { user: this.user }
+            }));
             window.location.href = '/'
             this.dispatchEvent(new CustomEvent('login', {detail: {isLoggedIn: this.user ? true : false}}))
           })
@@ -126,6 +141,7 @@ export class Login extends LitElement {
   }
 
   _onClickLogout() {
+    localStorage.setItem('isLoggedIn', 'false');
     this.userManager.removeUser()
     const clientId = "tj2n9mnpm20nn9d015ahkr7da"; //mine:2c3i2f2t829bjrbpgj6fem79n4 //OG: 1ttf4hijhkkf4nc3h3ame5e16a
     const logoutUri = `${window.location.origin}/`;
