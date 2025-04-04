@@ -94,20 +94,46 @@ export class GameBoard extends LitElement {
       this.resetGame();
     });
     
-    // Check if it's enemy's turn and trigger enemy move if needed
-    if (!this.isPlayerTurn && !this.gameEnded && this.gameId !== null) {
-      console.log('enemy moving after page load');
+    // Add event listener for profile view exit event
+    window.addEventListener('user-logged-out', () => {
+      console.log('User logged out, resetting game');
+      this.resetGame();
+    });
+    
+    // Add event listener for returning from profile view
+    window.addEventListener('return-to-game', (event) => {
+      console.log('Returning from profile view, resetting game');
+      // Make sure to restore wins and losses from the event if available
+      if (event.detail) {
+        if (typeof event.detail.wins === 'number') this.wins = event.detail.wins;
+        if (typeof event.detail.losses === 'number') this.losses = event.detail.losses;
+      }
+      this.resetGame();
+    });
+    
+    // Only trigger enemy move if player has placed all ships, it's enemy's turn, and game isn't ended
+    if (!this.isPlayerTurn && !this.gameEnded && this.gameId !== null && this.shipsPlaced >= this.boardSize) {
+      console.log('Enemy moving after page load (all ships placed)');
       this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
     }
-
     
     if (this.gameId) {
       this.getGame().then(() => {
         // Update message based on the number of ships placed
         if (this.shipsPlaced < this.boardSize) {
           this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
+          this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
+          // Ensure player turn is null during ship placement
+          this.isPlayerTurn = null;
         } else {
           this.message = "All ships placed! Click on the enemy board to attack.";
+          this.instructionText = "Attack the enemy board";
+          
+          // Check if we need to trigger enemy move after loading game with all ships placed
+          if (!this.isPlayerTurn && !this.gameEnded) {
+            console.log('Enemy moving after ship placement completion');
+            this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
+          }
         }
         this.requestUpdate();
       }).catch(error => {
@@ -117,7 +143,6 @@ export class GameBoard extends LitElement {
     } else {
       this.createGame();
     }
-
     
     // Call updateViewport when the component is connected to the DOM
     // this.updateViewport();
@@ -305,10 +330,18 @@ export class GameBoard extends LitElement {
       // Update the message
       if (this.shipsPlaced < this.boardSize) {
         this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
+        this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
       } else {
+        // All ships are now placed - start the game with player's turn
         this.message = "All ships placed! Click on the enemy board to attack.";
-        // Start the game with player's turn
+        this.instructionText = "Attack the enemy board";
+        
+        // Explicitly set player's turn when all ships are placed
         this.isPlayerTurn = true;
+        console.log("All ships placed, setting player's turn");
+        
+        // Update game state in database with player's turn
+        this.updateGame();
       }
       
       this.requestUpdate();
@@ -319,8 +352,10 @@ export class GameBoard extends LitElement {
     if (this.shipsPlaced >= this.boardSize) {
       if (this.isPlayerTurn) {
         this.message = "Attack the enemy board!";
+        this.instructionText = "Click on the enemy's board";
       } else {
         this.message = "It's the enemy's turn! Please wait.";
+        this.instructionText = "Wait for enemy move";
       }
       this.requestUpdate();
     }
@@ -391,7 +426,11 @@ export class GameBoard extends LitElement {
   }
 
   enemyMove() {
-    if (this.gameEnded || this.isPlayerTurn) return;
+    // Never allow enemy to attack during ship placement phase or when game is ended or when it's player's turn
+    if (this.gameEnded || this.isPlayerTurn || this.shipsPlaced < this.boardSize) {
+      console.log("Enemy move prevented - game ended, player's turn, or ships not placed");
+      return;
+    }
 
     // Store timeout ID so it can be cleared during reset
     this._enemyMoveTimeout = setTimeout(() => {
@@ -597,47 +636,54 @@ export class GameBoard extends LitElement {
     if (this._playerAttackTimeout) clearTimeout(this._playerAttackTimeout);
     if (this._playerCleanupTimeout) clearTimeout(this._playerCleanupTimeout);
     
-    // Delete the current game first
+    // Make sure gameId is cleared from localStorage
+    localStorage.removeItem('gameId');
+    this.gameId = null;
+    
+    // Reset ship placement
+    this.shipsPlaced = 0;
+    
+    // Reset boards immediately to prevent flicker
+    this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+    this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+    
+    // Reset messages
+    this.message = `Place ${this.boardSize} ships on your board`;
+    this.instructionText = `Tap on Player Board ${this.boardSize} times`;
+    
+    // Reset player positions
+    this.playerShipPositions = [];
+    
+    // Reset turn state
+    this.isPlayerTurn = null; // Set to null initially to prevent enemy move
+    this.gameEnded = false;
+    this.winner = '';
+    
+    // Reset animation properties
+    this.animatingFireball = false;
+    this.fireballPosition = null;
+    this.lastHitPosition = null;
+    this.hitResult = null;
+    this.lastEnemyHitPosition = null;
+    this.enemyHitResult = null;
+    this.animatingEnemyFireball = false;
+    this.enemyFireballPosition = null;
+    
+    // Force update immediately
+    this.requestUpdate();
+    
+    // Delete the current game and create a new one
     this.deleteGame().then(() => {
-      // Reset game state
-      this.winner = '';
-      this.gameEnded = false;
-      
-      // Reset boards
-      this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
-      this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
-      
-      // Reset ship placement
-      this.shipsPlaced = 0;
-      
-      // Reset messages
-      this.message = `Place ${this.boardSize} ships on your board`;
-      this.instructionText = `Tap on Player Board ${this.boardSize} times`;
-      
-      // Reset turn state
-      this.isPlayerTurn = null; // Set to null initially to prevent enemy move
-      
-      // Reset animation properties
-      this.animatingFireball = false;
-      this.fireballPosition = null;
-      this.lastHitPosition = null;
-      this.hitResult = null;
-      this.lastEnemyHitPosition = null;
-      this.enemyHitResult = null;
-      this.animatingEnemyFireball = false;
-      this.enemyFireballPosition = null;
-      
-      // Note: We're intentionally NOT resetting wins and losses here
-      // as they should persist across game resets
-      
       // Place new enemy ships
       this.placeEnemyShips();
       
       // Create a new game
       this.createGame();
-      
-      // Force update
-      this.requestUpdate();
+    }).catch(error => {
+      console.error('Error resetting game:', error);
+      // If there's an error, try to create a new game anyway
+      this.placeEnemyShips();
+      this.createGame();
     });
   }
 
@@ -938,6 +984,9 @@ export class GameBoard extends LitElement {
 
   async createGame() {
     try {
+      // Make sure ship placement count is reset
+      this.shipsPlaced = 0;
+      
       const response = await fetch('https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games', {
         method: 'POST'
       });
@@ -946,6 +995,9 @@ export class GameBoard extends LitElement {
       // Store gameId in local storage
       localStorage.setItem('gameId', this.gameId);
       console.log('Game created with ID:', this.gameId);
+      
+      // Update the game with initial state
+      this.updateGame();
     } catch (error) {
       console.error('Error creating game:', error);
     }
@@ -982,7 +1034,6 @@ export class GameBoard extends LitElement {
   }
 
   async getGame() {
-
     try {
       const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`);
       const data = await response.json();
@@ -990,16 +1041,43 @@ export class GameBoard extends LitElement {
         // grabs the player and enemy boards from DynamoDB, this includes hits and misses 
         this.playerBoard = data.playerBoard;
         this.enemyBoard = data.enemyBoard;
-        this.shipsPlaced = data.shipsPlaced; 
+        
+        // Only update shipsPlaced if it's valid
+        if (typeof data.shipsPlaced === 'number' && data.shipsPlaced >= 0) {
+          this.shipsPlaced = data.shipsPlaced;
+        }
+        
         this.gameEnded = data.status === 'COMPLETED';
-        this.isPlayerTurn = data.isPlayerTurn;
+        
+        // If we just created a brand new game, make sure shipsPlaced is 0
+        if (this.shipsPlaced > this.boardSize) {
+          console.warn('Invalid shipsPlaced value detected, resetting to 0');
+          this.shipsPlaced = 0;
+        }
+        
+        // Only set isPlayerTurn from server if all ships are placed
+        if (this.shipsPlaced >= this.boardSize) {
+          this.isPlayerTurn = data.isPlayerTurn;
+        } else {
+          // During ship placement phase, prevent enemy from moving
+          this.isPlayerTurn = null;
+        }
         
         // Get win/loss counts if they exist
         if (data.wins !== undefined) this.wins = data.wins;
         if (data.losses !== undefined) this.losses = data.losses;
         
+        // Update message based on the number of ships placed
+        if (this.shipsPlaced < this.boardSize) {
+          this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
+          this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
+        } else {
+          this.message = "All ships placed! Click on the enemy board to attack.";
+          this.instructionText = "Attack the enemy board";
+        }
+        
         console.log(`Game ${this.gameId} fetched!`, data);
-        console.log(`isPlayerTurn: ${this.isPlayerTurn}`);
+        console.log(`isPlayerTurn: ${this.isPlayerTurn}, shipsPlaced: ${this.shipsPlaced}`);
         this.requestUpdate(); // updates the UI with the new game state
       }
     } catch (error) {
@@ -1007,6 +1085,7 @@ export class GameBoard extends LitElement {
       // If there's an error, clear the gameId and create a new game
       localStorage.removeItem('gameId');
       this.gameId = null;
+      this.shipsPlaced = 0; // Reset ship placement count
       await this.createGame();
     }
   }
