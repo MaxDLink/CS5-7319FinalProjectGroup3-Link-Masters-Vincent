@@ -4,6 +4,318 @@ import { sounds } from './sounds.js';
 import { LitElement } from 'lit';
 
 /**
+ * Shared base styles for game board components
+ */
+const BaseStyles = css`
+  :host {
+    --board-size: 4;
+    --board-width: 280px;
+    --cell-size: calc(var(--board-width) / 4);
+    --ship-color: rgba(52, 152, 219, 0.7);
+    --hit-color: rgba(46, 204, 113, 0.7);
+    --miss-color: rgba(231, 76, 60, 0.7);
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .game-card {
+    background-color: #1e1e1e;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .boards-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .board-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    position: relative;
+  }
+
+  .board-title {
+    font-size: 1.2em;
+    color: #3498db;
+    margin: 0;
+    text-align: center;
+  }
+
+  .board {
+    width: var(--board-width);
+    height: calc(var(--board-width) / 4);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr;
+    gap: 2px;
+    background-color: #1a1a1a;
+    padding: 10px;
+    border-radius: 12px;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  .cell {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1;
+    font-size: 1.5em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: #2a2a2a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    box-sizing: border-box;
+    position: relative;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cell:hover {
+    background-color: #3a3a3a;
+    transform: scale(1.02);
+  }
+
+  .cell.ship {
+    background-color: var(--ship-color);
+  }
+
+  .cell.hit {
+    background-color: var(--hit-color);
+  }
+
+  .cell.miss {
+    background-color: var(--miss-color);
+  }
+
+  .cell.player-ship-hit {
+    background-color: var(--miss-color);
+  }
+
+  .tutorial-highlight {
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  .message, .instruction-text {
+    color: #ffffff;
+    text-align: center;
+    margin: 10px 0;
+    width: 100%;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    :host {
+      --board-width: 240px;
+    }
+    
+    .cell {
+      font-size: 1.2em;
+    }
+  }
+
+  @media (max-width: 480px) {
+    :host {
+      --board-width: 200px;
+    }
+    
+    .cell {
+      font-size: 1em;
+    }
+  }
+
+  .fireball {
+    position: fixed;
+    z-index: 100;
+    pointer-events: none;
+    font-size: 1.5em;
+  }
+`;
+
+/**
+ * Combined utility functions for board management and animations
+ */
+const Utils = {
+  // Board creation utilities
+  createEmptyBoard: (height, width, defaultValue = '') => {
+    return Array(height).fill().map(() => Array(width).fill(defaultValue));
+  },
+  
+  createShipBoard: (height, width) => {
+    return Array(height).fill().map(() => Array(width).fill('S'));
+  },
+  
+  highlightCell: (cell, duration = 1000) => {
+    if (cell) {
+      cell.classList.add('tutorial-highlight');
+      setTimeout(() => cell.classList.remove('tutorial-highlight'), duration);
+    }
+  },
+
+  // Animation utilities
+  createVisibilityObserver: (component, callback, selector, threshold = 0.7) => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          component.isVisible = entry.isIntersecting;
+          if (component.isVisible && !component.hasStartedAttacking) {
+            console.log('Component is visible, starting sequence...');
+            component.hasStartedAttacking = true;
+            callback();
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '0px',
+        threshold: threshold
+      }
+    );
+
+    requestAnimationFrame(() => {
+      const elementToObserve = component.shadowRoot?.querySelector(selector);
+      if (elementToObserve) {
+        observer.observe(elementToObserve);
+      } else {
+        console.warn(`Element with selector "${selector}" not found for observation`);
+      }
+    });
+
+    return observer;
+  },
+
+  animateFireball: (options) => {
+    const {
+      startElement,
+      targetElement,
+      onComplete,
+      duration = 800,
+      useDomElement = false,
+      component = null,
+      isEnemy = false
+    } = options;
+
+    if (!startElement || !targetElement) {
+      console.warn('Required elements not found for fireball animation');
+      return;
+    }
+
+    const startRect = startElement.getBoundingClientRect();
+    const targetRect = targetElement.getBoundingClientRect();
+
+    const startX = startRect.left + startRect.width / 2;
+    const startY = startRect.top + startRect.height / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+
+    let fireball;
+    
+    if (useDomElement) {
+      fireball = document.createElement('div');
+      fireball.className = 'fireball';
+      fireball.textContent = '🔥';
+      fireball.style.position = 'fixed';
+      fireball.style.zIndex = '100';
+      fireball.style.fontSize = '24px';
+      fireball.style.transform = 'translate(-50%, -50%)';
+      document.body.appendChild(fireball);
+    } else {
+      if (isEnemy) {
+        component.animatingEnemyFireball = true;
+        component.enemyFireballPosition = { x: startX, y: startY };
+      } else {
+        component.animatingFireball = true;
+        component.fireballPosition = { x: startX, y: startY };
+      }
+      component.requestUpdate();
+    }
+
+    const startTime = performance.now();
+    
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      const easeOutQuad = t => t * (2 - t);
+      const easedProgress = easeOutQuad(progress);
+      
+      const currentX = startX + (endX - startX) * easedProgress;
+      const currentY = startY + (endY - startY) * easedProgress;
+      
+      if (useDomElement) {
+        fireball.style.left = `${currentX}px`;
+        fireball.style.top = `${currentY}px`;
+      } else {
+        if (isEnemy) {
+          component.enemyFireballPosition = { x: currentX, y: currentY };
+        } else {
+          component.fireballPosition = { x: currentX, y: currentY };
+        }
+        component.requestUpdate();
+      }
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setTimeout(() => {
+          if (useDomElement) {
+            if (document.body.contains(fireball)) {
+              document.body.removeChild(fireball);
+            }
+          } else {
+            if (isEnemy) {
+              component.animatingEnemyFireball = false;
+            } else {
+              component.animatingFireball = false;
+            }
+            component.requestUpdate();
+          }
+          
+          if (onComplete) {
+            onComplete();
+          }
+        }, 100);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  },
+
+  createAttackSequence: (component, maxAttacks, attackFn, delay = 2000) => {
+    console.log('Starting attack sequence');
+    for (let i = 0; i < maxAttacks; i++) {
+      setTimeout(() => {
+        if (component.isVisible) {
+          attackFn(i);
+        }
+      }, delay * (i + 1));
+    }
+  }
+};
+
+/**
  * Base mixin for tutorial game boards
  */
 const TutorialBaseMixin = (Base) =>
@@ -30,7 +342,9 @@ const TutorialBaseMixin = (Base) =>
         animatingFireball: { type: Boolean },
         fireballPosition: { type: Object },
         animatingEnemyFireball: { type: Boolean },
-        enemyFireballPosition: { type: Object }
+        enemyFireballPosition: { type: Object },
+        isVisible: { type: Boolean },
+        hasStartedAttacking: { type: Boolean }
       };
     }
 
@@ -49,10 +363,12 @@ const TutorialBaseMixin = (Base) =>
       this.isTutorialMode = true;
       this.shipsPlaced = 0;
       this.isPlayerTurn = true;
+      this.isVisible = false;
+      this.hasStartedAttacking = false;
       
       // Initialize boards
-      this.playerBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
-      this.enemyBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
+      this.playerBoard = Utils.createEmptyBoard(this.boardHeight, this.boardWidth);
+      this.enemyBoard = Utils.createEmptyBoard(this.boardHeight, this.boardWidth);
       
       // Hit tracking
       this.lastHitPosition = null;
@@ -78,13 +394,11 @@ const TutorialBaseMixin = (Base) =>
 
     async connectedCallback() {
       // Initialize properties before calling super
-      if (!this.gameId) {
-        this.gameId = null;
-        this.isPlayerTurn = true;
-        this.gameEnded = false;
-      }
+      this.gameId = null;
+      this.isPlayerTurn = true;
+      this.gameEnded = false;
 
-      // Call super if it exists, but don't wait for it
+      // Call super if it exists
       if (super.connectedCallback) {
         try {
           super.connectedCallback();
@@ -94,27 +408,14 @@ const TutorialBaseMixin = (Base) =>
       }
 
       // Add event listener for game reset
-      window.addEventListener('game-reset', () => {
-        this.resetGame();
-      });
-
-      // Request an update to render initial state
+      window.addEventListener('game-reset', () => this.resetGame());
       this.requestUpdate();
     }
 
-    // Override backend-related methods to do nothing in tutorial mode
-    async createGame() {
-      // Do nothing in tutorial mode
-      return Promise.resolve({ gameId: null });
-    }
-
-    async updateGame() {
-      // Do nothing in tutorial mode
-      return Promise.resolve();
-    }
-
+    // Override backend-related methods to be no-ops in tutorial mode
+    async createGame() { return Promise.resolve({ gameId: null }); }
+    async updateGame() { return Promise.resolve(); }
     async getGame() {
-      // Do nothing in tutorial mode
       return Promise.resolve({
         gameId: null,
         playerBoard: this.playerBoard,
@@ -124,34 +425,16 @@ const TutorialBaseMixin = (Base) =>
         isPlayerTurn: this.isPlayerTurn
       });
     }
-
-    async deleteGame() {
-      // Do nothing in tutorial mode
-      return Promise.resolve();
-    }
-
-    // Override game state methods
-    switchTurn() {
-      // Do nothing in tutorial mode
-      return;
-    }
-
-    checkWin() {
-      // Do nothing in tutorial mode
-      return false;
-    }
-
-    endGame() {
-      // Do nothing in tutorial mode
-      return;
-    }
+    async deleteGame() { return Promise.resolve(); }
+    switchTurn() { return; }
+    checkWin() { return false; }
+    endGame() { return; }
 
     resetGame() {
-      // Reset only local state
       this.winner = null;
       this.gameEnded = false;
-      this.playerBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
-      this.enemyBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
+      this.playerBoard = Utils.createEmptyBoard(this.boardHeight, this.boardWidth);
+      this.enemyBoard = Utils.createEmptyBoard(this.boardHeight, this.boardWidth);
       this.shipsPlaced = 0;
       this.message = '';
       this.instructionText = '';
@@ -159,180 +442,22 @@ const TutorialBaseMixin = (Base) =>
       this.requestUpdate();
     }
 
-    // Override animation methods to ensure they work in tutorial mode
+    // Fallback animation methods in case parent methods fail
     createExplosion(row, col, isEnemyBoard) {
       if (!this.shadowRoot) return;
-      try {
-        super.createExplosion?.(row, col, isEnemyBoard);
-      } catch (error) {
-        console.warn('Error creating explosion effect:', error);
-      }
+      try { super.createExplosion?.(row, col, isEnemyBoard); 
+      } catch (error) { console.warn('Error creating explosion effect:', error); }
     }
 
     createWaterSplash(row, col, isEnemyBoard) {
       if (!this.shadowRoot) return;
-      try {
-        super.createWaterSplash?.(row, col, isEnemyBoard);
-      } catch (error) {
-        console.warn('Error creating water splash effect:', error);
-      }
+      try { super.createWaterSplash?.(row, col, isEnemyBoard);
+      } catch (error) { console.warn('Error creating water splash effect:', error); }
     }
 
-    static styles = css`
-        :host {
-          --board-size: 4;
-          --board-width: 280px;
-          --cell-size: calc(var(--board-width) / 4);
-          --ship-color: rgba(52, 152, 219, 0.7);
-          --hit-color: rgba(46, 204, 113, 0.7);
-          --miss-color: rgba(231, 76, 60, 0.7);
-          display: flex;
-          justify-content: center;
-          width: 100%;
-        }
-
-        .game-card {
-          background-color: #1e1e1e;
-          border-radius: 16px;
-          padding: 20px;
-          width: 100%;
-          max-width: 600px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .boards-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: 40px;
-          align-items: center;
-          width: 100%;
-        }
-
-        .board-section {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 15px;
-          position: relative;
-        }
-
-        .board-section .board {
-          display: flex;
-          flex-direction: row;
-          justify-content: space-between;
-          align-items: center;
-          width: 100%;
-          max-width: var(--board-width);
-        }
-
-        .board-section .cell {
-          flex: 1;
-          min-width: 0;
-          min-height: 0;
-        }
-
-        .board {
-          width: var(--board-width);
-          height: calc(var(--board-width) / 4);
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          grid-template-rows: 1fr;
-          gap: 2px;
-          background-color: #1a1a1a;
-          padding: 10px;
-          border-radius: 12px;
-          box-sizing: border-box;
-          position: relative;
-        }
-
-        .cell {
-          width: 100%;
-          height: 100%;
-          aspect-ratio: 1;
-          font-size: 1.5em;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          background-color: #2a2a2a;
-          border: 1px solid #333;
-          border-radius: 4px;
-          box-sizing: border-box;
-          position: relative;
-          margin: 0;
-          padding: 0;
-        }
-
-        .cell:hover {
-          background-color: #3a3a3a;
-          transform: scale(1.02);
-        }
-
-        .cell.ship {
-          background-color: var(--ship-color);
-        }
-
-        .cell.hit {
-          background-color: var(--hit-color);
-        }
-
-        .cell.miss {
-          background-color: var(--miss-color);
-        }
-
-        .cell.player-ship-hit {
-          background-color: var(--miss-color);
-        }
-
-        .tutorial-highlight {
-          animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-          100% { transform: scale(1); }
-        }
-
-        .message, .instruction-text {
-          color: #ffffff;
-          text-align: center;
-          margin: 10px 0;
-          width: 100%;
-        }
-
-        .board-title {
-          font-size: 1.2em;
-          color: #3498db;
-          margin: 0;
-          text-align: center;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-          :host {
-            --board-width: 240px;
-          }
-          
-          .cell {
-            font-size: 1.2em;
-          }
-        }
-
-        @media (max-width: 480px) {
-          :host {
-            --board-width: 200px;
-          }
-          
-          .cell {
-            font-size: 1em;
-          }
-        }
-    `;
+    static get styles() {
+      return BaseStyles;
+    }
 
     render() {
       return html`
@@ -344,35 +469,31 @@ const TutorialBaseMixin = (Base) =>
             <div class="board-section enemy-section">
               <div class="board-title">Enemy Board</div>
               <div class="board">
-                ${Array(1).fill().map((_, row) => 
-                  Array(4).fill().map((_, col) => html`
-                    <div class="cell
-                         ${this.enemyBoard[row][col] === 'X' ? 'hit' : ''}
-                         ${this.enemyBoard[row][col] === 'O' ? 'miss' : ''}
-                         ${this.enemyBoard[row][col] === 'S' ? 'ship' : ''}"
-                         @click="${() => this.handleEnemyCellClick(row, col)}">
-                      ${this.enemyBoard[row][col] === 'X' ? '💥' : 
-                        this.enemyBoard[row][col] === 'O' ? '💦' : ''}
-                    </div>
-                  `)
-                )}
+                ${Array(4).fill().map((_, col) => html`
+                  <div class="cell
+                       ${this.enemyBoard[0][col] === 'X' ? 'hit' : ''}
+                       ${this.enemyBoard[0][col] === 'O' ? 'miss' : ''}
+                       ${this.enemyBoard[0][col] === 'S' ? 'ship' : ''}"
+                       @click="${() => this.handleEnemyCellClick(0, col)}">
+                    ${this.enemyBoard[0][col] === 'X' ? '💥' : 
+                      this.enemyBoard[0][col] === 'O' ? '💦' : ''}
+                  </div>
+                `)}
               </div>
             </div>
             
             <div class="board-section player-section">
               <div class="board-title">Player Board</div>
               <div class="board">
-                ${Array(1).fill().map((_, row) => 
-                  Array(4).fill().map((_, col) => html`
-                    <div class="cell
-                         ${this.playerBoard[row][col] === 'X' ? 'player-ship-hit' : ''}
-                         ${this.playerBoard[row][col] === 'S' ? 'ship' : ''}"
-                         @click="${() => this.handlePlayerCellClick(row, col)}">
-                      ${this.playerBoard[row][col] === 'X' ? '💀' : 
-                        this.playerBoard[row][col] === 'S' ? '🚢' : ''}
-                    </div>
-                  `)
-                )}
+                ${Array(4).fill().map((_, col) => html`
+                  <div class="cell
+                       ${this.playerBoard[0][col] === 'X' ? 'player-ship-hit' : ''}
+                       ${this.playerBoard[0][col] === 'S' ? 'ship' : ''}"
+                       @click="${() => this.handlePlayerCellClick(0, col)}">
+                    ${this.playerBoard[0][col] === 'X' ? '💀' : 
+                      this.playerBoard[0][col] === 'S' ? '🚢' : ''}
+                  </div>
+                `)}
               </div>
             </div>
           </div>
@@ -390,26 +511,16 @@ const GameBoardOverviewMixin = (Base) =>
       super();
       this.message = 'Welcome to Battle Ship!';
       this.instructionText = 'This is your game board. You\'ll place your ships here.';
-      this.playerBoard = Array(1).fill().map(() => Array(4).fill(''));
-      this.enemyBoard = Array(1).fill().map(() => Array(4).fill(''));
     }
 
     handlePlayerCellClick(row, col) {
-      // Just highlight the cell to show interactivity
       const cell = this.shadowRoot.querySelector(`.player-section .cell:nth-child(${col + 1})`);
-      if (cell) {
-        cell.classList.add('tutorial-highlight');
-        setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
-      }
+      Utils.highlightCell(cell);
     }
 
     handleEnemyCellClick(row, col) {
-      // Just highlight the cell to show interactivity
       const cell = this.shadowRoot.querySelector(`.enemy-section .cell:nth-child(${col + 1})`);
-      if (cell) {
-        cell.classList.add('tutorial-highlight');
-        setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
-      }
+      Utils.highlightCell(cell);
     }
   };
 
@@ -423,17 +534,14 @@ const ShipPlacementMixin = (Base) =>
       this.message = 'Click on the player board cells to place your ships!';
       this.instructionText = 'Click on your board to place your ships.';
       this.shipsPlaced = 0;
-      // Initialize empty 1x4 boards
-      this.playerBoard = Array(1).fill().map(() => Array(4).fill(''));
-      this.enemyBoard = Array(1).fill().map(() => Array(4).fill(''));
     }
 
     handlePlayerCellClick(row, col) {
       if (this.shipsPlaced >= this.maxShips) return;
       
-      if (this.playerBoard[row][col] === '') {
+      if (this.playerBoard[0][col] === '') {
         // Place a ship
-        this.playerBoard[row][col] = 'S';
+        this.playerBoard[0][col] = 'S';
         this.shipsPlaced++;
         sounds.initAudioContext();
         sounds.HitPlayer();
@@ -443,7 +551,6 @@ const ShipPlacementMixin = (Base) =>
           this.instructionText = 'Great job! You\'ve placed all your ships.';
         } else {
           this.message = `Place ${this.maxShips - this.shipsPlaced} more ships!`;
-          this.instructionText = 'Click on your board to place your ships.';
         }
         this.requestUpdate();
       } else {
@@ -475,165 +582,68 @@ const ShipPlacementMixin = (Base) =>
  */
 const EnemyAttackMixin = (Base) =>
   class extends TutorialBaseMixin(Base) {
-    static get properties() {
-      return {
-        ...super.properties,
-        isVisible: { type: Boolean }
-      };
-    }
-
     constructor() {
       super();
       this.message = 'Watch out! The enemy is attacking!';
       this.instructionText = 'The enemy will attack your ships.';
-      // Initialize player board with ships and empty enemy board
-      this.playerBoard = Array(1).fill().map(() => Array(4).fill('S'));
-      this.enemyBoard = Array(1).fill().map(() => Array(4).fill(''));
+      // Initialize board with ships
+      this.playerBoard = Utils.createShipBoard(1, 4);
       this.attackCount = 0;
       this.maxAttacks = 4;
       this.hasStartedAttacking = false;
-      this.isVisible = false;
       // Override turn-based properties
       this.isPlayerTurn = false;
-      this.gameEnded = false;
     }
 
     firstUpdated() {
       super.firstUpdated?.();
-      this.setupVisibilityObserver();
-    }
-
-    setupVisibilityObserver() {
-      // Create intersection observer
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach(entry => {
-            this.isVisible = entry.isIntersecting;
-            if (this.isVisible && !this.hasStartedAttacking) {
-              console.log('Enemy attack section is visible, starting attack sequence...');
-              this.hasStartedAttacking = true;
-              this.startAttackSequence();
-            }
-          });
-        },
-        {
-          root: null,
-          rootMargin: '0px',
-          threshold: 0.7 // Requires 70% visibility to trigger
-        }
+      this.observer = Utils.createVisibilityObserver(
+        this, 
+        () => this.startAttackSequence(),
+        '.board-section'
       );
-
-      // Start observing the board section
-      requestAnimationFrame(() => {
-        const boardSection = this.shadowRoot?.querySelector('.board-section');
-        if (boardSection) {
-          observer.observe(boardSection);
-          console.log('Observing enemy attack board section');
-        } else {
-          console.warn('Board section not found for observation');
-        }
-      });
     }
 
     startAttackSequence() {
-      console.log('Starting enemy attack sequence');
-      // Schedule all four attacks with increasing delays
-      for (let i = 0; i < this.maxAttacks; i++) {
-        setTimeout(() => {
-          if (this.isVisible) {
-            this.performAttack(i);
-          }
-        }, 2000 * (i + 1)); // 2 seconds between each attack
-      }
+      Utils.createAttackSequence(this, this.maxAttacks, (i) => this.performAttack(i));
     }
 
     async performAttack(position) {
       if (!this.isVisible) return;
 
-      const row = 0;
       const col = position;
-
-      // Get board elements
       const playerBoard = this.shadowRoot?.querySelector('.player-section .board');
       const enemyBoard = this.shadowRoot?.querySelector('.enemy-section .board');
       const cells = this.shadowRoot?.querySelectorAll('.player-section .cell');
       const targetCell = cells?.[col];
 
-      if (!playerBoard || !enemyBoard || !targetCell) {
-        console.warn('Required elements not found for enemy attack animation');
-        return;
-      }
+      if (!playerBoard || !enemyBoard || !targetCell) return;
 
-      // Start enemy fireball animation
-      const enemyRect = enemyBoard.getBoundingClientRect();
-      const targetRect = targetCell.getBoundingClientRect();
-
-      // Calculate positions
-      const startX = enemyRect.left + enemyRect.width / 2;
-      const startY = enemyRect.top + enemyRect.height / 2;
-      const endX = targetRect.left + targetRect.width / 2;
-      const endY = targetRect.top + targetRect.height / 2;
-
-      // Set up enemy fireball
-      this.animatingEnemyFireball = true;
-      this.enemyFireballPosition = { x: startX, y: startY };
-      this.requestUpdate();
-
-      // Animate the fireball
-      const animationDuration = 1000;
-      const startTime = performance.now();
-
-      const animateFireball = (currentTime) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / animationDuration, 1);
-        
-        const easeOutQuad = t => t * (2 - t);
-        const easedProgress = easeOutQuad(progress);
-        
-        this.enemyFireballPosition = {
-          x: startX + (endX - startX) * easedProgress,
-          y: startY + (endY - startY) * easedProgress
-        };
-        
-        this.requestUpdate();
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateFireball);
-        } else {
-          setTimeout(() => {
-            this.animatingEnemyFireball = false;
-            this.requestUpdate();
-
-            // Process the hit
-            if (this.playerBoard[row][col] === 'S') {
-              this.playerBoard[row][col] = 'X';
-              this.message = 'Enemy hit your ship!';
-              this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
-              sounds.initAudioContext();
-              sounds.HitPlayer();
-              
-              try {
-                this.createExplosion(row, col, false);
-              } catch (error) {
-                console.warn('Error creating explosion effect:', error);
-              }
-            }
+      Utils.animateFireball({
+        startElement: enemyBoard,
+        targetElement: targetCell,
+        component: this,
+        isEnemy: true,
+        useDomElement: false,
+        duration: 1000,
+        onComplete: () => {
+          if (this.playerBoard[0][col] === 'S') {
+            this.playerBoard[0][col] = 'X';
+            this.instructionText = 'When the enemy hits your ship, it\'s marked with a skull.';
+            sounds.initAudioContext();
+            sounds.HitPlayer();
             
-            this.requestUpdate();
-          }, 100);
+            try { this.createExplosion(0, col, false); 
+            } catch (error) { console.warn('Error creating explosion effect:', error); }
+          }
+          this.requestUpdate();
         }
-      };
-
-      requestAnimationFrame(animateFireball);
+      });
     }
 
     handlePlayerCellClick(row, col) {
-      // Just visual feedback during enemy attacks
       const cell = this.shadowRoot?.querySelector(`.player-section .cell:nth-child(${col + 1})`);
-      if (cell) {
-        cell.classList.add('tutorial-highlight');
-        setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
-      }
+      Utils.highlightCell(cell);
     }
 
     handleEnemyCellClick(row, col) {
@@ -645,7 +655,26 @@ const EnemyAttackMixin = (Base) =>
     }
 
     disconnectedCallback() {
+      if (this.observer) {
+        this.observer.disconnect();
+      }
       super.disconnectedCallback?.();
+    }
+
+    static get styles() {
+      return css`
+        ${BaseStyles}
+        
+        .boards-wrapper.reversed {
+          gap: 50px;
+        }
+        
+        .large-instruction {
+          font-size: 1.2em;
+          margin: 20px 0;
+          font-weight: bold;
+        }
+      `;
     }
   };
 
@@ -658,121 +687,62 @@ const PlayerAttackMixin = (Base) =>
       super();
       this.message = 'Your turn to attack!';
       this.instructionText = 'Click on the enemy\'s board to attack.';
-      // Initialize player board with ships but enemy board empty (ships are hidden)
-      this.playerBoard = Array(1).fill().map(() => Array(4).fill('S'));
-      this.enemyBoard = Array(1).fill().map(() => Array(4).fill('')); // Changed from 'S' to ''
-      this.enemyShipPositions = [0, 1, 2, 3]; // Track ship positions internally
+      // Initialize player board with ships
+      this.playerBoard = Utils.createShipBoard(1, 4);
+      this.enemyShipPositions = [0, 1, 2, 3]; // All positions have ships (hidden)
       this.hits = 0;
       this.maxHits = 4;
     }
 
-    firstUpdated() {
-      super.firstUpdated?.();
-      // Ensure the boards are rendered before allowing interactions
-      this.requestUpdate();
-    }
-
     handleEnemyCellClick(row, col) {
-      if (this.enemyBoard[row][col] === 'X' || this.enemyBoard[row][col] === 'O') return;
+      if (this.enemyBoard[0][col] === 'X' || this.enemyBoard[0][col] === 'O') return;
       
-      // Get board elements after they're definitely in the DOM
       const playerBoard = this.shadowRoot?.querySelector('.player-section .board');
       const enemyBoard = this.shadowRoot?.querySelector('.enemy-section .board');
-      const targetCell = enemyBoard?.querySelectorAll('.cell')[col];
+      const targetCell = this.shadowRoot?.querySelectorAll('.enemy-section .cell')[col];
 
-      if (!playerBoard || !enemyBoard || !targetCell) {
-        console.warn('Required elements not found for animation');
-        return;
-      }
+      if (!playerBoard || !enemyBoard || !targetCell) return;
 
-      // Start fireball animation
-      const playerRect = playerBoard.getBoundingClientRect();
-      const targetRect = targetCell.getBoundingClientRect();
+      this.performPlayerAttack(col);
+    }
 
-      // Calculate start and end positions
-      const startX = playerRect.left + playerRect.width / 2;
-      const startY = playerRect.top + playerRect.height / 2;
-      const endX = targetRect.left + targetRect.width / 2;
-      const endY = targetRect.top + targetRect.height / 2;
+    performPlayerAttack(col) {
+      const playerBoard = this.shadowRoot?.querySelector('.player-board');
+      const targetCell = this.shadowRoot?.querySelectorAll('.enemy-section .cell')[col];
 
-      // Set up fireball animation
-      this.animatingFireball = true;
-      this.fireballPosition = { x: startX, y: startY };
-      this.requestUpdate();
+      if (!playerBoard || !targetCell) return;
 
-      // Animate the fireball
-      const animationDuration = 800;
-      const startTime = performance.now();
-
-      const animateFireball = (currentTime) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / animationDuration, 1);
-        
-        const easeOutQuad = t => t * (2 - t);
-        const easedProgress = easeOutQuad(progress);
-        
-        this.fireballPosition = {
-          x: startX + (endX - startX) * easedProgress,
-          y: startY + (endY - startY) * easedProgress
-        };
-        
-        this.requestUpdate();
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateFireball);
-        } else {
-          setTimeout(() => {
-            this.animatingFireball = false;
-            this.requestUpdate();
-            
-            // Process the hit after fireball animation
-            if (this.enemyShipPositions.includes(col)) { // Check against internal ship positions
-              this.enemyBoard[row][col] = 'X';
-              this.hits++;
-              this.message = 'Hit! You sunk an enemy ship!';
-              this.instructionText = 'Great shot! Keep attacking to find all enemy ships.';
-              sounds.initAudioContext();
-              sounds.HitEnemy();
-              
-              try {
-                this.createExplosion(row, col, true);
-              } catch (error) {
-                console.warn('Error creating explosion effect:', error);
-              }
-
-              if (this.hits === this.maxHits) {
-                this.message = 'Victory! You sunk all enemy ships!';
-                this.instructionText = 'You\'ve completed the tutorial!';
-                sounds.initAudioContext();
-                sounds.Victory();
-              }
-            } else {
-              this.enemyBoard[row][col] = 'O';
-              this.message = 'Miss! Try again!';
-              this.instructionText = 'Keep searching for enemy ships.';
-              
-              try {
-                this.createWaterSplash(row, col, true);
-              } catch (error) {
-                console.warn('Error creating water splash effect:', error);
-              }
-            }
-            
-            this.requestUpdate();
-          }, 100);
+      Utils.animateFireball({
+        startElement: playerBoard,
+        targetElement: targetCell,
+        useDomElement: true,
+        duration: 800,
+        onComplete: () => {
+          // Mark cell as hit
+          this.enemyBoard[0][col] = 'X';
+          this.hits++;
+          
+          sounds.initAudioContext();
+          sounds.HitEnemy();
+          
+          if (this.hits === this.maxHits) {
+            this.message = 'Victory! You sunk all enemy ships!';
+            this.instructionText = 'You\'ve completed the tutorial!';
+            sounds.initAudioContext();
+            sounds.Victory();
+          } else {
+            this.message = 'Hit! You sunk an enemy ship!';
+            this.instructionText = `Great shot! Keep attacking to find all enemy ships. (${this.hits}/${this.maxHits})`;
+          }
+          
+          this.requestUpdate();
         }
-      };
-
-      requestAnimationFrame(animateFireball);
+      });
     }
 
     handlePlayerCellClick(row, col) {
-      // Allow player to see their ships but not modify them
       const cell = this.shadowRoot?.querySelector(`.player-section .cell:nth-child(${col + 1})`);
-      if (cell) {
-        cell.classList.add('tutorial-highlight');
-        setTimeout(() => cell.classList.remove('tutorial-highlight'), 1000);
-      }
+      Utils.highlightCell(cell);
     }
   };
 
@@ -782,14 +752,8 @@ export const ShipPlacementBoard = ShipPlacementMixin(GameBoard);
 export const EnemyAttackBoard = EnemyAttackMixin(GameBoard);
 export const PlayerAttackBoard = PlayerAttackMixin(GameBoard);
 
-// Register the custom elements
-customElements.define('game-board-overview', GameBoardOverview);
-customElements.define('ship-placement-board', ShipPlacementBoard);
-customElements.define('enemy-attack-board', EnemyAttackBoard);
-customElements.define('player-attack-board', PlayerAttackBoard);
-
 /**
- * Custom game board for battleship that doesn't inherit from GameBoard
+ * Base class for custom battle boards that don't inherit from GameBoard
  */
 export class CustomBattleBoard extends LitElement {
   static get properties() {
@@ -797,373 +761,13 @@ export class CustomBattleBoard extends LitElement {
       enemyBoard: { type: Array },
       playerBoard: { type: Array },
       message: { type: String },
-      instructionText: { type: String }
-    };
-  }
-
-  constructor() {
-    super();
-    // Fixed 4x1 board dimensions
-    this.boardWidth = 4;
-    this.boardHeight = 1;
-    
-    // Initialize enemy and player boards
-    this.enemyBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
-    this.playerBoard = Array(this.boardHeight).fill().map(() => Array(this.boardWidth).fill(''));
-    
-    // Set up player board with ships and skulls for display
-    this.playerBoard[0][0] = 'X'; // skull
-    this.playerBoard[0][1] = 'X'; // skull
-    this.playerBoard[0][2] = 'S'; // ship
-    this.playerBoard[0][3] = 'S'; // ship
-    
-    // Default messages
-    this.message = 'Enemy hit your ship!';
-    this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
-  }
-
-  render() {
-    return html`
-      <div class="game-card">
-        <h2 class="title">${this.message}</h2>
-        <p class="instruction">${this.instructionText}</p>
-        
-        <div class="board-section">
-          <h3 class="board-title">Enemy Board</h3>
-          <div class="board enemy-board">
-            ${this.enemyBoard[0].map((cell, index) => html`
-              <div class="cell" data-position="${index}"></div>
-            `)}
-          </div>
-        </div>
-        
-        <div class="board-section">
-          <h3 class="board-title">Player Board</h3>
-          <div class="board player-board">
-            ${this.playerBoard[0].map((cell, index) => html`
-              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'S' ? 'ship' : ''}"
-                   data-position="${index}">
-                ${cell === 'X' ? html`<span class="skull">💀</span>` : 
-                  cell === 'S' ? html`<span class="ship-icon">🚢</span>` : ''}
-              </div>
-            `)}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  static get styles() {
-    return css`
-      :host {
-        --board-width: 280px;
-        --cell-size: calc(var(--board-width) / 4);
-        display: flex;
-        justify-content: center;
-        width: 100%;
-      }
-
-      .game-card {
-        background-color: #1e1e1e;
-        border-radius: 16px;
-        padding: 20px;
-        width: 100%;
-        max-width: 600px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .title {
-        color: #ffffff;
-        margin: 0 0 8px 0;
-        text-align: center;
-        font-size: 1.5em;
-      }
-
-      .instruction {
-        color: #ffffff;
-        text-align: center;
-        margin: 0 0 20px 0;
-        font-size: 1em;
-      }
-
-      .board-section {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin: 20px 0;
-      }
-
-      .board-title {
-        font-size: 1.2em;
-        color: #3498db;
-        margin: 0 0 10px 0;
-        text-align: center;
-      }
-
-      .board {
-        width: var(--board-width);
-        height: var(--cell-size);
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        grid-template-rows: 1fr;
-        gap: 4px;
-        background-color: #2a2a2a;
-        padding: 8px;
-        border-radius: 8px;
-      }
-
-      .cell {
-        width: 100%;
-        height: 100%;
-        aspect-ratio: 1;
-        background-color: #3a3a3a;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-      }
-
-      .cell.hit {
-        background-color: rgba(231, 76, 60, 0.7);
-      }
-
-      .cell.ship {
-        background-color: rgba(52, 152, 219, 0.7);
-      }
-
-      .skull, .ship-icon {
-        font-size: 1.5em;
-      }
-
-      /* Responsive adjustments */
-      @media (max-width: 600px) {
-        :host {
-          --board-width: 240px;
-        }
-      }
-    `;
-  }
-}
-
-// Define the custom elements
-customElements.define('custom-battle-board', CustomBattleBoard);
-
-/**
- * Enemy attack board with custom implementation
- */
-export class CustomEnemyAttackBoard extends CustomBattleBoard {
-  static get properties() {
-    return {
-      ...super.properties,
+      instructionText: { type: String },
       isVisible: { type: Boolean },
       hasStartedAttacking: { type: Boolean },
-      animatingEnemyFireball: { type: Boolean },
-      enemyFireballPosition: { type: Object }
-    };
-  }
-
-  constructor() {
-    super();
-    this.message = 'Enemy hit your ship!';
-    this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
-    
-    // Set player board with all ships for this view
-    this.playerBoard[0][0] = 'S'; // ship (will become skull)
-    this.playerBoard[0][1] = 'S'; // ship (will become skull)
-    this.playerBoard[0][2] = 'S'; // ship 
-    this.playerBoard[0][3] = 'S'; // ship
-    
-    // Observer and animation state
-    this.isVisible = false;
-    this.hasStartedAttacking = false;
-    this.animatingEnemyFireball = false;
-    this.enemyFireballPosition = null;
-    this.attackCount = 0;
-    this.maxAttacks = 4;
-  }
-
-  firstUpdated() {
-    super.firstUpdated?.();
-    this.setupVisibilityObserver();
-  }
-
-  setupVisibilityObserver() {
-    // Create intersection observer
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          this.isVisible = entry.isIntersecting;
-          if (this.isVisible && !this.hasStartedAttacking) {
-            console.log('Enemy attack section is visible, starting attack sequence...');
-            this.hasStartedAttacking = true;
-            this.startAttackSequence();
-          }
-        });
-      },
-      {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.7 // Requires 70% visibility to trigger
-      }
-    );
-
-    // Start observing the component
-    requestAnimationFrame(() => {
-      const boardSection = this.shadowRoot?.querySelector('.game-card');
-      if (boardSection) {
-        observer.observe(boardSection);
-        console.log('Observing enemy attack board section');
-      } else {
-        console.warn('Board section not found for observation');
-      }
-    });
-  }
-
-  startAttackSequence() {
-    console.log('Starting enemy attack sequence');
-    // Schedule all four attacks with increasing delays
-    for (let i = 0; i < this.maxAttacks; i++) {
-      setTimeout(() => {
-        if (this.isVisible) {
-          this.performAttack(i);
-        }
-      }, 2000 * (i + 1)); // 2 seconds between each attack
-    }
-  }
-
-  async performAttack(position) {
-    if (!this.isVisible) return;
-
-    const col = position;
-
-    // Get board elements after they're definitely in the DOM
-    const enemyBoard = this.shadowRoot?.querySelector('.enemy-board');
-    const playerBoard = this.shadowRoot?.querySelector('.player-board');
-    const targetCell = playerBoard?.querySelectorAll('.cell')[col];
-
-    if (!enemyBoard || !playerBoard || !targetCell) {
-      console.warn('Required elements not found for enemy attack animation');
-      return;
-    }
-
-    // Start enemy fireball animation
-    const enemyRect = enemyBoard.getBoundingClientRect();
-    const targetRect = targetCell.getBoundingClientRect();
-
-    // Calculate positions for exact targeting
-    const startX = enemyRect.left + enemyRect.width / 2;
-    const startY = enemyRect.top + enemyRect.height / 2;
-    const endX = targetRect.left + targetRect.width / 2;
-    const endY = targetRect.top + targetRect.height / 2;
-
-    // Create and append fireball element
-    const fireball = document.createElement('div');
-    fireball.className = 'fireball';
-    fireball.textContent = '🔥';
-    fireball.style.position = 'fixed';
-    fireball.style.zIndex = '100';
-    fireball.style.fontSize = '24px';
-    fireball.style.transform = 'translate(-50%, -50%)';
-    document.body.appendChild(fireball);
-
-    // Animate the fireball
-    const animationDuration = 1000;
-    const startTime = performance.now();
-
-    const animateFireball = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / animationDuration, 1);
-      
-      const easeOutQuad = t => t * (2 - t);
-      const easedProgress = easeOutQuad(progress);
-      
-      fireball.style.left = `${startX + (endX - startX) * easedProgress}px`;
-      fireball.style.top = `${startY + (endY - startY) * easedProgress}px`;
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateFireball);
-      } else {
-        // Animation complete, remove fireball
-        document.body.removeChild(fireball);
-        
-        // Process the hit
-        setTimeout(() => {
-          // Mark ship as hit
-          this.playerBoard[0][col] = 'X';
-          this.message = 'Enemy hit your ship!';
-          this.instructionText = 'When the enemy hits your ship, it\'s marked with an X.';
-          sounds.initAudioContext();
-          sounds.HitPlayer();
-          
-          this.requestUpdate();
-        }, 100);
-      }
-    };
-
-    requestAnimationFrame(animateFireball);
-  }
-
-  render() {
-    return html`
-      <div class="game-card">
-        <h2 class="title">${this.message}</h2>
-        <p class="instruction">${this.instructionText}</p>
-        
-        <div class="board-section">
-          <h3 class="board-title">Enemy Board</h3>
-          <div class="board enemy-board">
-            ${this.enemyBoard[0].map((cell, index) => html`
-              <div class="cell" data-position="${index}"></div>
-            `)}
-          </div>
-        </div>
-        
-        <div class="board-section">
-          <h3 class="board-title">Player Board</h3>
-          <div class="board player-board">
-            ${this.playerBoard[0].map((cell, index) => html`
-              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'S' ? 'ship' : ''}"
-                   data-position="${index}">
-                ${cell === 'X' ? html`<span class="skull">💀</span>` : 
-                  cell === 'S' ? html`<span class="ship-icon">🚢</span>` : ''}
-              </div>
-            `)}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  static get styles() {
-    return css`
-      ${super.styles}
-      
-      .fireball {
-        position: fixed;
-        z-index: 100;
-        pointer-events: none;
-        font-size: 1.5em;
-      }
-    `;
-  }
-}
-
-// Define the custom elements
-customElements.define('custom-enemy-attack-board', CustomEnemyAttackBoard);
-
-/**
- * Player attack board with custom implementation - Interactive Demo
- */
-export class CustomPlayerAttackBoard extends CustomBattleBoard {
-  static get properties() {
-    return {
-      ...super.properties,
       animatingFireball: { type: Boolean },
       fireballPosition: { type: Object },
+      animatingEnemyFireball: { type: Boolean },
+      enemyFireballPosition: { type: Object },
       hits: { type: Number },
       maxHits: { type: Number },
       enemyShipPositions: { type: Array },
@@ -1173,34 +777,196 @@ export class CustomPlayerAttackBoard extends CustomBattleBoard {
 
   constructor() {
     super();
-    // Set initial message
-    this.message = 'Your Turn to Attack!';
-    this.instructionText = 'Now it\'s your turn to attack the enemy\'s board. Try to find and sink their ships!';
+    // Fixed 4x1 board dimensions
+    this.boardWidth = 4;
+    this.boardHeight = 1;
     
-    // Set ALL player board cells with ships
-    this.playerBoard[0][0] = 'S'; // ship
-    this.playerBoard[0][1] = 'S'; // ship
-    this.playerBoard[0][2] = 'S'; // ship
-    this.playerBoard[0][3] = 'S'; // ship
+    // Initialize boards
+    this.enemyBoard = Utils.createEmptyBoard(this.boardHeight, this.boardWidth);
+    this.playerBoard = Utils.createEmptyBoard(this.boardHeight, this.boardWidth);
     
-    // Initialize enemy board with NO hits - all empty cells
-    this.enemyBoard = Array(1).fill().map(() => Array(4).fill('')); // All cells are empty
-    
-    // Animation state
+    // Default state
+    this.instructionText = '';
+    this.message = '';
+    this.isVisible = false;
+    this.hasStartedAttacking = false;
+    this.hits = 0;
+    this.maxHits = 4;
     this.animatingFireball = false;
     this.fireballPosition = null;
-    this.hits = 0; // No hits yet
-    this.maxHits = 4;
+    this.animatingEnemyFireball = false;
+    this.enemyFireballPosition = null;
+    this.enemyShipPositions = [];
+    this.victoryMode = false;
+  }
+
+  render() {
+    return html`
+      <div class="game-card">
+        <h2 class="title">${this.message}</h2>
+        <p class="instruction">${this.instructionText}</p>
+        
+        <div class="boards-container">
+          <div class="board-section enemy-section">
+            <h3 class="board-title">Enemy Board</h3>
+            <div class="board enemy-board">
+              ${this.enemyBoard[0].map((cell, index) => html`
+                <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'O' ? 'miss' : ''}"
+                     data-position="${index}">
+                  ${cell === 'X' ? '💥' : cell === 'O' ? '💦' : ''}
+                </div>
+              `)}
+            </div>
+          </div>
+          
+          <div class="board-section player-section">
+            <h3 class="board-title">Player Board</h3>
+            <div class="board player-board">
+              ${this.playerBoard[0].map((cell, index) => html`
+                <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'S' ? 'ship' : ''}"
+                     data-position="${index}">
+                  ${cell === 'X' ? '💀' : cell === 'S' ? '🚢' : ''}
+                </div>
+              `)}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  static get styles() {
+    return css`
+      ${BaseStyles}
+      
+      .boards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 50px;
+        width: 100%;
+      }
+      
+      .large-instruction {
+        font-size: 1.2em;
+        margin: 20px 0;
+        font-weight: bold;
+      }
+      
+      .title {
+        font-size: 1.8em;
+        margin-bottom: 15px;
+        color: #3498db;
+      }
+      
+      .boards-container.attack-mode {
+        gap: 60px;
+      }
+      
+      .cell.hit {
+        background-color: var(--hit-color);
+      }
+      
+      .cell.miss {
+        background-color: var(--miss-color);
+      }
+      
+      .enemy-board .cell {
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .enemy-board .cell:hover {
+        background-color: #3a3a3a;
+        transform: scale(1.05);
+      }
+      
+      @keyframes explode-anim {
+        0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+      }
+    `;
+  }
+}
+
+/**
+ * Enemy attack board with custom implementation
+ */
+export class CustomEnemyAttackBoard extends CustomBattleBoard {
+  constructor() {
+    super();
+    this.instructionText = 'When the enemy hits your ship, it\'s marked with a skull.';
+    this.playerBoard = Utils.createShipBoard(1, 4);
+    this.attackCount = 0;
+    this.maxAttacks = 4;
+  }
+
+  firstUpdated() {
+    super.firstUpdated?.();
+    this.observer = Utils.createVisibilityObserver(
+      this, 
+      () => this.startAttackSequence(),
+      '.game-card'
+    );
+  }
+
+  startAttackSequence() {
+    Utils.createAttackSequence(this, this.maxAttacks, (i) => this.performAttack(i));
+  }
+
+  async performAttack(position) {
+    if (!this.isVisible) return;
+
+    const col = position;
+    const enemyBoard = this.shadowRoot?.querySelector('.enemy-board');
+    const playerBoard = this.shadowRoot?.querySelector('.player-board');
+    const targetCell = playerBoard?.querySelectorAll('.cell')[col];
+
+    if (!enemyBoard || !playerBoard || !targetCell) return;
+
+    Utils.animateFireball({
+      startElement: enemyBoard,
+      targetElement: targetCell,
+      useDomElement: true,
+      duration: 1000,
+      onComplete: () => {
+        this.playerBoard[0][col] = 'X';
+        this.instructionText = 'When the enemy hits your ship, it\'s marked with a skull.';
+        sounds.initAudioContext();
+        sounds.HitPlayer();
+        this.requestUpdate();
+      }
+    });
+  }
+
+  disconnectedCallback() {
+    if (this.observer) {
+      this.observer.disconnect();
+    }
+    super.disconnectedCallback?.();
+  }
+}
+
+/**
+ * Player attack board with custom implementation - Interactive Demo
+ */
+export class CustomPlayerAttackBoard extends CustomBattleBoard {
+  constructor() {
+    super();
+    this.message = 'Your Turn to Attack!';
+    this.instructionText = 'Now it\'s your turn to attack the enemy\'s board. Try to find and sink their ships!';
+    this.playerBoard = Utils.createShipBoard(1, 4);
     this.enemyShipPositions = [0, 1, 2, 3]; // All positions have ships (hidden)
-    this.victoryMode = false; // Not in victory mode yet
+    
+    // Bind click handler for event listener
+    this._boundCellClickHandler = this.handleEnemyCellClick.bind(this);
   }
 
   firstUpdated() {
     super.firstUpdated?.();
     
-    // Add click handlers to enemy cells for interactive fireball attacks
+    // Add click handlers to enemy cells
     this.shadowRoot.querySelectorAll('.enemy-board .cell').forEach(cell => {
-      cell.addEventListener('click', (e) => this.handleEnemyCellClick(e));
+      cell.addEventListener('click', this._boundCellClickHandler);
     });
   }
 
@@ -1216,172 +982,69 @@ export class CustomPlayerAttackBoard extends CustomBattleBoard {
     // Don't allow re-attacking already hit cells
     if (this.enemyBoard[0][col] === 'X') return;
     
-    // Perform attack
     this.performPlayerAttack(col);
   }
 
   performPlayerAttack(col) {
-    // Get board elements
     const playerBoard = this.shadowRoot?.querySelector('.player-board');
-    const enemyBoard = this.shadowRoot?.querySelector('.enemy-board');
-    const targetCell = enemyBoard?.querySelectorAll('.cell')[col];
+    const targetCell = this.shadowRoot?.querySelectorAll('.enemy-board .cell')[col];
 
-    if (!playerBoard || !enemyBoard || !targetCell) {
-      console.warn('Required elements not found for player attack animation');
-      return;
-    }
+    if (!playerBoard || !targetCell) return;
 
-    // Calculate exact coordinates for the animation
-    const playerRect = playerBoard.getBoundingClientRect();
-    const targetRect = targetCell.getBoundingClientRect();
-
-    // Start and end positions
-    const startX = playerRect.left + playerRect.width / 2;
-    const startY = playerRect.top + playerRect.height / 2;
-    const endX = targetRect.left + targetRect.width / 2;
-    const endY = targetRect.top + targetRect.height / 2;
-
-    // Create and append fireball element
-    const fireball = document.createElement('div');
-    fireball.className = 'fireball';
-    fireball.textContent = '🔥';
-    fireball.style.position = 'fixed';
-    fireball.style.zIndex = '100';
-    fireball.style.fontSize = '24px';
-    fireball.style.transform = 'translate(-50%, -50%)';
-    document.body.appendChild(fireball);
-
-    // Animate the fireball
-    const animationDuration = 800;
-    const startTime = performance.now();
-
-    const animateFireball = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / animationDuration, 1);
-      
-      const easeOutQuad = t => t * (2 - t);
-      const easedProgress = easeOutQuad(progress);
-      
-      fireball.style.left = `${startX + (endX - startX) * easedProgress}px`;
-      fireball.style.top = `${startY + (endY - startY) * easedProgress}px`;
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateFireball);
-      } else {
-        // Animation complete, remove fireball
-        document.body.removeChild(fireball);
+    Utils.animateFireball({
+      startElement: playerBoard,
+      targetElement: targetCell,
+      useDomElement: true,
+      duration: 800,
+      onComplete: () => {
+        this.enemyBoard[0][col] = 'X';
+        this.hits++;
         
-        // Process the hit - always a hit in this demo
-        setTimeout(() => {
-          // Mark cell as hit
-          this.enemyBoard[0][col] = 'X';
-          this.hits++;
-          
-          // Always play hit sound
+        sounds.initAudioContext();
+        sounds.HitEnemy();
+        
+        if (this.hits === this.maxHits) {
+          this.message = 'Victory! You sunk all enemy ships!';
+          this.instructionText = 'You\'ve completed the tutorial!';
+          this.victoryMode = true;
           sounds.initAudioContext();
-          sounds.HitEnemy();
-          
-          // Update message based on hit count
-          if (this.hits === this.maxHits) {
-            this.message = 'Victory! You sunk all enemy ships!';
-            this.instructionText = 'You\'ve completed the tutorial!';
-            this.victoryMode = true;
-            
-            // Play victory sound
-            sounds.initAudioContext();
-            sounds.Victory();
-          } else {
-            this.message = 'Hit! You sunk an enemy ship!';
-            this.instructionText = `Great shot! Keep attacking to find all enemy ships. (${this.hits}/${this.maxHits})`;
-          }
-          
-          this.requestUpdate();
-        }, 100);
-      }
-    };
-
-    requestAnimationFrame(animateFireball);
-  }
-
-  render() {
-    return html`
-      <div class="game-card">
-        <h2 class="title">${this.message}</h2>
-        <p class="instruction">${this.instructionText}</p>
+          sounds.Victory();
+        } else {
+          this.message = 'Hit! You sunk an enemy ship!';
+          this.instructionText = `Great shot! Keep attacking to find all enemy ships. (${this.hits}/${this.maxHits})`;
+        }
         
-        <div class="board-section">
-          <h3 class="board-title">Enemy Board</h3>
-          <div class="board enemy-board">
-            ${this.enemyBoard[0].map((cell, index) => html`
-              <div class="cell ${cell === 'X' ? 'hit' : ''}"
-                   data-position="${index}">
-                ${cell === 'X' ? '💥' : ''}
-              </div>
-            `)}
-          </div>
-        </div>
-        
-        <div class="board-section">
-          <h3 class="board-title">Player Board</h3>
-          <div class="board player-board">
-            ${this.playerBoard[0].map((cell, index) => html`
-              <div class="cell ${cell === 'X' ? 'hit' : ''} ${cell === 'S' ? 'ship' : ''}"
-                   data-position="${index}">
-                ${cell === 'X' ? html`<span class="skull">💀</span>` : 
-                  cell === 'S' ? html`<span class="ship-icon">🚢</span>` : ''}
-              </div>
-            `)}
-          </div>
-        </div>
-      </div>
-    `;
+        this.requestUpdate();
+      }
+    });
   }
-
-  static get styles() {
-    return css`
-      ${super.styles}
-      
-      .fireball {
-        position: fixed;
-        z-index: 100;
-        pointer-events: none;
-        font-size: 1.5em;
+  
+  disconnectedCallback() {
+    // Clean up any active fireball animations
+    const fireballs = document.querySelectorAll('.fireball');
+    fireballs.forEach(fireball => {
+      if (document.body.contains(fireball)) {
+        document.body.removeChild(fireball);
       }
-      
-      .cell.hit {
-        background-color: rgba(46, 204, 113, 0.7);
-      }
-      
-      .cell.miss {
-        background-color: rgba(231, 76, 60, 0.7);
-      }
-      
-      .title {
-        font-size: 1.8em;
-        margin-bottom: 10px;
-      }
-      
-      .instruction {
-        margin-bottom: 20px;
-      }
-      
-      @keyframes explode-anim {
-        0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
-      }
-      
-      .enemy-board .cell {
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-      
-      .enemy-board .cell:hover {
-        background-color: #3a3a3a;
-        transform: scale(1.05);
-      }
-    `;
+    });
+    
+    // Remove event listeners
+    if (this.shadowRoot) {
+      const cells = this.shadowRoot.querySelectorAll('.enemy-board .cell');
+      cells.forEach(cell => {
+        cell.removeEventListener('click', this._boundCellClickHandler);
+      });
+    }
+    
+    super.disconnectedCallback?.();
   }
 }
 
-// Define the custom elements
+// Register all custom elements
+customElements.define('game-board-overview', GameBoardOverview);
+customElements.define('ship-placement-board', ShipPlacementBoard);
+customElements.define('enemy-attack-board', EnemyAttackBoard);
+customElements.define('player-attack-board', PlayerAttackBoard);
+customElements.define('custom-battle-board', CustomBattleBoard);
+customElements.define('custom-enemy-attack-board', CustomEnemyAttackBoard);
 customElements.define('custom-player-attack-board', CustomPlayerAttackBoard); 
