@@ -199,20 +199,21 @@ class ProfileElement extends LitElement {
   backButton() {
     console.log('Back button clicked, returning to game');
     
-    // Force a reset of the game state by removing the gameId from localStorage
-    localStorage.removeItem('gameId');
-    
     // Get existing wins and losses to preserve them
     const wins = parseInt(localStorage.getItem('playerWins') || '0');
     const losses = parseInt(localStorage.getItem('playerLosses') || '0');
     
-    // Save them again in case they were cleared
-    localStorage.setItem('playerWins', wins);
-    localStorage.setItem('playerLosses', losses);
+    // Get current gameId to preserve ship placements
+    const gameId = localStorage.getItem('gameId');
     
     // Dispatch an event to notify other components about returning to game
     window.dispatchEvent(new CustomEvent('return-to-game', {
-      detail: { wins, losses }
+      detail: { 
+        preserveGameState: true,
+        gameId: gameId,
+        wins, 
+        losses 
+      }
     }));
     
     // Remove this component from the DOM to return to the game
@@ -220,49 +221,51 @@ class ProfileElement extends LitElement {
       this.parentNode.removeChild(this);
     }
     
-    // Find the game-board element and reset it
+    // Find the game-board element and refresh it without resetting
     const gameBoard = document.querySelector('game-board');
-    if (gameBoard) {
-      // Reset the game to initial state
-      gameBoard.resetGame();
-    } else {
-      // If we can't find the game board, force a page reload
-      window.location.reload();
+    if (gameBoard && gameId) {
+      // Just refresh the game state from database instead of resetting
+      gameBoard.getGame();
+    } else if (!gameId) {
+      // If no gameId exists, we need to create a new game
+      if (gameBoard) {
+        gameBoard.resetGame();
+      } else {
+        // If we can't find the game board, force a page reload
+        window.location.reload();
+      }
     }
   }
 
   async logout() {
     console.log('Logout initiated');
     
-    // Force a reset of the game state by removing the gameId from localStorage
-    localStorage.removeItem('gameId');
-    
     // Get existing wins and losses before they're cleared
     const wins = parseInt(localStorage.getItem('playerWins') || '0');
     const losses = parseInt(localStorage.getItem('playerLosses') || '0');
     
-    // Clear all game-related data from localStorage
+    // Store current gameId to preserve game state
+    const gameId = localStorage.getItem('gameId');
+    
+    // Clear only authentication-related data from localStorage
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userId');
-    localStorage.removeItem('playerWins');
-    localStorage.removeItem('playerLosses');
+    
+    // Do NOT remove gameId, playerWins, or playerLosses to preserve game state
     
     // Dispatch an event to notify other components about logout
-    window.dispatchEvent(new CustomEvent('user-logged-out'));
+    window.dispatchEvent(new CustomEvent('user-logged-out', {
+      detail: { 
+        preserveGameState: true,
+        gameId: gameId,
+        wins: wins, 
+        losses: losses 
+      }
+    }));
     
     // Remove this component from the DOM to return to the game
     if (this.parentNode) {
       this.parentNode.removeChild(this);
-    }
-    
-    // Find the game-board element and reset it
-    const gameBoard = document.querySelector('game-board');
-    if (gameBoard) {
-      // Reset the game with cleared state
-      gameBoard.resetGame();
-      // Restore wins and losses if needed on next login
-      localStorage.setItem('playerWins', wins);
-      localStorage.setItem('playerLosses', losses);
     }
     
     try {

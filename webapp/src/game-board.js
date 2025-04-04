@@ -95,19 +95,78 @@ export class GameBoard extends LitElement {
     });
     
     // Add event listener for profile view exit event
-    window.addEventListener('user-logged-out', () => {
-      console.log('User logged out, resetting game');
-      this.resetGame();
+    window.addEventListener('user-logged-out', (event) => {
+      console.log('User logged out event received');
+      
+      // Check if we should preserve game state (partial ship placements)
+      if (event.detail && event.detail.preserveGameState) {
+        console.log('Preserving game state during logout');
+        
+        // Ensure wins and losses are saved
+        if (typeof event.detail.wins === 'number') {
+          this.wins = event.detail.wins;
+          localStorage.setItem('playerWins', event.detail.wins);
+        }
+        
+        if (typeof event.detail.losses === 'number') {
+          this.losses = event.detail.losses;
+          localStorage.setItem('playerLosses', event.detail.losses);
+        }
+        
+        // Refresh the game data but don't reset it
+        this.getGame().then(() => {
+          console.log('Game state refreshed after logout');
+          
+          // Force player turn to null during ship placement
+          if (this.shipsPlaced < this.boardSize) {
+            this.isPlayerTurn = null;
+            this.updateGame();
+          }
+        });
+      } else {
+        // If not preserving state, do a full reset
+        console.log('Resetting game after logout');
+        this.resetGame();
+      }
     });
     
     // Add event listener for returning from profile view
     window.addEventListener('return-to-game', (event) => {
-      console.log('Returning from profile view, resetting game');
+      console.log('Returning from profile view');
+      
       // Make sure to restore wins and losses from the event if available
       if (event.detail) {
-        if (typeof event.detail.wins === 'number') this.wins = event.detail.wins;
-        if (typeof event.detail.losses === 'number') this.losses = event.detail.losses;
+        if (typeof event.detail.wins === 'number') {
+          this.wins = event.detail.wins;
+          localStorage.setItem('playerWins', event.detail.wins);
+        }
+        
+        if (typeof event.detail.losses === 'number') {
+          this.losses = event.detail.losses;
+          localStorage.setItem('playerLosses', event.detail.losses);
+        }
+        
+        // Check if we should preserve game state
+        if (event.detail.preserveGameState && event.detail.gameId) {
+          console.log('Preserving game state when returning to game');
+          
+          // Refresh the game data from database
+          this.gameId = event.detail.gameId;
+          this.getGame().then(() => {
+            console.log('Game state refreshed after returning from profile');
+            
+            // Force player turn to null during ship placement
+            if (this.shipsPlaced < this.boardSize) {
+              this.isPlayerTurn = null;
+              this.updateGame();
+            }
+          });
+          return;
+        }
       }
+      
+      // If not preserving state or no event detail, do a full reset
+      console.log('Resetting game after returning from profile');
       this.resetGame();
     });
     
