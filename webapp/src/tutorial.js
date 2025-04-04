@@ -197,6 +197,10 @@ export class Tutorial extends LitElement {
   playButton() {
     console.log('Play button clicked!');
     
+    // Save existing win/loss counts
+    const wins = parseInt(localStorage.getItem('playerWins') || '0');
+    const losses = parseInt(localStorage.getItem('playerLosses') || '0');
+    
     // Remove the tutorial element
     this.remove();
     
@@ -220,12 +224,19 @@ export class Tutorial extends LitElement {
           // Cancel any existing enemy move timeouts
           clearTimeout(gameBoard._enemyMoveTimeout);
           
+          // Restore wins and losses
+          gameBoard.wins = wins;
+          gameBoard.losses = losses;
+          
           // Force game into ship placement mode
           gameBoard.isPlayerTurn = null; // Setting to null prevents enemy movement
           gameBoard.shipsPlaced = 0;
           gameBoard.gameEnded = false;
           gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
           gameBoard.instructionText = `Tap on Player Board ${gameBoard.boardSize} times`;
+          
+          // Update the game to save the restored wins/losses
+          gameBoard.updateGame();
           gameBoard.requestUpdate();
         }
       }, 200);

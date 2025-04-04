@@ -49,7 +49,8 @@ export class GameBoard extends LitElement {
     this.message = `Place your ships! Click on your board to place ${this.boardSize} ships.`;
     this.instructionText = `Tap on Player Board ${this.boardSize} times`;
     
-    if(!this.gameId) this.isPlayerTurn = null; // if the gameId is not set, then the turn is not set. In all other cases, the turn is set in the backend 
+    // Always start with isPlayerTurn as null to prevent enemy moves until ships are placed
+    this.isPlayerTurn = null;
     
     // Hit tracking
     this.lastHitPosition = null;
@@ -75,8 +76,12 @@ export class GameBoard extends LitElement {
     // Place enemy ships randomly
     this.placeEnemyShips();
     
-    // this.gameId = null;
-    // this.createGame();
+    // Initialize timeout properties
+    this._enemyMoveTimeout = null;
+    this._enemyAnimationTimeout = null;
+    this._enemyCleanupTimeout = null;
+    this._playerAttackTimeout = null;
+    this._playerCleanupTimeout = null;
   }
 
   connectedCallback() {
@@ -92,7 +97,7 @@ export class GameBoard extends LitElement {
     // Check if it's enemy's turn and trigger enemy move if needed
     if (!this.isPlayerTurn && !this.gameEnded && this.gameId !== null) {
       console.log('enemy moving after page load');
-      setTimeout(() => this.enemyMove(), 1000);
+      this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
     }
 
     
@@ -230,7 +235,8 @@ export class GameBoard extends LitElement {
 
     this.startFireballAnimation(row, col);
 
-    setTimeout(() => {
+    // Store attack timeout
+    this._playerAttackTimeout = setTimeout(() => {
       console.log(`Player attacks: ${row}, ${col}`);
       this.lastHitPosition = { row, col };
 
@@ -262,11 +268,15 @@ export class GameBoard extends LitElement {
        
       this.requestUpdate();
 
-      setTimeout(() => {
+      // Store cleanup and enemy move timeout
+      this._playerCleanupTimeout = setTimeout(() => {
         this.lastHitPosition = null;
         this.hitResult = null;
         this.requestUpdate();
-        this.enemyMove();
+        // Start enemy move if game is not ended and it's enemy's turn
+        if (!this.gameEnded && !this.isPlayerTurn) {
+          this.enemyMove();
+        }
       }, 1000);
     }, 800);
   }
@@ -383,13 +393,15 @@ export class GameBoard extends LitElement {
   enemyMove() {
     if (this.gameEnded || this.isPlayerTurn) return;
 
-    setTimeout(() => {
+    // Store timeout ID so it can be cleared during reset
+    this._enemyMoveTimeout = setTimeout(() => {
       const move = this.enemyAI.attack(this.playerBoard);
       if (move) {
         const { row, col } = move;
         this.startEnemyFireballAnimation(row, col);
 
-        setTimeout(() => {
+        // Store the animation timeout as well
+        this._enemyAnimationTimeout = setTimeout(() => {
           this.lastEnemyHitPosition = { row, col };
 
           if (this.playerBoard[row][col] === 'S') {
@@ -420,7 +432,8 @@ export class GameBoard extends LitElement {
 
           this.requestUpdate();
 
-          setTimeout(() => {
+          // Store cleanup timeout
+          this._enemyCleanupTimeout = setTimeout(() => {
             this.lastEnemyHitPosition = null;
             this.enemyHitResult = null;
             this.requestUpdate();
@@ -577,6 +590,13 @@ export class GameBoard extends LitElement {
   resetGame() {
     console.log("Resetting game...");
     
+    // Clear all timeouts
+    if (this._enemyMoveTimeout) clearTimeout(this._enemyMoveTimeout);
+    if (this._enemyAnimationTimeout) clearTimeout(this._enemyAnimationTimeout);
+    if (this._enemyCleanupTimeout) clearTimeout(this._enemyCleanupTimeout);
+    if (this._playerAttackTimeout) clearTimeout(this._playerAttackTimeout);
+    if (this._playerCleanupTimeout) clearTimeout(this._playerCleanupTimeout);
+    
     // Delete the current game first
     this.deleteGame().then(() => {
       // Reset game state
@@ -595,7 +615,7 @@ export class GameBoard extends LitElement {
       this.instructionText = `Tap on Player Board ${this.boardSize} times`;
       
       // Reset turn state
-      this.isPlayerTurn = false;
+      this.isPlayerTurn = null; // Set to null initially to prevent enemy move
       
       // Reset animation properties
       this.animatingFireball = false;
