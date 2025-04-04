@@ -196,7 +196,40 @@ export class Tutorial extends LitElement {
 
   playButton() {
     console.log('Play button clicked!');
-    window.location.reload();
+    
+    // Remove the tutorial element
+    this.remove();
+    
+    // Clear any existing gameId to force a new game
+    localStorage.removeItem('gameId');
+    
+    // Create main app element
+    const appElement = document.createElement('app-element');
+    document.body.appendChild(appElement);
+    
+    // Set the route to 'game' which will display the navbar and game-board
+    setTimeout(() => {
+      // Use the app's login method to set route to 'game'
+      appElement.route = 'game';
+      
+      // Wait for game-board to be initialized
+      setTimeout(() => {
+        // Get the game board and initialize it for ship placement
+        const gameBoard = appElement.shadowRoot?.querySelector('game-board');
+        if (gameBoard) {
+          // Cancel any existing enemy move timeouts
+          clearTimeout(gameBoard._enemyMoveTimeout);
+          
+          // Force game into ship placement mode
+          gameBoard.isPlayerTurn = null; // Setting to null prevents enemy movement
+          gameBoard.shipsPlaced = 0;
+          gameBoard.gameEnded = false;
+          gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
+          gameBoard.instructionText = `Tap on Player Board ${gameBoard.boardSize} times`;
+          gameBoard.requestUpdate();
+        }
+      }, 200);
+    }, 100);
   }
 }
 
