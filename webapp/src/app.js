@@ -1,12 +1,3 @@
-/*
- * I made several changes to this file to accommodate the new top navigation bar:
- * 1. Moved the nav-bar component to the top level of the overall-container
- * 2. Created a dedicated instruction-container for better organization
- * 3. Added padding to the flex-container to prevent content from being hidden behind the fixed nav bar
- * 4. Adjusted the left column to align to the top instead of center
- * 5. Created specific containers for login and instructions with proper spacing
- * 6. Updated the media query to increase padding for the nav bar on mobile
- */
 import { LitElement, html, css } from 'lit';
 import './nav-bar.js';
 import './login.js';
@@ -31,7 +22,7 @@ class App extends LitElement {
   _onLogin(event) {
     this.route = event.detail.isLoggedIn ? 'game' : 'login'
     console.log('App login event', event.detail.isLoggedIn)
-    this.route = 'game'; // bypass login for now
+    // this.route = 'game'; // bypass login for now
   }
 
   render() {
@@ -81,15 +72,15 @@ class App extends LitElement {
     width: 100%;
     height: 100%;
     padding: 0;
-    justify-content: center; /* Center horizontally */
+    justify-content: center; 
   }
 
   .left-column {
     position: absolute;
-    top: 60px; /* Increased top position to account for navbar */
+    top: 60px; 
     left: 5px;
     z-index: 5;
-    display: none; /* Hide the left column containing the login */
+    display: none;
   }
 
   .login-container {
@@ -110,8 +101,8 @@ class App extends LitElement {
     align-items: center;
     height: 100%;
     width: 100%;
-    padding-top: 70px; /* Added padding at the top to prevent content from being hidden by the navbar */
-    padding-bottom: 10px; /* Reduced bottom padding */
+    padding-top: 70px; 
+    padding-bottom: 10px; 
   }
 
   /* Media query for mobile devices */
@@ -123,13 +114,13 @@ class App extends LitElement {
 
     .left-column {
       position: absolute;
-      top: 60px; /* Increased top position to account for navbar */
+      top: 60px; 
       left: 5px;
     }
 
     .right-column {
       width: 100%;
-      padding-top: 80px; /* Increased padding for mobile */
+      padding-top: 80px; 
       padding-bottom: 10px;
     }
   }

@@ -81,11 +81,18 @@ fixed: make profile show up when signed in. Currently loops back to sign in
 
 moved player board up so that it is in view
 
+
+4/3/25 
+
+removing name-tag.js file because it is deprecated 
+
+
 ## TODO:
 
-style help page to the same as the game page --> bring over mixer in game-board.js from user-exp branch to get game-boards to appear on help page? --> use game-board-mixins.js file for this. Do not touch the backend attributes, just demonstrate game functionality like placing ships and enemy attacking player
+clean up game-board.js file 
 
-    - not using observer for attacks from enemy. Using updated lifecycle method instead because observer was causing issues
+clean up game-board-mixins.js file  
+
 
 make AI chat at the end of the game
 
