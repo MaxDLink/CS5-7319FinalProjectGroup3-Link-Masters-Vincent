@@ -150,18 +150,21 @@ export class Tutorial extends LitElement {
       </section>
 
       <section>
+        <h2> Place Ships</h2>
         <div class="game-board-container">
           <ship-placement-board></ship-placement-board>
         </div>
       </section>
 
       <section>
+        <h2>Enemy Attacking</h2>
         <div class="game-board-container">
           <enemy-attack-board></enemy-attack-board>
         </div>
       </section>
 
       <section>
+        <h2>Annihilate the Enemy!</h2>
         <div class="game-board-container">
           <player-attack-board></player-attack-board>
         </div>
