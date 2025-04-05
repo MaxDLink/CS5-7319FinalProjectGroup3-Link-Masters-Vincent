@@ -89,6 +89,11 @@ removing name-tag.js file because it is deprecated
 login needs to be commented out for game to function. We can remove login bypass later in app.js or we can leave that line in and introduce the player with a login later. Depends on how much time is left in dev. 
 
 
+
+### [Class Diagram](./images/classdiagram.png)
+
+
+
 ## TODO:
 
 clean up game-board.js file 

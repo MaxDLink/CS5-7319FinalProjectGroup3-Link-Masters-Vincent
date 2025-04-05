@@ -2,11 +2,9 @@
 import {html, css, LitElement} from 'lit'
 import './game-board.js'
 import {
-  GameBoardOverview,
   ShipPlacementBoard,
-  CustomEnemyAttackBoard,
-  CustomPlayerAttackBoard,
-  // VictoryScreenBoard
+  EnemyAttackBoard,
+  PlayerAttackBoard
 } from './game-board-mixins.js'
 
 
@@ -149,44 +147,24 @@ export class Tutorial extends LitElement {
     return html`
       <section>
         <h1>Welcome to Battle Ship Down!</h1>
-        <p>Scroll down to learn how to play</p>
       </section>
 
       <section>
-        <h2>Game Boards</h2>
-        <p>There are two game boards: your board and the enemy's board. Each board is a grid where ships can be placed.</p>
-        <div class="game-board-container">
-          <game-board-overview></game-board-overview>
-        </div>
-      </section>
-
-      <section>
-        <h2>Placing Ships</h2>
-        <p>First, you'll place your ships on your board. Click on your board four times to place your ships.</p>
         <div class="game-board-container">
           <ship-placement-board></ship-placement-board>
         </div>
       </section>
 
       <section>
-        <h2>Enemy Attacks</h2>
-        <p>The enemy will attack your board. Watch out for their attacks!</p>
         <div class="game-board-container">
-          <custom-enemy-attack-board></custom-enemy-attack-board>
+          <enemy-attack-board></enemy-attack-board>
         </div>
       </section>
 
       <section>
-        <h2>Your Turn to Attack</h2>
-        <p>Now it's your turn to attack the enemy's board. Try to find and sink their ships!</p>
         <div class="game-board-container">
-          <custom-player-attack-board></custom-player-attack-board>
+          <player-attack-board></player-attack-board>
         </div>
-      </section>
-
-      <section>
-        <h2>Ready to Play?</h2>
-        <p>Now that you know how to play, click the button below to start a new game!</p>
         <div class="button-container">
           <button @click=${this.playButton}>Start Game</button>
         </div>
@@ -233,7 +211,7 @@ export class Tutorial extends LitElement {
           gameBoard.shipsPlaced = 0;
           gameBoard.gameEnded = false;
           gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
-          gameBoard.instructionText = `Tap on Player Board ${gameBoard.boardSize} times`;
+          gameBoard.instructionText = `Click to place ships`; // Simplified instruction
           
           // Update the game to save the restored wins/losses
           gameBoard.updateGame();
