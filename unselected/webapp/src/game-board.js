@@ -169,12 +169,53 @@ export class GameBoard extends LitElement {
       
       try {
         const message = JSON.parse(event.data);
+        console.log('Parsed WebSocket message type:', message.type);
+        console.log('Parsed WebSocket message data:', message.data);
         
         // Handle different message types
         switch(message.type) {
           case 'GameCreated':
+            console.log('GameCreated message received - full data:', JSON.stringify(message, null, 2));
+            
+            // Try to extract gameId from multiple possible locations
+            let gameId = null;
+            
+            // Try the standard location
             if (message.data && message.data.gameId) {
-              this.gameId = message.data.gameId;
+              gameId = message.data.gameId;
+              console.log('Found gameId in standard location:', gameId);
+            } 
+            // Check if it's in nested data structure
+            else if (message.data && message.data.data && message.data.data.gameId) {
+              gameId = message.data.data.gameId;
+              console.log('Found gameId in nested data structure:', gameId);
+            } 
+            // Check if it's directly in the message
+            else if (message.gameId) {
+              gameId = message.gameId;
+              console.log('Found gameId directly in message:', gameId);
+            } 
+            // Check if it's in the detail
+            else if (message.detail && message.detail.gameId) {
+              gameId = message.detail.gameId;
+              console.log('Found gameId in detail:', gameId);
+            }
+            // Try parsing as JSON if message.data is a string
+            else if (message.data && typeof message.data === 'string') {
+              try {
+                const parsedData = JSON.parse(message.data);
+                if (parsedData.gameId) {
+                  gameId = parsedData.gameId;
+                  console.log('Found gameId in parsed string data:', gameId);
+                }
+              } catch (e) {
+                console.error('Error parsing message.data as JSON:', e);
+              }
+            }
+            
+            if (gameId) {
+              console.log('Valid gameId found in GameCreated message:', gameId);
+              this.gameId = gameId;
               localStorage.setItem('gameId', this.gameId);
               console.log('Game created with ID:', this.gameId);
               
@@ -183,6 +224,22 @@ export class GameBoard extends LitElement {
               this.shipsPlaced = 0;
               
               // Now that we have a gameId, update the game
+              this.updateGame();
+            } else {
+              console.error('Missing gameId in GameCreated message:', message);
+              console.log('Creating fallback local game');
+              
+              // Create a fallback local gameId using the current timestamp
+              const fallbackId = 'local-' + Date.now().toString();
+              this.gameId = fallbackId;
+              localStorage.setItem('gameId', this.gameId);
+              console.log('Created fallback game ID:', this.gameId);
+              
+              // Reset state for new game
+              this.playerShipPositions = [];
+              this.shipsPlaced = 0;
+              
+              // Update the game with the fallback ID
               this.updateGame();
             }
             break;
@@ -204,17 +261,23 @@ export class GameBoard extends LitElement {
                 this.requestUpdate();
                 this.updateGame();
               }
+            } else {
+              console.log('Ignoring game update for different game. Our ID:', this.gameId, 'Message gameId:', message.data?.gameId);
             }
             break;
             
           case 'GameRequested':
+            console.log('GameRequested message received - full data:', message);
             if (message.data) {
+              console.log('Processing GameRequested data for gameId:', message.data.gameId);
               this.handleGameData(message.data);
+            } else {
+              console.error('Missing data in GameRequested message');
             }
             break;
             
           case 'GameDeleted':
-            console.log('Game deleted event received');
+            console.log('Game deleted event received - full message:', message);
             // Reset player ship positions
             this.playerShipPositions = [];
             break;
@@ -224,9 +287,9 @@ export class GameBoard extends LitElement {
             break;
             
           case 'error':
-            console.error('Error received from server:', message.message);
+            console.error('Error received from server:', message.message, 'Full error message:', message);
             // If we get an error, we might need to refresh the connection
-            if (message.message.includes('not found') && this.gameId) {
+            if (message.message && message.message.includes('not found') && this.gameId) {
               console.log('Game not found, creating a new one');
               this.gameId = null;
               this.playerShipPositions = [];
@@ -236,10 +299,10 @@ export class GameBoard extends LitElement {
             break;
             
           default:
-            console.log('Unknown message type:', message.type);
+            console.log('Unknown message type:', message.type, 'Full message:', message);
         }
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
       }
     };
     
@@ -1261,16 +1324,19 @@ export class GameBoard extends LitElement {
       this.playerShipPositions = [];
       
       // Wait for WebSocket connection
+      console.log('Waiting for WebSocket connection...');
       await this.waitForWebSocketConnection();
       
       if (this.isWebSocketReady()) {
-        console.log('Sending game creation request via WebSocket');
+        console.log('WebSocket ready - sending game creation request');
         
         return new Promise((resolve, reject) => {
           // Create a message handler for the WebSocket response
           const handleGameCreated = (event) => {
+            console.log('Received message in createGame handler:', event.data);
             try {
               const message = JSON.parse(event.data);
+              console.log('Parsed message in createGame handler:', message);
               
               if (message.type === 'GameCreated' && message.data && message.data.gameId) {
                 // We got a response with a game ID
@@ -1279,6 +1345,7 @@ export class GameBoard extends LitElement {
                 // Store the game ID
                 this.gameId = message.data.gameId;
                 localStorage.setItem('gameId', this.gameId);
+                console.log('GameID stored in localStorage:', localStorage.getItem('gameId'));
                 
                 // Clean up
                 this.websocket.removeEventListener('message', handleGameCreated);
@@ -1288,9 +1355,11 @@ export class GameBoard extends LitElement {
                 // Update game state from server response
                 if (message.data.playerBoard) {
                   this.playerBoard = message.data.playerBoard;
+                  console.log('Updated player board from server response');
                 }
                 if (message.data.enemyBoard) {
                   this.enemyBoard = message.data.enemyBoard;
+                  console.log('Updated enemy board from server response');
                 }
                 
                 // Update UI
@@ -1299,20 +1368,30 @@ export class GameBoard extends LitElement {
                 this.requestUpdate();
                 
                 resolve(this.gameId);
+              } else if (message.type === 'error') {
+                console.error('Error in game creation response:', message.message);
+                this.websocket.removeEventListener('message', handleGameCreated);
+                this._creatingGame = false;
+                reject(new Error(`Error creating game: ${message.message}`));
               }
             } catch (error) {
               console.error('Error handling game creation response:', error);
+              this._creatingGame = false;
+              reject(error);
             }
           };
           
           // Add event listener for WebSocket messages
+          console.log('Adding message event listener for game creation');
           this.websocket.addEventListener('message', handleGameCreated);
           
           // Send the game creation request
-          this.websocket.send(JSON.stringify({
+          const createGameRequest = {
             action: 'createGame',
             data: {}
-          }));
+          };
+          console.log('Sending game creation request:', JSON.stringify(createGameRequest));
+          this.websocket.send(JSON.stringify(createGameRequest));
           
           // Set timeout for the request
           setTimeout(() => {
@@ -1401,11 +1480,12 @@ export class GameBoard extends LitElement {
         return this.createGame();
       }
       
+      console.log(`Attempting to get game data for ID: ${this.gameId}`);
       await this.waitForWebSocketConnection();
       
       // Send a message to get the game state via WebSocket
       if (this.isWebSocketReady()) {
-        console.log(`Requesting game data for ID: ${this.gameId}`);
+        console.log(`WebSocket ready - requesting game data for ID: ${this.gameId}`);
         
         return new Promise((resolve, reject) => {
           // Set up a timeout for the request
@@ -1417,9 +1497,10 @@ export class GameBoard extends LitElement {
           
           // Define the message handler for the response
           const messageHandler = (event) => {
+            console.log('Received message in getGame handler:', event.data);
             try {
               const message = JSON.parse(event.data);
-              console.log('WebSocket message during getGame:', message);
+              console.log('Parsed message in getGame handler:', message);
               
               // Handle GameRequested response
               if (message.type === 'GameRequested' && message.data) {
@@ -1434,6 +1515,8 @@ export class GameBoard extends LitElement {
                   // Handle the game data
                   this.handleGameData(message.data);
                   resolve(message.data);
+                } else {
+                  console.warn('Received game data for different game ID. Expecting:', this.gameId, 'Got:', message.data.gameId);
                 }
               } 
               // Handle error message (game not found)
@@ -1444,20 +1527,23 @@ export class GameBoard extends LitElement {
                 reject(new Error('Game not found'));
               }
             } catch (error) {
-              console.error('Error handling WebSocket message:', error);
+              console.error('Error handling WebSocket message in getGame:', error, 'Raw message:', event.data);
             }
           };
           
           // Add the event listener for incoming messages
+          console.log('Adding message event listener for getGame');
           this.websocket.addEventListener('message', messageHandler);
           
           // Send the request to get the game
-          this.websocket.send(JSON.stringify({
+          const getGameRequest = {
             action: 'getGame',
             data: {
               gameId: this.gameId
             }
-          }));
+          };
+          console.log('Sending getGame request:', JSON.stringify(getGameRequest));
+          this.websocket.send(JSON.stringify(getGameRequest));
           console.log(`Game ${this.gameId} retrieve request sent via WebSocket`);
         });
       } else {
