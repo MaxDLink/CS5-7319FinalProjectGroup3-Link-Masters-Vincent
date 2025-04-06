@@ -14,7 +14,7 @@
     };
 
     try {
-        const clientId = '7ppi6aass254ene65ajrmim1u7';
+        const clientId = '53dbt4feojdrr5i9gpeameio62';
         const isLocal = window.location.hostname === 'localhost';
         const redirectUri = encodeURIComponent('https://d10iucnlpv2uup.cloudfront.net');
         
@@ -74,8 +74,8 @@
         }
 
         // Build the authorization URL
-        const loginUrl = `https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com/oauth2/authorize?` +
-            `client_id=7ppi6aass254ene65ajrmim1u7&` +
+        const loginUrl = `https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com/oauth2/authorize?` +
+            `client_id=53dbt4feojdrr5i9gpeameio62&` +
             `response_type=code&` +
             `scope=${encodeURIComponent('email openid')}&` +
             // `redirect_uri=${encodeURIComponent('https://d10iucnlpv2uup.cloudfront.net/')}&` +
