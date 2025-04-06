@@ -54,7 +54,7 @@ export class Login extends LitElement {
 
     this.cognitoAuthConfig = {
       authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_m9CtZ8Zr3", // https://cognito-idp.us-east-1.amazonaws.com/us-east-1_0OuOMPrYV/.well-known/openid-configuration //Mine: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_0OuOMPrYV //OG: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jtLSTs85q
-      client_id: "tj2n9mnpm20nn9d015ahkr7da", //Mine: 2c3i2f2t829bjrbpgj6fem79n4 //OG: 1ttf4hijhkkf4nc3h3ame5e16a
+      client_id: "7ppi6aass254ene65ajrmim1u7", // EventBridge client ID
       redirect_uri: `${window.location.origin}/`,
       post_logout_redirect_uri: `${window.location.origin}/`,
       response_type: "code",
@@ -143,7 +143,7 @@ export class Login extends LitElement {
   _onClickLogout() {
     localStorage.setItem('isLoggedIn', 'false');
     this.userManager.removeUser()
-    const clientId = "tj2n9mnpm20nn9d015ahkr7da"; //mine:2c3i2f2t829bjrbpgj6fem79n4 //OG: 1ttf4hijhkkf4nc3h3ame5e16a
+    const clientId = "7ppi6aass254ene65ajrmim1u7"; // EventBridge client ID
     const logoutUri = `${window.location.origin}/`;
     // https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com/oauth2/token
     const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com"; //Mine: https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com //OG: https://backend-auth.auth.us-east-1.amazoncognito.com

@@ -16,6 +16,10 @@ import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 // Add imports for EventBridge
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+// Add imports for WebSocket API
+import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
+import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 // { APIGatewayEvent, Context, Callback } from "aws-lambda";
 
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -26,14 +30,54 @@ export class App extends cdk.Stack {
 
     // Add Cognito config at the top of your constructor
     const userPoolConfig = {
-      userPoolId: 'us-east-1_0OuOMPrYV', 
-      clientId: '53dbt4feojdrr5i9gpeameio62'
+      userPoolId: 'us-east1_m9CtZ8Zr3', 
+      clientId: 'YOUR_EXISTING_CLIENT_ID'  // Replace with your existing client ID
     };
     // TODO: Define cognito ARN for backend services 
-    const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-east-1_0OuOMPrYV');
+    const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-east-1_m9CtZ8Zr3');
     const client = cognito.UserPoolClient.fromUserPoolClientId(this, 'ExistingUserPoolClient', '53dbt4feojdrr5i9gpeameio62');
 
-   
+    // Create a new app client specifically for the EventBridge architecture
+    const eventBusClient = new cognito.UserPoolClient(this, 'EventBusClient', {
+      userPool,
+      userPoolClientName: 'EventBridgeArchitectureClient',
+      generateSecret: false,
+      authFlows: {
+        userPassword: true,
+        userSrp: true,
+        adminUserPassword: true,
+      },
+      oAuth: {
+        flows: {
+          authorizationCodeGrant: true,
+          implicitCodeGrant: true,
+        },
+        scopes: [
+          cognito.OAuthScope.OPENID,
+          cognito.OAuthScope.EMAIL,
+          cognito.OAuthScope.PROFILE,
+        ],
+        callbackUrls: [
+          'https://d2igzmhohtj4gv.cloudfront.net/callback',
+          'https://d2igzmhohtj4gv.cloudfront.net',
+          'http://localhost:3000/callback',
+          'http://localhost:3000'
+        ],
+        logoutUrls: [
+          'https://d2igzmhohtj4gv.cloudfront.net/logout',
+          'https://d2igzmhohtj4gv.cloudfront.net',
+          'http://localhost:3000/logout',
+          'http://localhost:3000'
+        ]
+      }
+    });
+
+    // Output the client ID so you can use it in your application
+    new CfnOutput(this, 'EventBusClientId', {
+      value: eventBusClient.userPoolClientId,
+      description: 'The ID of the EventBus Cognito User Pool Client',
+    });
+
     // webapp stack 
     const originAccessIdentity = new OriginAccessIdentity(this, 'WebAppOriginAccessIdentity');
 
@@ -238,6 +282,28 @@ export class App extends cdk.Stack {
       targets: [new targets.LambdaFunction(saveLambda)],
     });
 
+    // Rule for game request events
+    new events.Rule(this, 'GameRequestedRule', {
+      eventBus,
+      description: 'Rule for game request events',
+      eventPattern: {
+        source: ['game.service'],
+        detailType: ['GameRequested'],
+      },
+      targets: [new targets.LambdaFunction(getGameLambda)],
+    });
+
+    // Rule for simple operations
+    new events.Rule(this, 'SimpleOperationRule', {
+      eventBus,
+      description: 'Rule for simple operations',
+      eventPattern: {
+        source: ['system.service'],
+        detailType: ['SimpleOperation'],
+      },
+      targets: [new targets.LambdaFunction(simpleLambda)],
+    });
+
     // Create an HTTP API that can publish events to EventBridge
     const api = new HttpApi(this, 'EventBridgeApi', {
       apiName: 'EventBridgeApi',
@@ -254,7 +320,7 @@ export class App extends cdk.Stack {
 
     // Create a Lambda function to handle HTTP requests and publish to EventBridge
     const eventPublisherLambda = new NodejsFunction(this, 'EventPublisherLambda', {
-      entry: 'lambda/event-publisher/index.js', // Use the dedicated event publisher Lambda
+      entry: 'lambda/event-publisher/index.js',
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       environment: {
@@ -263,7 +329,6 @@ export class App extends cdk.Stack {
     });
     eventBus.grantPutEventsTo(eventPublisherLambda);
 
-    // Add route to the API
     api.addRoutes({
       path: '/events',
       methods: [HttpMethod.POST],
@@ -274,6 +339,116 @@ export class App extends cdk.Stack {
     new CfnOutput(this, 'EventBridgeApiUrl', {
       value: api.apiEndpoint,
       description: 'The URL of the EventBridge API',
+    });
+
+    // Create WebSocket connection handler Lambda
+    const webSocketConnectHandler = new NodejsFunction(this, 'WebSocketConnectHandler', {
+      entry: 'lambda/websocket-handlers/connect.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        EVENT_BUS_NAME: eventBus.eventBusName,
+      },
+    });
+    eventBus.grantPutEventsTo(webSocketConnectHandler);
+
+    // Create WebSocket disconnect handler Lambda
+    const webSocketDisconnectHandler = new NodejsFunction(this, 'WebSocketDisconnectHandler', {
+      entry: 'lambda/websocket-handlers/disconnect.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        EVENT_BUS_NAME: eventBus.eventBusName,
+      },
+    });
+    eventBus.grantPutEventsTo(webSocketDisconnectHandler);
+
+    // Create WebSocket default message handler Lambda
+    const webSocketDefaultHandler = new NodejsFunction(this, 'WebSocketDefaultHandler', {
+      entry: 'lambda/websocket-handlers/default.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        EVENT_BUS_NAME: eventBus.eventBusName,
+        DYNAMODB_TABLE: table.tableName,
+      },
+    });
+    eventBus.grantPutEventsTo(webSocketDefaultHandler);
+    table.grantReadWriteData(webSocketDefaultHandler);
+
+    // Create WebSocket API
+    const webSocketApi = new WebSocketApi(this, 'GameWebSocketApi', {
+      connectRouteOptions: { integration: new WebSocketLambdaIntegration('ConnectIntegration', webSocketConnectHandler) },
+      disconnectRouteOptions: { integration: new WebSocketLambdaIntegration('DisconnectIntegration', webSocketDisconnectHandler) },
+      defaultRouteOptions: { integration: new WebSocketLambdaIntegration('DefaultIntegration', webSocketDefaultHandler) },
+    });
+
+    // Create WebSocket Stage
+    const webSocketStage = new WebSocketStage(this, 'GameWebSocketStage', {
+      webSocketApi,
+      stageName: 'prod',
+      autoDeploy: true,
+    });
+
+    // Output the WebSocket URL
+    new CfnOutput(this, 'WebSocketURL', {
+      value: webSocketStage.url,
+      description: 'WebSocket API Gateway URL',
+    });
+
+    // Create a Lambda function to send messages back to connected WebSocket clients
+    const webSocketSenderLambda = new NodejsFunction(this, 'WebSocketSenderLambda', {
+      entry: 'lambda/websocket-handlers/sender.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        WEBSOCKET_ENDPOINT: webSocketStage.url.replace('wss://', ''),
+      },
+    });
+
+    // Create DynamoDB table to store WebSocket connection IDs
+    const connectionsTable = new Table(this, 'WebSocketConnections', {
+      partitionKey: { name: 'connectionId', type: AttributeType.STRING },
+      timeToLiveAttribute: 'ttl',
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    // Grant permissions for connection handlers to access the connections table
+    connectionsTable.grantReadWriteData(webSocketConnectHandler);
+    connectionsTable.grantReadWriteData(webSocketDisconnectHandler);
+    connectionsTable.grantReadWriteData(webSocketDefaultHandler);
+    connectionsTable.grantReadWriteData(webSocketSenderLambda);
+
+    // Add environment variables for connections table
+    webSocketConnectHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+    webSocketDisconnectHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+    webSocketDefaultHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+    webSocketSenderLambda.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+
+    // Grant permission for WebSocket API Gateway to manage connections
+    webSocketSenderLambda.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['execute-api:ManageConnections'],
+        resources: [`arn:aws:execute-api:${this.region}:${this.account}:${webSocketApi.apiId}/${webSocketStage.stageName}/*`],
+      })
+    );
+
+    // Create EventBridge rule to trigger the WebSocket sender Lambda when game events occur
+    new events.Rule(this, 'GameWebSocketSenderRule', {
+      eventBus,
+      description: 'Rule for forwarding game events to WebSocket clients',
+      eventPattern: {
+        source: ['game.service'],
+        detailType: [
+          'GameCreated', 
+          'GameUpdated', 
+          'GameDeleted', 
+          'GameRequested'
+        ],
+      },
+      targets: [new targets.LambdaFunction(webSocketSenderLambda)],
     });
   }
 } 

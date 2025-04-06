@@ -108,7 +108,7 @@ class ProfileElement extends LitElement {
     // Configure the UserManager with your Cognito settings
     this.userManager = new UserManager({
       authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_m9CtZ8Zr3",
-      client_id: "tj2n9mnpm20nn9d015ahkr7da",
+      client_id: "7ppi6aass254ene65ajrmim1u7",
       redirect_uri: `${window.location.origin}/`,
       response_type: "code",
       scope: "email openid profile"
@@ -273,7 +273,7 @@ class ProfileElement extends LitElement {
       await this.userManager.removeUser();
       
       // Use the same direct URL approach that works in login.js
-      const clientId = "tj2n9mnpm20nn9d015ahkr7da";
+      const clientId = "7ppi6aass254ene65ajrmim1u7";
       const logoutUri = `${window.location.origin}/`;
       const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com";
       
