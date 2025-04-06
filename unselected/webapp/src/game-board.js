@@ -118,12 +118,39 @@ export class GameBoard extends LitElement {
     // Add an event listener for when the WebSocket connects
     this.addEventListener('websocket-connected', () => {
       console.log('WebSocket connected - loading game state');
+      // Create a session record in the EventBus table
+      this.createSessionRecord().then(sessionId => {
+        if (sessionId) {
+          console.log('Created session record with ID:', sessionId);
+        }
+      });
       this.loadGameState();
     });
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    
+    // Store session end information in EventBus table
+    const sessionId = localStorage.getItem('sessionId');
+    if (sessionId && this.isWebSocketReady()) {
+      this.websocket.send(JSON.stringify({
+        action: 'saveEventBusRecord',
+        data: {
+          pk: 'SESSION#' + sessionId,
+          sk: 'END#' + new Date().toISOString(),
+          sessionId: sessionId,
+          endTime: new Date().toISOString(),
+          gameId: this.gameId || 'none',
+          ttl: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
+        }
+      }));
+    }
+    
+    // Clear session update interval
+    if (this._sessionUpdateInterval) {
+      clearInterval(this._sessionUpdateInterval);
+    }
     
     // Close WebSocket connection when component is removed
     if (this.websocket) {
@@ -503,6 +530,12 @@ export class GameBoard extends LitElement {
       console.log('Setting isPlayerTurn to true since all ships are placed and attack is being made');
       this.isPlayerTurn = true;
     }
+    
+    // Log player attack to EventBus
+    this.saveGameEventToEventBus(this.gameId, 'PlayerAttack', {
+      position: { row, col },
+      isPlayerTurn: true
+    }).catch(err => console.error('Failed to log player attack to EventBus:', err));
 
     this.startFireballAnimation(row, col);
 
@@ -518,6 +551,14 @@ export class GameBoard extends LitElement {
         sounds.HitEnemy();
         this.enemyBoard[row][col] = 'X';
         this.switchTurn(); // the player went, so switch the turn to the enemy 
+        
+        // Log player hit to EventBus
+        this.saveGameEventToEventBus(this.gameId, 'PlayerHit', {
+          position: { row, col },
+          remainingEnemyShips: this.enemyShipPositions.filter(pos => 
+            this.enemyBoard[pos.row][pos.col] !== 'X').length
+        }).catch(err => console.error('Failed to log player hit to EventBus:', err));
+        
         this.updateGame(); // record the hit & turn state in DynamoDB 
         this.createExplosion(row, col, true);
 
@@ -533,6 +574,12 @@ export class GameBoard extends LitElement {
         this.hitResult = 'miss';
         this.enemyBoard[row][col] = 'O';
         this.switchTurn(); // the player went, so switch the turn to the enemy 
+        
+        // Log player miss to EventBus
+        this.saveGameEventToEventBus(this.gameId, 'PlayerMiss', {
+          position: { row, col }
+        }).catch(err => console.error('Failed to log player miss to EventBus:', err));
+        
         this.updateGame(); // record the miss & turn state in DynamoDB 
         this.createWaterSplash(row, col, true);
       }
@@ -589,6 +636,12 @@ export class GameBoard extends LitElement {
       
       console.log(`Ship placed at ${row},${col}. Total ships: ${this.shipsPlaced}, Game ID: ${this.gameId}`);
       
+      // Log ship placement to EventBus table
+      this.saveGameEventToEventBus(this.gameId, 'ShipPlaced', {
+        position: { row, col },
+        shipsPlaced: this.shipsPlaced
+      }).catch(err => console.error('Failed to log ship placement to EventBus:', err));
+      
       // Update the message
       if (this.shipsPlaced < this.boardSize) {
         this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
@@ -601,6 +654,12 @@ export class GameBoard extends LitElement {
         // Explicitly set player's turn when all ships are placed
         this.isPlayerTurn = true;
         console.log("All ships placed, setting player's turn");
+        
+        // Log game start to EventBus table
+        this.saveGameEventToEventBus(this.gameId, 'GameStarted', {
+          shipsPlaced: this.shipsPlaced,
+          isPlayerTurn: this.isPlayerTurn
+        }).catch(err => console.error('Failed to log game start to EventBus:', err));
       }
       
       // Update game state on the server - this is critical for persistence
@@ -714,6 +773,13 @@ export class GameBoard extends LitElement {
       const move = this.enemyAI.attack(this.playerBoard);
       if (move) {
         const { row, col } = move;
+        
+        // Log enemy move to EventBus
+        this.saveGameEventToEventBus(this.gameId, 'EnemyMove', {
+          position: { row, col },
+          isPlayerTurn: false
+        }).catch(err => console.error('Failed to log enemy move to EventBus:', err));
+        
         this.startEnemyFireballAnimation(row, col);
 
         // Store the animation timeout as well
@@ -728,6 +794,14 @@ export class GameBoard extends LitElement {
             this.playerBoard[row][col] = 'X';
             this.createExplosion(row, col, false); 
             this.switchTurn(); // the enemy went, so switch the turn to the player 
+            
+            // Log enemy hit to EventBus
+            this.saveGameEventToEventBus(this.gameId, 'EnemyHit', {
+              position: { row, col },
+              remainingShips: this.playerShipPositions.filter(pos => 
+                this.playerBoard[pos.row][pos.col] !== 'X').length
+            }).catch(err => console.error('Failed to log enemy hit to EventBus:', err));
+            
             this.updateGame(); // record the hit & turn state in DynamoDB 
 
             if (this.checkWin(this.playerBoard)) {
@@ -743,6 +817,12 @@ export class GameBoard extends LitElement {
             this.playerBoard[row][col] = 'O';
             this.createWaterSplash(row, col, false);
             this.switchTurn(); // the enemy went, so switch the turn to the player 
+            
+            // Log enemy miss to EventBus
+            this.saveGameEventToEventBus(this.gameId, 'EnemyMiss', {
+              position: { row, col }
+            }).catch(err => console.error('Failed to log enemy miss to EventBus:', err));
+            
             this.updateGame(); // record the miss & turn state in DynamoDB 
           }
 
@@ -871,6 +951,14 @@ export class GameBoard extends LitElement {
       if (chatBox) {
         chatBox.addGameMessage("🏆 Congratulations! You've sunk all my ships! Well played!", 'game win');
       }
+      
+      // Log the player victory to EventBus
+      this.saveGameEventToEventBus(this.gameId, 'GameEnded', {
+        winner: 'Player',
+        wins: this.wins,
+        losses: this.losses,
+        outcome: 'VICTORY'
+      }).catch(err => console.error('Failed to log victory to EventBus:', err));
     } else {
       this.losses += 1;
       // Add defeat message to chat
@@ -878,6 +966,14 @@ export class GameBoard extends LitElement {
       if (chatBox) {
         chatBox.addGameMessage("💥 Game Over! I've sunk all your ships! Better luck next time!", 'game lose');
       }
+      
+      // Log the player defeat to EventBus
+      this.saveGameEventToEventBus(this.gameId, 'GameEnded', {
+        winner: 'Enemy',
+        wins: this.wins,
+        losses: this.losses,
+        outcome: 'DEFEAT'
+      }).catch(err => console.error('Failed to log defeat to EventBus:', err));
     }
     
     // Store the latest wins and losses in localStorage
@@ -1312,6 +1408,60 @@ export class GameBoard extends LitElement {
     return count;
   }
 
+  // New method to store a game event directly in the EventBus table
+  async saveGameEventToEventBus(gameId, eventType = 'GameCreated', extraData = {}) {
+    try {
+      if (!gameId) {
+        throw new Error('No gameId provided for event bus storage');
+      }
+      
+      // Wait for WebSocket connection
+      await this.waitForWebSocketConnection();
+      
+      if (!this.isWebSocketReady()) {
+        throw new Error('WebSocket not connected');
+      }
+      
+      // Create a timestamp for the event
+      const timestamp = new Date().toISOString();
+      
+      // Create an event record specifically for the EventBus table
+      // The table name appears to be eventbus-MyTable794EDED1-SWPRKTDS05T0
+      const eventRecord = {
+        // Use a different pk/sk format for the EventBus table
+        pk: `EVENT#${gameId}`,
+        sk: `TIMESTAMP#${timestamp}`,
+        
+        // Include all necessary game metadata
+        gameId: gameId,
+        eventType: eventType,
+        createdAt: timestamp,
+        connectionId: this.websocket ? 'websocket-connected' : 'no-websocket',
+        source: 'web-client',
+        
+        // Add any extra data
+        ...extraData,
+        
+        // Add TTL for automatic cleanup (30 days)
+        ttl: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60)
+      };
+      
+      console.log(`Saving ${eventType} event to EventBus table:`, JSON.stringify(eventRecord, null, 2));
+      
+      // Send a special event to store data in the EventBus table
+      this.websocket.send(JSON.stringify({
+        action: 'saveEventBusRecord',
+        data: eventRecord
+      }));
+      
+      console.log(`Game event for game ${gameId} sent to EventBus table`);
+      return true;
+    } catch (error) {
+      console.error('Error saving game event to EventBus:', error);
+      return false;
+    }
+  }
+
   async createGame() {
     try {
       console.log('Starting game creation process');
@@ -1323,92 +1473,118 @@ export class GameBoard extends LitElement {
       this.shipsPlaced = 0;
       this.playerShipPositions = [];
       
+      // Create our own game ID to ensure it exists
+      // Use a function to generate a UUID similar to the backend
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
+      // Generate a gameId directly in the frontend
+      const newGameId = generateUUID();
+      console.log('Frontend generated new game ID:', newGameId);
+      
+      // Store it immediately in localStorage
+      this.gameId = newGameId;
+      localStorage.setItem('gameId', this.gameId);
+      console.log('Game ID stored in localStorage:', this.gameId);
+      
       // Wait for WebSocket connection
       console.log('Waiting for WebSocket connection...');
       await this.waitForWebSocketConnection();
       
       if (this.isWebSocketReady()) {
-        console.log('WebSocket ready - sending game creation request');
+        console.log('WebSocket ready - sending game creation request with pre-generated ID');
         
+        // Also store the gameId in the EventBus table
+        await this.saveGameEventToEventBus(this.gameId);
+        
+        // Send the game creation request with our pre-generated ID
+        const createGameRequest = {
+          action: 'createGame',
+          data: {
+            gameId: this.gameId, // Include our generated ID in the request
+            playerBoard: this.playerBoard,
+            enemyBoard: this.enemyBoard,
+            shipsPlaced: 0,
+            playerHits: 0,
+            enemyHits: 0,
+            status: 'IN_PROGRESS',
+            isPlayerTurn: null,
+            wins: 0,
+            losses: 0,
+            // Use the exact structure expected by DynamoDB
+            pk: `GAME#${this.gameId}`,
+            sk: 'METADATA',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        };
+        
+        console.log('Sending game creation request:', JSON.stringify(createGameRequest, null, 2));
+        this.websocket.send(JSON.stringify(createGameRequest));
+        
+        // We'll still set up a listener, but since we've already generated and stored the ID,
+        // we can continue with game setup regardless of whether the server confirms
         return new Promise((resolve, reject) => {
-          // Create a message handler for the WebSocket response
-          const handleGameCreated = (event) => {
-            console.log('Received message in createGame handler:', event.data);
+          const handleCreateResponse = (event) => {
             try {
               const message = JSON.parse(event.data);
-              console.log('Parsed message in createGame handler:', message);
+              console.log('Received create game response:', JSON.stringify(message, null, 2));
               
-              if (message.type === 'GameCreated' && message.data && message.data.gameId) {
-                // We got a response with a game ID
-                console.log('Game created with ID:', message.data.gameId);
-                
-                // Store the game ID
-                this.gameId = message.data.gameId;
-                localStorage.setItem('gameId', this.gameId);
-                console.log('GameID stored in localStorage:', localStorage.getItem('gameId'));
-                
-                // Clean up
-                this.websocket.removeEventListener('message', handleGameCreated);
+              if (message.type === 'GameCreated') {
+                console.log('Game creation acknowledged by server');
+                // Clean up the event listener
+                this.websocket.removeEventListener('message', handleCreateResponse);
                 this._creatingGame = false;
                 this._gameCreated = true;
-                
-                // Update game state from server response
-                if (message.data.playerBoard) {
-                  this.playerBoard = message.data.playerBoard;
-                  console.log('Updated player board from server response');
-                }
-                if (message.data.enemyBoard) {
-                  this.enemyBoard = message.data.enemyBoard;
-                  console.log('Updated enemy board from server response');
-                }
-                
-                // Update UI
-                this.shipsPlaced = 0;
-                this.message = 'Place your ships on the board.';
-                this.requestUpdate();
-                
                 resolve(this.gameId);
               } else if (message.type === 'error') {
-                console.error('Error in game creation response:', message.message);
-                this.websocket.removeEventListener('message', handleGameCreated);
+                console.warn('Received error from server, but using local game ID anyway:', message.message);
+                this.websocket.removeEventListener('message', handleCreateResponse);
                 this._creatingGame = false;
-                reject(new Error(`Error creating game: ${message.message}`));
+                resolve(this.gameId);
+              } else if (message.type === 'acknowledgment') {
+                console.log('Received acknowledgment from server');
+                // Keep listening for GameCreated message
               }
             } catch (error) {
-              console.error('Error handling game creation response:', error);
+              console.error('Error handling server response:', error);
+              // Don't reject - we'll use the local gameId anyway
+              this.websocket.removeEventListener('message', handleCreateResponse);
               this._creatingGame = false;
-              reject(error);
+              resolve(this.gameId);
             }
           };
           
-          // Add event listener for WebSocket messages
-          console.log('Adding message event listener for game creation');
-          this.websocket.addEventListener('message', handleGameCreated);
+          // Add event listener for server responses
+          this.websocket.addEventListener('message', handleCreateResponse);
           
-          // Send the game creation request
-          const createGameRequest = {
-            action: 'createGame',
-            data: {}
-          };
-          console.log('Sending game creation request:', JSON.stringify(createGameRequest));
-          this.websocket.send(JSON.stringify(createGameRequest));
-          
-          // Set timeout for the request
+          // Set timeout - but we'll still use our gameId even if there's a timeout
           setTimeout(() => {
             if (this._creatingGame) {
-              console.warn('Timeout waiting for game creation');
-              this.websocket.removeEventListener('message', handleGameCreated);
+              console.warn('Timeout waiting for server response, but using local game ID anyway');
+              this.websocket.removeEventListener('message', handleCreateResponse);
               this._creatingGame = false;
-              reject(new Error('Timeout waiting for game creation'));
+              resolve(this.gameId);
             }
-          }, 20000);
+          }, 5000);
         });
       } else {
-        throw new Error('WebSocket not connected');
+        console.warn('WebSocket not connected, but using local game ID anyway');
+        this._creatingGame = false;
+        return Promise.resolve(this.gameId);
       }
     } catch (error) {
-      console.error('Error creating game:', error);
-      this._creatingGame = false;
+      console.error('Error in createGame:', error);
+      // Even if there's an error, we'll use the ID we generated
+      if (this.gameId) {
+        console.log('Using already generated game ID despite error');
+        this._creatingGame = false;
+        return Promise.resolve(this.gameId);
+      }
       throw error;
     }
   }
@@ -1435,24 +1611,44 @@ export class GameBoard extends LitElement {
         this.isPlayerTurn = true;
       }
       
-      // Prepare the game state data to send
+      // Create a game status string that matches DynamoDB expectations
+      const gameStatus = this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS';
+      
+      // Prepare the game state data with the exact structure DynamoDB expects
       const gameState = {
+        // Include primary key fields necessary for DynamoDB
+        pk: `GAME#${this.gameId}`,
+        sk: 'METADATA',
+        
+        // Game ID and core data
         gameId: this.gameId,
         playerBoard: this.playerBoard,
         enemyBoard: this.enemyBoard,
         shipsPlaced: this.shipsPlaced,
         playerHits: this.playerShipPositions.filter(pos => this.playerBoard[pos.row][pos.col] === 'X').length,
         enemyHits: this.enemyShipPositions.filter(pos => this.enemyBoard[pos.row][pos.col] === 'X').length,
-        gameStatus: this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS',
+        status: gameStatus,
         isPlayerTurn: this.isPlayerTurn,
         wins: this.wins,
-        losses: this.losses
+        losses: this.losses,
+        
+        // Add timestamp fields
+        updatedAt: new Date().toISOString()
       };
       
       console.log('Updating game state on server:', {
         gameId: this.gameId,
         shipsPlaced: this.shipsPlaced,
-        isPlayerTurn: this.isPlayerTurn
+        isPlayerTurn: this.isPlayerTurn,
+        pk: gameState.pk,
+        sk: gameState.sk
+      });
+      
+      // Also store an event in the EventBus table for tracking game updates
+      await this.saveGameEventToEventBus(this.gameId, 'GameUpdated', {
+        shipsPlaced: this.shipsPlaced,
+        isPlayerTurn: this.isPlayerTurn,
+        status: gameStatus
       });
       
       // Send the update via WebSocket
@@ -1465,6 +1661,8 @@ export class GameBoard extends LitElement {
       
       // Also save to localStorage as a backup
       localStorage.setItem('gameId', this.gameId);
+      localStorage.setItem('playerBoard', JSON.stringify(this.playerBoard));
+      localStorage.setItem('shipsPlaced', this.shipsPlaced.toString());
       
       return true;
     } catch (error) {
@@ -1480,7 +1678,7 @@ export class GameBoard extends LitElement {
         return this.createGame();
       }
       
-      console.log(`Attempting to get game data for ID: ${this.gameId}`);
+      console.log(`Attempting to get game with ID: ${this.gameId}`);
       await this.waitForWebSocketConnection();
       
       // Send a message to get the game state via WebSocket
@@ -1497,10 +1695,9 @@ export class GameBoard extends LitElement {
           
           // Define the message handler for the response
           const messageHandler = (event) => {
-            console.log('Received message in getGame handler:', event.data);
             try {
               const message = JSON.parse(event.data);
-              console.log('Parsed message in getGame handler:', message);
+              console.log('WebSocket message during getGame:', message);
               
               // Handle GameRequested response
               if (message.type === 'GameRequested' && message.data) {
@@ -1527,22 +1724,25 @@ export class GameBoard extends LitElement {
                 reject(new Error('Game not found'));
               }
             } catch (error) {
-              console.error('Error handling WebSocket message in getGame:', error, 'Raw message:', event.data);
+              console.error('Error handling WebSocket message:', error);
             }
           };
           
           // Add the event listener for incoming messages
-          console.log('Adding message event listener for getGame');
           this.websocket.addEventListener('message', messageHandler);
           
-          // Send the request to get the game
+          // Prepare request with DynamoDB structure
           const getGameRequest = {
             action: 'getGame',
             data: {
-              gameId: this.gameId
+              gameId: this.gameId,
+              // Include DynamoDB key structure
+              pk: `GAME#${this.gameId}`,
+              sk: 'METADATA'
             }
           };
-          console.log('Sending getGame request:', JSON.stringify(getGameRequest));
+          
+          console.log('Sending getGame request:', JSON.stringify(getGameRequest, null, 2));
           this.websocket.send(JSON.stringify(getGameRequest));
           console.log(`Game ${this.gameId} retrieve request sent via WebSocket`);
         });
@@ -1562,15 +1762,25 @@ export class GameBoard extends LitElement {
         
         // Send a message to delete the game via WebSocket
         if (this.isWebSocketReady()) {
-          this.websocket.send(JSON.stringify({
+          const deleteRequest = {
             action: 'deleteGame',
             data: {
-              gameId: this.gameId
+              gameId: this.gameId,
+              // Include DynamoDB key structure
+              pk: `GAME#${this.gameId}`,
+              sk: 'METADATA'
             }
-          }));
+          };
+          
+          console.log('Sending delete request:', JSON.stringify(deleteRequest, null, 2));
+          this.websocket.send(JSON.stringify(deleteRequest));
           console.log(`Game ${this.gameId} delete request sent via WebSocket`);
+          
+          // Clear local storage and game ID
           this.gameId = null;
           localStorage.removeItem('gameId');
+          localStorage.removeItem('playerBoard');
+          localStorage.removeItem('shipsPlaced');
         } else {
           throw new Error('WebSocket not connected after waiting');
         }
@@ -2214,6 +2424,70 @@ export class GameBoard extends LitElement {
       console.error('Error loading game state:', error);
       this._initialLoadComplete = true;
     }
+  }
+
+  // Create a session record in EventBus table
+  async createSessionRecord() {
+    try {
+      // Generate a unique session ID
+      const sessionId = 'session_' + Date.now().toString();
+      localStorage.setItem('sessionId', sessionId);
+      
+      // Get device and browser information
+      const userAgent = navigator.userAgent;
+      const platform = navigator.platform;
+      const screenSize = `${window.innerWidth}x${window.innerHeight}`;
+      const language = navigator.language;
+      
+      // Create a session record for analytics
+      const sessionRecord = {
+        pk: 'SESSION#' + sessionId,
+        sk: 'METADATA',
+        sessionId: sessionId,
+        userAgent: userAgent,
+        platform: platform,
+        screenSize: screenSize,
+        language: language,
+        gameId: this.gameId || 'none',
+        startTime: new Date().toISOString(),
+        lastActive: new Date().toISOString(),
+        // Add TTL for automatic cleanup (7 days)
+        ttl: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
+      };
+      
+      // Wait for WebSocket connection
+      await this.waitForWebSocketConnection();
+      
+      if (this.isWebSocketReady()) {
+        console.log('Creating session record in EventBus table:', sessionRecord);
+        this.websocket.send(JSON.stringify({
+          action: 'saveEventBusRecord',
+          data: sessionRecord
+        }));
+        
+        // Set interval to update session activity every 5 minutes
+        this._sessionUpdateInterval = setInterval(() => {
+          if (this.isWebSocketReady() && this.gameId) {
+            // Update the lastActive timestamp
+            this.websocket.send(JSON.stringify({
+              action: 'saveEventBusRecord',
+              data: {
+                pk: 'SESSION#' + sessionId,
+                sk: 'METADATA',
+                lastActive: new Date().toISOString(),
+                gameId: this.gameId,
+                ttl: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60)
+              }
+            }));
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+        
+        return sessionId;
+      }
+    } catch (error) {
+      console.error('Error creating session record:', error);
+    }
+    return null;
   }
 }
 
