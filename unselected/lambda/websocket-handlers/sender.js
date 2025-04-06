@@ -6,6 +6,12 @@ exports.handler = async (event) => {
   console.log('Event received by sender:', JSON.stringify(event, null, 2));
   
   try {
+    // Log event structure for debugging
+    console.log('Event structure:');
+    console.log('- detail-type:', event['detail-type']);
+    console.log('- source:', event.source);
+    console.log('- detail type:', typeof event.detail);
+    
     // Extract connection ID if present in the event (for targeted messages)
     const detail = event.detail || (typeof event.detail === 'string' ? JSON.parse(event.detail) : {});
     const targetConnectionId = detail.connectionId;
@@ -24,11 +30,57 @@ exports.handler = async (event) => {
     
     // Prepare the message based on the event
     const messageType = event['detail-type'] || 'UnknownEvent';
+    
+    // Extract detail data - handle string or object
+    let detailData = {};
+    if (typeof event.detail === 'string') {
+      try {
+        detailData = JSON.parse(event.detail);
+      } catch (e) {
+        console.error('Error parsing event.detail string:', e);
+      }
+    } else if (typeof event.detail === 'object' && event.detail !== null) {
+      detailData = event.detail;
+    }
+    
+    console.log('Extracted detail data:', JSON.stringify(detailData, null, 2));
+    
+    // Extract the specific fields we need from detail
+    const connectionId = detailData.connectionId;
+    
+    // Construct message with proper structure that frontend expects
     const message = {
       type: messageType,
-      data: detail,
+      data: detailData,  // Include all detail data directly
       timestamp: new Date().toISOString()
     };
+    
+    // For GameCreated events, make sure gameId is directly accessible at message.data.gameId
+    if (messageType === 'GameCreated') {
+      // Log the original structure
+      console.log('Original GameCreated message structure:', JSON.stringify(message, null, 2));
+      
+      // Fix common issues with EventBridge event structure
+      if (!message.data.gameId && message.data.detail && message.data.detail.gameId) {
+        console.log('Moving gameId from detail to data level');
+        message.data.gameId = message.data.detail.gameId;
+      }
+      
+      // If data is a string, try to parse it
+      if (typeof message.data === 'string') {
+        try {
+          const parsedData = JSON.parse(message.data);
+          if (parsedData.gameId) {
+            console.log('Parsed string data to extract gameId');
+            message.data = parsedData;
+          }
+        } catch (e) {
+          console.error('Failed to parse string data:', e);
+        }
+      }
+      
+      console.log('Final GameCreated message structure:', JSON.stringify(message, null, 2));
+    }
     
     console.log('Prepared message:', JSON.stringify(message, null, 2));
     

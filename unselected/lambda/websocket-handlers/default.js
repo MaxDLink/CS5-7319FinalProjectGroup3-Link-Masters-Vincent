@@ -41,6 +41,129 @@ exports.handler = async (event) => {
       return { statusCode: 400 };
     }
     
+    // Special handling for saveEventBusRecord action
+    if (message.action === 'saveEventBusRecord') {
+      console.log('Processing saveEventBusRecord action');
+      
+      try {
+        // Ensure we have the required fields
+        if (!message.data || !message.data.pk || !message.data.sk) {
+          throw new Error('Missing required fields (pk, sk) for EventBus record');
+        }
+        
+        // Store the record directly in the DynamoDB table
+        await dynamoDB.put({
+          TableName: process.env.DYNAMODB_TABLE,
+          Item: {
+            ...message.data,
+            // Add any additional metadata
+            updatedAt: new Date().toISOString(),
+            connectionId: connectionId
+          }
+        }).promise();
+        
+        console.log(`EventBus record saved with pk=${message.data.pk}, sk=${message.data.sk}`);
+        
+        // Send acknowledgment back to the client
+        await sendToClient(apiGatewayManagementApi, connectionId, {
+          type: 'acknowledgment',
+          message: 'EventBus record saved successfully',
+          pk: message.data.pk,
+          sk: message.data.sk
+        });
+        
+        return { statusCode: 200 };
+      } catch (error) {
+        console.error('Error saving EventBus record:', error);
+        await sendToClient(apiGatewayManagementApi, connectionId, {
+          type: 'error',
+          message: `Error saving EventBus record: ${error.message}`
+        });
+        return { statusCode: 500 };
+      }
+    }
+    
+    // Special handling for updateGameWithEvent action
+    if (message.action === 'updateGameWithEvent') {
+      console.log('Processing updateGameWithEvent action - combined game update and event logging');
+      
+      try {
+        // Ensure we have the required fields
+        if (!message.data || !message.data.gameState || !message.data.eventRecord) {
+          throw new Error('Missing required fields for combined update (gameState and eventRecord)');
+        }
+        
+        const { gameState, eventRecord } = message.data;
+        
+        // Validate gameState data
+        if (!gameState.pk || !gameState.sk || !gameState.gameId) {
+          throw new Error('Invalid gameState data - missing required keys');
+        }
+        
+        // Validate eventRecord data
+        if (!eventRecord.pk || !eventRecord.sk || !eventRecord.eventType) {
+          throw new Error('Invalid eventRecord data - missing required keys');
+        }
+        
+        // 1. First update the game state
+        await dynamoDB.put({
+          TableName: process.env.DYNAMODB_TABLE,
+          Item: {
+            ...gameState,
+            // Add connection ID and timestamp
+            connectionId: connectionId,
+            updatedAt: new Date().toISOString()
+          }
+        }).promise();
+        
+        // 2. Save the event record to the same table
+        await dynamoDB.put({
+          TableName: process.env.DYNAMODB_TABLE,
+          Item: {
+            ...eventRecord,
+            // Add connection ID and ensure updatedAt is set
+            connectionId: connectionId,
+            updatedAt: new Date().toISOString()
+          }
+        }).promise();
+        
+        console.log(`Combined update successful: Game state and ${eventRecord.eventType} event saved`);
+        
+        // 3. Publish the update to EventBridge so other components can react
+        const eventEntry = {
+          Source: 'game.service',
+          DetailType: 'GameUpdated',
+          Detail: JSON.stringify({
+            ...gameState,
+            eventType: eventRecord.eventType,
+            connectionId: connectionId
+          }),
+          EventBusName: process.env.EVENT_BUS_NAME
+        };
+        
+        await eventBridge.putEvents({
+          Entries: [eventEntry]
+        }).promise();
+        
+        // 4. Send acknowledgment back to the client
+        await sendToClient(apiGatewayManagementApi, connectionId, {
+          type: 'acknowledgment',
+          message: 'Combined game state and event update successful',
+          gameId: gameState.gameId,
+          eventType: eventRecord.eventType
+        });
+        
+        return { statusCode: 200 };
+      } catch (error) {
+        console.error('Error processing combined update:', error);
+        await sendToClient(apiGatewayManagementApi, connectionId, {
+          type: 'error',
+          message: `Error in combined update: ${error.message}`
+        });
+        return { statusCode: 500 };
+      }
+    }
+    
     // Forward the message to EventBridge with appropriate source and detail type
     const eventEntry = {
       Source: 'game.service',
@@ -52,13 +175,14 @@ exports.handler = async (event) => {
       EventBusName: process.env.EVENT_BUS_NAME
     };
     
-    console.log('Publishing event to EventBridge:', eventEntry);
+    console.log('Publishing event to EventBridge:', JSON.stringify(eventEntry, null, 2));
+    console.log('Event bus name:', process.env.EVENT_BUS_NAME);
     
     const result = await eventBridge.putEvents({
       Entries: [eventEntry]
     }).promise();
     
-    console.log('Event published successfully:', result);
+    console.log('Event published successfully:', JSON.stringify(result, null, 2));
     
     // Send acknowledgment back to the client
     await sendToClient(apiGatewayManagementApi, connectionId, {
@@ -105,10 +229,14 @@ function getDetailTypeForAction(action) {
     'getGame': 'GameRequested',
     'deleteGame': 'GameDeleted',
     'placeShip': 'ShipPlaced',
-    'attackPosition': 'AttackInitiated'
+    'attackPosition': 'AttackInitiated',
+    'saveEventBusRecord': 'EventBusRecordSaved',
+    'updateGameWithEvent': 'GameUpdatedWithEvent'
   };
   
-  return actionMap[action] || 'UnknownAction';
+  const result = actionMap[action] || 'UnknownAction';
+  console.log(`Mapped action '${action}' to detail type '${result}'`);
+  return result;
 }
 
 // Helper function to send messages to WebSocket clients

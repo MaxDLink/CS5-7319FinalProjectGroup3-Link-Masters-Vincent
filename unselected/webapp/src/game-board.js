@@ -531,18 +531,17 @@ export class GameBoard extends LitElement {
       this.isPlayerTurn = true;
     }
     
-    // Log player attack to EventBus
-    this.saveGameEventToEventBus(this.gameId, 'PlayerAttack', {
-      position: { row, col },
-      isPlayerTurn: true
-    }).catch(err => console.error('Failed to log player attack to EventBus:', err));
-
+    // Start the attack animation
     this.startFireballAnimation(row, col);
 
     // Store attack timeout
     this._playerAttackTimeout = setTimeout(() => {
       console.log(`Player attacks: ${row}, ${col}`);
       this.lastHitPosition = { row, col };
+      
+      // Track what type of event occurred for a single network call later
+      let eventType;
+      let eventData = { position: { row, col } };
 
       if (this.enemyBoard[row][col] === 'S') {
         console.log('Hit!');
@@ -551,16 +550,12 @@ export class GameBoard extends LitElement {
         sounds.HitEnemy();
         this.enemyBoard[row][col] = 'X';
         this.switchTurn(); // the player went, so switch the turn to the enemy 
-        
-        // Log player hit to EventBus
-        this.saveGameEventToEventBus(this.gameId, 'PlayerHit', {
-          position: { row, col },
-          remainingEnemyShips: this.enemyShipPositions.filter(pos => 
-            this.enemyBoard[pos.row][pos.col] !== 'X').length
-        }).catch(err => console.error('Failed to log player hit to EventBus:', err));
-        
-        this.updateGame(); // record the hit & turn state in DynamoDB 
         this.createExplosion(row, col, true);
+        
+        // Prepare hit event data
+        eventType = 'PlayerHit';
+        eventData.remainingEnemyShips = this.enemyShipPositions.filter(pos => 
+          this.enemyBoard[pos.row][pos.col] !== 'X').length;
 
         if (this.checkWin(this.enemyBoard)) {
           console.log('Player wins!');
@@ -574,15 +569,14 @@ export class GameBoard extends LitElement {
         this.hitResult = 'miss';
         this.enemyBoard[row][col] = 'O';
         this.switchTurn(); // the player went, so switch the turn to the enemy 
-        
-        // Log player miss to EventBus
-        this.saveGameEventToEventBus(this.gameId, 'PlayerMiss', {
-          position: { row, col }
-        }).catch(err => console.error('Failed to log player miss to EventBus:', err));
-        
-        this.updateGame(); // record the miss & turn state in DynamoDB 
         this.createWaterSplash(row, col, true);
+        
+        // Prepare miss event data
+        eventType = 'PlayerMiss';
       }
+      
+      // Do a single combined update that includes both game state and event data
+      this.updateGameWithEvent(eventType, eventData);
        
       this.requestUpdate();
 
@@ -636,11 +630,12 @@ export class GameBoard extends LitElement {
       
       console.log(`Ship placed at ${row},${col}. Total ships: ${this.shipsPlaced}, Game ID: ${this.gameId}`);
       
-      // Log ship placement to EventBus table
-      this.saveGameEventToEventBus(this.gameId, 'ShipPlaced', {
+      // Prepare event data
+      let eventType = 'ShipPlaced';
+      let eventData = {
         position: { row, col },
         shipsPlaced: this.shipsPlaced
-      }).catch(err => console.error('Failed to log ship placement to EventBus:', err));
+      };
       
       // Update the message
       if (this.shipsPlaced < this.boardSize) {
@@ -655,19 +650,22 @@ export class GameBoard extends LitElement {
         this.isPlayerTurn = true;
         console.log("All ships placed, setting player's turn");
         
-        // Log game start to EventBus table
-        this.saveGameEventToEventBus(this.gameId, 'GameStarted', {
+        // Change event type to GameStarted if all ships are placed
+        eventType = 'GameStarted';
+        eventData = {
           shipsPlaced: this.shipsPlaced,
           isPlayerTurn: this.isPlayerTurn
-        }).catch(err => console.error('Failed to log game start to EventBus:', err));
+        };
       }
       
-      // Update game state on the server - this is critical for persistence
-      this.updateGame().then(() => {
-        console.log('Game state updated on server after ship placement');
-      }).catch(error => {
-        console.error('Error updating game state:', error);
-      });
+      // Update game state and log event in a single call
+      this.updateGameWithEvent(eventType, eventData)
+        .then(() => {
+          console.log('Game state updated on server after ship placement');
+        })
+        .catch(error => {
+          console.error('Error updating game state:', error);
+        });
 
       this.requestUpdate();
       return;
@@ -774,17 +772,15 @@ export class GameBoard extends LitElement {
       if (move) {
         const { row, col } = move;
         
-        // Log enemy move to EventBus
-        this.saveGameEventToEventBus(this.gameId, 'EnemyMove', {
-          position: { row, col },
-          isPlayerTurn: false
-        }).catch(err => console.error('Failed to log enemy move to EventBus:', err));
-        
         this.startEnemyFireballAnimation(row, col);
 
         // Store the animation timeout as well
         this._enemyAnimationTimeout = setTimeout(() => {
           this.lastEnemyHitPosition = { row, col };
+          
+          // Track what type of event occurred for a single network call later
+          let eventType;
+          let eventData = { position: { row, col } };
 
           if (this.playerBoard[row][col] === 'S') {
             console.log('Enemy hit player ship!');
@@ -793,16 +789,12 @@ export class GameBoard extends LitElement {
             sounds.HitPlayer();
             this.playerBoard[row][col] = 'X';
             this.createExplosion(row, col, false); 
-            this.switchTurn(); // the enemy went, so switch the turn to the player 
+            this.switchTurn(); // the enemy went, so switch the turn to the player
             
-            // Log enemy hit to EventBus
-            this.saveGameEventToEventBus(this.gameId, 'EnemyHit', {
-              position: { row, col },
-              remainingShips: this.playerShipPositions.filter(pos => 
-                this.playerBoard[pos.row][pos.col] !== 'X').length
-            }).catch(err => console.error('Failed to log enemy hit to EventBus:', err));
-            
-            this.updateGame(); // record the hit & turn state in DynamoDB 
+            // Prepare hit event data
+            eventType = 'EnemyHit';
+            eventData.remainingShips = this.playerShipPositions.filter(pos => 
+              this.playerBoard[pos.row][pos.col] !== 'X').length;
 
             if (this.checkWin(this.playerBoard)) {
               console.log('Enemy wins!');
@@ -816,15 +808,14 @@ export class GameBoard extends LitElement {
             this.enemyHitResult = 'miss';
             this.playerBoard[row][col] = 'O';
             this.createWaterSplash(row, col, false);
-            this.switchTurn(); // the enemy went, so switch the turn to the player 
+            this.switchTurn(); // the enemy went, so switch the turn to the player
             
-            // Log enemy miss to EventBus
-            this.saveGameEventToEventBus(this.gameId, 'EnemyMiss', {
-              position: { row, col }
-            }).catch(err => console.error('Failed to log enemy miss to EventBus:', err));
-            
-            this.updateGame(); // record the miss & turn state in DynamoDB 
+            // Prepare miss event data
+            eventType = 'EnemyMiss';
           }
+          
+          // Do a single combined update that includes both game state and event data
+          this.updateGameWithEvent(eventType, eventData);
 
           this.requestUpdate();
 
@@ -944,36 +935,30 @@ export class GameBoard extends LitElement {
     this.winner = winner;
     
     // Update win/loss counters
+    let eventData = {
+      winner: winner,
+      wins: this.wins,
+      losses: this.losses
+    };
+    
     if (winner === 'Player') {
       this.wins += 1;
+      eventData.outcome = 'VICTORY';
+      
       // Add victory message to chat
       const chatBox = document.querySelector('chat-box');
       if (chatBox) {
         chatBox.addGameMessage("🏆 Congratulations! You've sunk all my ships! Well played!", 'game win');
       }
-      
-      // Log the player victory to EventBus
-      this.saveGameEventToEventBus(this.gameId, 'GameEnded', {
-        winner: 'Player',
-        wins: this.wins,
-        losses: this.losses,
-        outcome: 'VICTORY'
-      }).catch(err => console.error('Failed to log victory to EventBus:', err));
     } else {
       this.losses += 1;
+      eventData.outcome = 'DEFEAT';
+      
       // Add defeat message to chat
       const chatBox = document.querySelector('chat-box');
       if (chatBox) {
         chatBox.addGameMessage("💥 Game Over! I've sunk all your ships! Better luck next time!", 'game lose');
       }
-      
-      // Log the player defeat to EventBus
-      this.saveGameEventToEventBus(this.gameId, 'GameEnded', {
-        winner: 'Enemy',
-        wins: this.wins,
-        losses: this.losses,
-        outcome: 'DEFEAT'
-      }).catch(err => console.error('Failed to log defeat to EventBus:', err));
     }
     
     // Store the latest wins and losses in localStorage
@@ -985,8 +970,8 @@ export class GameBoard extends LitElement {
       detail: { wins: this.wins, losses: this.losses } 
     }));
     
-    // Update game status in database
-    this.updateGame();
+    // Update game status in database with the GameEnded event in a single call
+    this.updateGameWithEvent('GameEnded', eventData);
     
     // Show winner popup
     setTimeout(() => {
@@ -1374,13 +1359,14 @@ export class GameBoard extends LitElement {
         continue;
       }
       for (let col = 0; col < this.playerBoard[row].length; col++) {
-        if (this.playerBoard[row][col] === 'S') {
+        // Include both intact ships ('S') and hit ships ('X') 
+        if (this.playerBoard[row][col] === 'S' || this.playerBoard[row][col] === 'X') {
           this.playerShipPositions.push({ row, col });
         }
       }
     }
     
-    console.log(`Rebuilt player ship positions: ${this.playerShipPositions.length} ships found`);
+    console.log(`Rebuilt player ship positions: ${this.playerShipPositions.length} ships found (including both intact and hit ships)`);
   }
   
   // Helper method to count ships on the player board
@@ -1399,12 +1385,14 @@ export class GameBoard extends LitElement {
         continue;
       }
       for (let col = 0; col < this.playerBoard[row].length; col++) {
-        if (this.playerBoard[row][col] === 'S') {
+        // Count both intact ships ('S') and hit ships ('X') as valid ships
+        if (this.playerBoard[row][col] === 'S' || this.playerBoard[row][col] === 'X') {
           count++;
         }
       }
     }
     
+    console.log(`Counted ${count} ships on board (including both intact and hit ships)`);
     return count;
   }
 
@@ -2488,6 +2476,103 @@ export class GameBoard extends LitElement {
       console.error('Error creating session record:', error);
     }
     return null;
+  }
+
+  // New method to combine game state update and event tracking into a single WebSocket call
+  async updateGameWithEvent(eventType, eventData = {}) {
+    try {
+      // Make sure we have a game ID
+      if (!this.gameId) {
+        throw new Error('No game ID available for update');
+      }
+      
+      // Wait for WebSocket connection
+      await this.waitForWebSocketConnection();
+      
+      if (!this.isWebSocketReady()) {
+        throw new Error('WebSocket not connected');
+      }
+      
+      // Rebuild ship positions
+      this.rebuildPlayerShipPositions();
+      
+      // Create a game status string that matches DynamoDB expectations
+      const gameStatus = this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS';
+      
+      // Create timestamp for the event
+      const timestamp = new Date().toISOString();
+      
+      // Prepare the game state data with the exact structure DynamoDB expects
+      const gameState = {
+        // Include primary key fields necessary for DynamoDB
+        pk: `GAME#${this.gameId}`,
+        sk: 'METADATA',
+        
+        // Game ID and core data
+        gameId: this.gameId,
+        playerBoard: this.playerBoard,
+        enemyBoard: this.enemyBoard,
+        shipsPlaced: this.shipsPlaced,
+        playerHits: this.playerShipPositions.filter(pos => this.playerBoard[pos.row][pos.col] === 'X').length,
+        enemyHits: this.enemyShipPositions.filter(pos => this.enemyBoard[pos.row][pos.col] === 'X').length,
+        status: gameStatus,
+        isPlayerTurn: this.isPlayerTurn,
+        wins: this.wins,
+        losses: this.losses,
+        
+        // Add timestamp fields
+        updatedAt: timestamp
+      };
+      
+      // Create the event data for EventBus Table
+      const eventRecord = {
+        pk: `EVENT#${this.gameId}`,
+        sk: `TIMESTAMP#${timestamp}`,
+        gameId: this.gameId,
+        eventType: eventType,
+        createdAt: timestamp,
+        connectionId: this.websocket ? 'websocket-connected' : 'no-websocket',
+        source: 'web-client',
+        isPlayerTurn: this.isPlayerTurn,
+        // Include any additional event data
+        ...eventData,
+        // Add TTL for automatic cleanup (30 days)
+        ttl: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60)
+      };
+      
+      console.log(`Combined game update and event (${eventType}) in a single WebSocket call`);
+      
+      // Send a single combined request that includes both game state and event data
+      this.websocket.send(JSON.stringify({
+        action: 'updateGameWithEvent',
+        data: {
+          gameState: gameState,
+          eventRecord: eventRecord
+        }
+      }));
+      
+      console.log(`Game ${this.gameId} update with ${eventType} event sent via single WebSocket call`);
+      
+      // Also save to localStorage as a backup
+      localStorage.setItem('gameId', this.gameId);
+      localStorage.setItem('playerBoard', JSON.stringify(this.playerBoard));
+      localStorage.setItem('shipsPlaced', this.shipsPlaced.toString());
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating game with event:', error);
+      
+      // Fallback to separate calls if the combined method fails
+      console.log('Falling back to separate update calls');
+      try {
+        await this.updateGame();
+        await this.saveGameEventToEventBus(this.gameId, eventType, eventData);
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
+      
+      throw error;
+    }
   }
 }
 
