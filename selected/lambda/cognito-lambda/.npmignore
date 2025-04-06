@@ -1,0 +1,8 @@
+*.test.js
+node_modules/
+coverage/
+.git/
+.gitignore
+.DS_Store
+*.md
+*.log 
