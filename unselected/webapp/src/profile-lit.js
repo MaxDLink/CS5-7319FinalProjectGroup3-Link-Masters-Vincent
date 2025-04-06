@@ -275,7 +275,7 @@ class ProfileElement extends LitElement {
       // Use the same direct URL approach that works in login.js
       const clientId = "tj2n9mnpm20nn9d015ahkr7da";
       const logoutUri = `${window.location.origin}/`;
-      const cognitoDomain = "https://us-east-1-m9ctz8zr3.auth.us-east-1.amazoncognito.com";
+      const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com";
       
       // Redirect to Cognito logout page
       window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;

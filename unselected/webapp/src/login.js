@@ -146,7 +146,7 @@ export class Login extends LitElement {
     const clientId = "tj2n9mnpm20nn9d015ahkr7da"; //mine:2c3i2f2t829bjrbpgj6fem79n4 //OG: 1ttf4hijhkkf4nc3h3ame5e16a
     const logoutUri = `${window.location.origin}/`;
     // https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com/oauth2/token
-    const cognitoDomain = "https://us-east-1-m9ctz8zr3.auth.us-east-1.amazoncognito.com"; //Mine: https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com //OG: https://backend-auth.auth.us-east-1.amazoncognito.com
+    const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com"; //Mine: https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com //OG: https://backend-auth.auth.us-east-1.amazoncognito.com
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
   }
 
