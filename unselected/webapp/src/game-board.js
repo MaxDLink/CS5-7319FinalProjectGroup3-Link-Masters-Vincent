@@ -1461,6 +1461,9 @@ export class GameBoard extends LitElement {
       this.shipsPlaced = 0;
       this.playerShipPositions = [];
       
+      // Place enemy ships for the new game
+      this.placeEnemyShips();
+      
       // Create our own game ID to ensure it exists
       // Use a function to generate a UUID similar to the backend
       const generateUUID = () => {
@@ -1496,6 +1499,7 @@ export class GameBoard extends LitElement {
             gameId: this.gameId, // Include our generated ID in the request
             playerBoard: this.playerBoard,
             enemyBoard: this.enemyBoard,
+            enemyShipPositions: this.enemyShipPositions, // Include enemy ship positions
             shipsPlaced: 0,
             playerHits: 0,
             enemyHits: 0,
@@ -1620,6 +1624,10 @@ export class GameBoard extends LitElement {
         wins: this.wins,
         losses: this.losses,
         
+        // Explicitly include ship positions for persistence
+        enemyShipPositions: this.enemyShipPositions,
+        playerShipPositions: this.playerShipPositions,
+        
         // Add timestamp fields
         updatedAt: new Date().toISOString()
       };
@@ -1628,6 +1636,7 @@ export class GameBoard extends LitElement {
         gameId: this.gameId,
         shipsPlaced: this.shipsPlaced,
         isPlayerTurn: this.isPlayerTurn,
+        enemyShipsCount: this.enemyShipPositions.length,
         pk: gameState.pk,
         sk: gameState.sk
       });
@@ -2178,9 +2187,25 @@ export class GameBoard extends LitElement {
         data.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
       }
       
-      // grabs the player and enemy boards from DynamoDB, this includes hits and misses 
+      // Get the player and enemy boards from server
       this.playerBoard = data.playerBoard;
       this.enemyBoard = data.enemyBoard;
+      
+      // Extract enemy ship positions from data if available
+      if (data.enemyShipPositions && Array.isArray(data.enemyShipPositions)) {
+        console.log("Received enemy ship positions from server:", data.enemyShipPositions);
+        this.enemyShipPositions = data.enemyShipPositions;
+      } else {
+        console.warn("Enemy ship positions not found in server data.");
+        // If enemy ship positions weren't saved, we need to make sure the ships are placed
+        if (this.enemyShipPositions.length === 0) {
+          console.log("Generating new enemy ship positions");
+          this.placeEnemyShips();
+        }
+      }
+      
+      // Make sure enemy ships are marked on the board
+      this.updateEnemyBoardWithShips();
       
       // Rebuild playerShipPositions from the board data
       this.rebuildPlayerShipPositions();
@@ -2270,7 +2295,24 @@ export class GameBoard extends LitElement {
       if (!this.playerShipPositions) {
         this.playerShipPositions = [];
       }
+      if (!this.enemyShipPositions) {
+        this.enemyShipPositions = [];
+        this.placeEnemyShips();
+      }
     }
+  }
+  
+  // Helper method to ensure enemy ships are marked on the board
+  updateEnemyBoardWithShips() {
+    // Only place ships on empty cells - don't overwrite hits ('X') or misses ('O')
+    for (const pos of this.enemyShipPositions) {
+      if (pos && typeof pos.row === 'number' && typeof pos.col === 'number') {
+        if (this.enemyBoard[pos.row][pos.col] !== 'X' && this.enemyBoard[pos.row][pos.col] !== 'O') {
+          this.enemyBoard[pos.row][pos.col] = 'S';
+        }
+      }
+    }
+    console.log(`Updated enemy board with ${this.enemyShipPositions.length} ship positions`);
   }
 
   // New method to initialize game state
@@ -2519,6 +2561,10 @@ export class GameBoard extends LitElement {
         isPlayerTurn: this.isPlayerTurn,
         wins: this.wins,
         losses: this.losses,
+        
+        // Explicitly include enemy ship positions to preserve them
+        enemyShipPositions: this.enemyShipPositions,
+        playerShipPositions: this.playerShipPositions,
         
         // Add timestamp fields
         updatedAt: timestamp
