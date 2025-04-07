@@ -73,10 +73,10 @@ export class App extends cdk.Stack {
     });
 
     // Output the client ID so you can use it in your application
-    new CfnOutput(this, 'EventBusClientId', {
-      value: eventBusClient.userPoolClientId,
-      description: 'The ID of the EventBus Cognito User Pool Client',
-    });
+    // new CfnOutput(this, 'EventBusClientId', {
+    //   value: eventBusClient.userPoolClientId,
+    //   description: 'The ID of the EventBus Cognito User Pool Client',
+    // });
 
     // webapp stack 
     const originAccessIdentity = new OriginAccessIdentity(this, 'WebAppOriginAccessIdentity');
@@ -138,10 +138,10 @@ export class App extends cdk.Stack {
     });
 
     // Output the EventBus name
-    new CfnOutput(this, 'EventBusName', {
-      value: eventBus.eventBusName,
-      description: 'Name of the EventBridge event bus',
-    });
+    // new CfnOutput(this, 'EventBusName', {
+    //   value: eventBus.eventBusName,
+    //   description: 'Name of the EventBridge event bus',
+    // });
 
     // Define a simple Lambda function
     const simpleLambda = new NodejsFunction(this, 'SimpleLambda', {
@@ -336,10 +336,10 @@ export class App extends cdk.Stack {
     });
 
     // Output the API URL
-    new CfnOutput(this, 'EventBridgeApiUrl', {
-      value: api.apiEndpoint,
-      description: 'The URL of the EventBridge API',
-    });
+    // new CfnOutput(this, 'EventBridgeApiUrl', {
+    //   value: api.apiEndpoint,
+    //   description: 'The URL of the EventBridge API',
+    // });
 
     // Create WebSocket connection handler Lambda
     const webSocketConnectHandler = new NodejsFunction(this, 'WebSocketConnectHandler', {
@@ -391,10 +391,10 @@ export class App extends cdk.Stack {
     });
 
     // Output the WebSocket URL
-    new CfnOutput(this, 'WebSocketURL', {
-      value: webSocketStage.url,
-      description: 'WebSocket API Gateway URL',
-    });
+    // new CfnOutput(this, 'WebSocketURL', {
+    //   value: webSocketStage.url,
+    //   description: 'WebSocket API Gateway URL',
+    // });
 
     // Create a Lambda function to send messages back to connected WebSocket clients
     const webSocketSenderLambda = new NodejsFunction(this, 'WebSocketSenderLambda', {
