@@ -240,26 +240,26 @@ class ProfileElement extends LitElement {
   async logout() {
     console.log('Logout initiated');
     
-    // Get existing wins and losses before they're cleared
-    const wins = parseInt(localStorage.getItem('playerWins') || '0');
-    const losses = parseInt(localStorage.getItem('playerLosses') || '0');
-    
     // Store current gameId to preserve game state
     const gameId = localStorage.getItem('gameId');
     
-    // Clear only authentication-related data from localStorage
+    // Clear authentication and game stats data from localStorage
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userId');
+    localStorage.removeItem('playerWins');
+    localStorage.removeItem('playerLosses');
     
-    // Do NOT remove gameId, playerWins, or playerLosses to preserve game state
+    // Reset wins and losses to zero
+    this.wins = 0;
+    this.losses = 0;
     
     // Dispatch an event to notify other components about logout
     window.dispatchEvent(new CustomEvent('user-logged-out', {
       detail: { 
         preserveGameState: true,
         gameId: gameId,
-        wins: wins, 
-        losses: losses 
+        wins: 0, 
+        losses: 0 
       }
     }));
     

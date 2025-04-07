@@ -53,6 +53,10 @@ The specific event types managed by WebSockets include:
    - Session creation, updates, and termination
    - Player connection and activity tracking
 
+For our help page, we needed to override the websocket components and use mock ship placements instead so that the flow of the tutorial works correctly 
+
+Reset wins and losses to 0 when logging out 
+
 ## Data Synchronization
 Each WebSocket event also handles:
 - Complete board state synchronization
@@ -62,8 +66,6 @@ Each WebSocket event also handles:
 
 The WebSockets are managing the entire game state, not just player and enemy attacks. Even ship placement is a critical part of the WebSocket communication. Each action updates the entire game state on the server to maintain consistency.
 
-Fix: We can preseve gamestate locally to get around websocket data sync issues 
 
-For our help page, we needed to override the websocket components and use mock ship placements instead so that the flow of the tutorial works correctly 
+To manage web sockets appropriately we can: 
 
-Reset wins and losses to 0 when logging out 

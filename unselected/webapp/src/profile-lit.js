@@ -205,8 +205,14 @@ class ProfileElement extends LitElement {
     
     // Get current gameId to preserve ship placements
     const gameId = localStorage.getItem('gameId');
+    console.log('Returning to game with gameId:', gameId);
     
-    // Dispatch an event to notify other components about returning to game
+    // Remove this component from the DOM to return to the game
+    if (this.parentNode) {
+      this.parentNode.removeChild(this);
+    }
+    
+    // Dispatch an event to notify the game board about returning to game
     window.dispatchEvent(new CustomEvent('return-to-game', {
       detail: { 
         preserveGameState: true,
@@ -215,26 +221,6 @@ class ProfileElement extends LitElement {
         losses 
       }
     }));
-    
-    // Remove this component from the DOM to return to the game
-    if (this.parentNode) {
-      this.parentNode.removeChild(this);
-    }
-    
-    // Find the game-board element and refresh it without resetting
-    const gameBoard = document.querySelector('game-board');
-    if (gameBoard && gameId) {
-      // Just refresh the game state from database instead of resetting
-      gameBoard.getGame();
-    } else if (!gameId) {
-      // If no gameId exists, we need to create a new game
-      if (gameBoard) {
-        gameBoard.resetGame();
-      } else {
-        // If we can't find the game board, force a page reload
-        window.location.reload();
-      }
-    }
   }
 
   async logout() {
