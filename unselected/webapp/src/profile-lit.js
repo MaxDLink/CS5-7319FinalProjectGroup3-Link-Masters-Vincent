@@ -205,14 +205,8 @@ class ProfileElement extends LitElement {
     
     // Get current gameId to preserve ship placements
     const gameId = localStorage.getItem('gameId');
-    console.log('Returning to game with gameId:', gameId);
     
-    // Remove this component from the DOM to return to the game
-    if (this.parentNode) {
-      this.parentNode.removeChild(this);
-    }
-    
-    // Dispatch an event to notify the game board about returning to game
+    // Dispatch an event to notify other components about returning to game
     window.dispatchEvent(new CustomEvent('return-to-game', {
       detail: { 
         preserveGameState: true,
@@ -221,31 +215,49 @@ class ProfileElement extends LitElement {
         losses 
       }
     }));
+    
+    // Remove this component from the DOM to return to the game
+    if (this.parentNode) {
+      this.parentNode.removeChild(this);
+    }
+    
+    // Find the game-board element and refresh it without resetting
+    const gameBoard = document.querySelector('game-board');
+    if (gameBoard && gameId) {
+      // Just refresh the game state from database instead of resetting
+      gameBoard.getGame();
+    } else if (!gameId) {
+      // If no gameId exists, we need to create a new game
+      if (gameBoard) {
+        gameBoard.resetGame();
+      } else {
+        // If we can't find the game board, force a page reload
+        window.location.reload();
+      }
+    }
   }
 
   async logout() {
     console.log('Logout initiated');
     
-    // Store current gameId to preserve game state if needed
+    // Store current gameId to preserve game state
     const gameId = localStorage.getItem('gameId');
     
-    // Reset wins and losses to zero on logout
-    localStorage.setItem('playerWins', '0');
-    localStorage.setItem('playerLosses', '0');
-    
-    // Clear authentication and game state data
+    // Clear authentication and game stats data from localStorage
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userId');
-    localStorage.removeItem('gameId');
-    localStorage.removeItem('playerBoard');
-    localStorage.removeItem('shipsPlaced');
-    localStorage.removeItem('gameStateSnapshot');
+    localStorage.removeItem('playerWins');
+    localStorage.removeItem('playerLosses');
+    
+    // Reset wins and losses to zero
+    this.wins = 0;
+    this.losses = 0;
     
     // Dispatch an event to notify other components about logout
     window.dispatchEvent(new CustomEvent('user-logged-out', {
       detail: { 
-        preserveGameState: false,
-        gameId: null,
+        preserveGameState: true,
+        gameId: gameId,
         wins: 0, 
         losses: 0 
       }

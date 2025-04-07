@@ -1,52 +1,82 @@
 'use strict';
 
-import { DynamoDB } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
+const AWS = require('aws-sdk');
+const dynamodb = new AWS.DynamoDB.DocumentClient();
 
-const ddbClient = new DynamoDB({});
-const ddbDocClient = DynamoDBDocument.from(ddbClient);
-
-export const handler = async (event) => {
+exports.handler = async (event) => {
   console.log('Received event:', JSON.stringify(event, null, 2));
-  
-  // Handle EventBridge event
-  if (event.source === 'data.service' && event['detail-type'] === 'DataSaved') {
-    try {
-      console.log('Processing DataSaved event');
-      const detail = event.detail;
-      const timestamp = new Date().toISOString();
-      
-      if (!detail.pk) {
-        console.error('Missing pk in event detail');
-        return { statusCode: 400, body: JSON.stringify({ message: 'Missing pk in event detail' }) };
-      }
-      
-      const params = {
-        TableName: process.env.DYNAMODB_TABLE,
-        Item: {
-          pk: detail.pk,
-          sk: detail.sk || timestamp,
-          ...detail,
-          createdAt: detail.createdAt || timestamp
-        }
-      };
-      
-      await ddbDocClient.put(params);
-      console.log('Data saved successfully from event');
-      return { statusCode: 200 };
-    } catch (error) {
-      console.error('Error processing DataSaved event:', error);
-      throw error;
-    }
-  }
-  
-  console.log('Unsupported event type:', event);
-  return { statusCode: 400, body: JSON.stringify({ message: 'Unsupported event type' }) };
-};
 
-const corsHeaders = () => ({
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json'
-});
+  const tableName = process.env.DYNAMODB_TABLE;
+
+  // Parse the incoming request body
+  let body;
+  try {
+    body = JSON.parse(event.body);
+  } catch (err) {
+    console.error('Invalid JSON format:', err);
+    return {
+      statusCode: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+      body: JSON.stringify({ message: 'Invalid JSON format' }),
+    };
+  }
+
+  const { pk, sk, data } = body;
+
+  // Validate required fields
+  if (!pk || !sk || !data || !data.name) {
+    return {
+      statusCode: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+      body: JSON.stringify({ message: 'Missing required fields: pk, sk, and data.name' }),
+    };
+  }
+
+  // Construct the DynamoDB parameters
+  const params = {
+    TableName: tableName,
+    Item: {
+      pk: pk, // Partition key
+      sk: sk, // Sort key
+      name: data.name, // Store the name
+    },
+  };
+
+  // Save the item to DynamoDB
+  // Save the item to DynamoDB
+try {
+  console.log('Name to be saved:', data.name); // Log the name being added
+  await dynamodb.put(params).promise();
+  console.log('Data saved successfully:', params.Item); 
+  
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+      body: JSON.stringify({ message: 'Data saved successfully', data: params.Item }),
+    };
+  } catch (err) {
+    console.error('Error saving data:', err);
+
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+      body: JSON.stringify({ message: 'Failed to save data', error: err.message }),
+    };
+  }
+};
