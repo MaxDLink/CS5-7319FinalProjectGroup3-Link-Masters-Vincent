@@ -64,3 +64,4 @@ The WebSockets are managing the entire game state, not just player and enemy att
 
 Fix: We can preseve gamestate locally to get around websocket data sync issues 
 
+For our help page, we needed to override the websocket components and use mock ship placements instead so that the flow of the tutorial works correctly 
