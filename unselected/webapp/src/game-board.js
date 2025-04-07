@@ -136,6 +136,52 @@ export class GameBoard extends LitElement {
       }, 500);
     });
     
+    // Add event listener for user logout
+    window.addEventListener('user-logged-out', (event) => {
+      console.log('Received user-logged-out event');
+      
+      if (event.detail) {
+        // Update wins and losses from the event (should be 0 on logout)
+        this.wins = event.detail.wins || 0;
+        this.losses = event.detail.losses || 0;
+        
+        if (!event.detail.preserveGameState) {
+          // Clear game state on logout
+          this.gameId = null;
+          this.shipsPlaced = 0;
+          this.playerShipPositions = [];
+          this.enemyShipPositions = [];
+          this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+          this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+          this.isPlayerTurn = null;
+          this.gameEnded = false;
+          this.winner = '';
+          this.requestUpdate();
+        }
+      }
+    });
+    
+    // Add event listener for user login success
+    window.addEventListener('login-success', () => {
+      console.log('User logged in successfully, resetting game stats');
+      
+      // Reset wins and losses to 0 on fresh login
+      this.wins = 0;
+      this.losses = 0;
+      
+      // Save to localStorage to ensure persistence
+      localStorage.setItem('playerWins', '0');
+      localStorage.setItem('playerLosses', '0');
+      
+      // Reset game state for new login
+      this.resetGame();
+      
+      // Send updated stats to listeners (e.g., profile component)
+      window.dispatchEvent(new CustomEvent('stats-updated', { 
+        detail: { wins: 0, losses: 0 } 
+      }));
+    });
+    
     // Add an event listener for when the WebSocket connects
     this.addEventListener('websocket-connected', () => {
       console.log('WebSocket connected - loading game state');
