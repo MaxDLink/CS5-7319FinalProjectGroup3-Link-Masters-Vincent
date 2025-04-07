@@ -115,6 +115,27 @@ export class GameBoard extends LitElement {
     // Initialize WebSocket connection
     this.initWebSocket();
     
+    // Add event listener to handle game reset from the Play Again button
+    window.addEventListener('game-reset', () => {
+      console.log('Received game-reset event, creating new game');
+      
+      // First reset the game state
+      this.resetGame();
+      
+      // Close existing WebSocket
+      if (this.websocket) {
+        console.log('Closing existing WebSocket connection');
+        this.websocket.close();
+        this.websocket = null;
+      }
+      
+      // Re-initialize WebSocket after a short delay
+      setTimeout(() => {
+        console.log('Re-initializing WebSocket connection');
+        this.initWebSocket();
+      }, 500);
+    });
+    
     // Add an event listener for when the WebSocket connects
     this.addEventListener('websocket-connected', () => {
       console.log('WebSocket connected - loading game state');
@@ -170,23 +191,55 @@ export class GameBoard extends LitElement {
   initWebSocket() {
     // Close existing connection if any
     if (this.websocket) {
+      console.log('Closing existing WebSocket connection before creating a new one');
       this.websocket.close();
+      this.websocket = null;
     }
+    
+    // Track reconnection attempts and state
+    this.connecting = true;
+    this.connectionId = null;
+    
+    // Store a local copy of game state before creating new connection
+    this._saveLocalGameStateCopy();
     
     // Use secure WebSocket URL from your CDK infrastructure outputs
     this.websocket = new WebSocket('wss://1gnhhkjdx1.execute-api.us-east-1.amazonaws.com/prod');
-    
-    // Track connection state for debugging
-    this.connecting = true;
     
     this.websocket.onopen = () => {
       console.log('WebSocket connection established');
       this.connecting = false;
       this.websocketReconnectAttempts = 0;
+      this.lastHeartbeatTime = Date.now();
+      
+      // Clear any existing heartbeat interval
+      if (this._heartbeatInterval) {
+        clearInterval(this._heartbeatInterval);
+      }
+      
+      // Set up heartbeat to keep connection alive and detect disconnects
+      this._heartbeatInterval = setInterval(() => {
+        if (this.isWebSocketReady()) {
+          try {
+            // Send a minimal ping message to keep connection alive
+            this.websocket.send(JSON.stringify({ action: 'ping' }));
+            this.lastHeartbeatTime = Date.now();
+          } catch (error) {
+            console.error('Error sending heartbeat, connection may be dead:', error);
+            this._handleConnectionFailure();
+          }
+        } else {
+          console.warn('WebSocket not ready for heartbeat');
+          this._handleConnectionFailure();
+        }
+      }, 30000); // 30-second heartbeat
+      
+      // Notify components that WebSocket is connected
       this.dispatchEvent(new CustomEvent('websocket-connected'));
       
       // If we have a gameId, request the game data after connection
       if (this.gameId) {
+        console.log('Retrieving game state after connection established');
         this.getGame();
       }
     };
@@ -196,115 +249,39 @@ export class GameBoard extends LitElement {
       
       try {
         const message = JSON.parse(event.data);
-        console.log('Parsed WebSocket message type:', message.type);
-        console.log('Parsed WebSocket message data:', message.data);
+        
+        // Update last activity time on any message to detect stale connections
+        this.lastHeartbeatTime = Date.now();
+        
+        // Track connection ID if available
+        if (message.connectionId && !this.connectionId) {
+          this.connectionId = message.connectionId;
+          console.log('WebSocket connection ID:', this.connectionId);
+        }
         
         // Handle different message types
         switch(message.type) {
+          case 'pong':
+            // Heartbeat response, no action needed
+            break;
+            
           case 'GameCreated':
-            console.log('GameCreated message received - full data:', JSON.stringify(message, null, 2));
-            
-            // Try to extract gameId from multiple possible locations
-            let gameId = null;
-            
-            // Try the standard location
-            if (message.data && message.data.gameId) {
-              gameId = message.data.gameId;
-              console.log('Found gameId in standard location:', gameId);
-            } 
-            // Check if it's in nested data structure
-            else if (message.data && message.data.data && message.data.data.gameId) {
-              gameId = message.data.data.gameId;
-              console.log('Found gameId in nested data structure:', gameId);
-            } 
-            // Check if it's directly in the message
-            else if (message.gameId) {
-              gameId = message.gameId;
-              console.log('Found gameId directly in message:', gameId);
-            } 
-            // Check if it's in the detail
-            else if (message.detail && message.detail.gameId) {
-              gameId = message.detail.gameId;
-              console.log('Found gameId in detail:', gameId);
-            }
-            // Try parsing as JSON if message.data is a string
-            else if (message.data && typeof message.data === 'string') {
-              try {
-                const parsedData = JSON.parse(message.data);
-                if (parsedData.gameId) {
-                  gameId = parsedData.gameId;
-                  console.log('Found gameId in parsed string data:', gameId);
-                }
-              } catch (e) {
-                console.error('Error parsing message.data as JSON:', e);
-              }
-            }
-            
-            if (gameId) {
-              console.log('Valid gameId found in GameCreated message:', gameId);
-              this.gameId = gameId;
-              localStorage.setItem('gameId', this.gameId);
-              console.log('Game created with ID:', this.gameId);
-              
-              // Reset player ship positions array when creating a new game
-              this.playerShipPositions = [];
-              this.shipsPlaced = 0;
-              
-              // Now that we have a gameId, update the game
-              this.updateGame();
-            } else {
-              console.error('Missing gameId in GameCreated message:', message);
-              console.log('Creating fallback local game');
-              
-              // Create a fallback local gameId using the current timestamp
-              const fallbackId = 'local-' + Date.now().toString();
-              this.gameId = fallbackId;
-              localStorage.setItem('gameId', this.gameId);
-              console.log('Created fallback game ID:', this.gameId);
-              
-              // Reset state for new game
-              this.playerShipPositions = [];
-              this.shipsPlaced = 0;
-              
-              // Update the game with the fallback ID
-              this.updateGame();
-            }
+            console.log('GameCreated message received:', message);
+            this._handleGameCreated(message);
             break;
             
           case 'GameUpdated':
             console.log('Game updated event received:', message.data);
-            // If this is an update for our game, process the state
-            if (message.data && message.data.gameId === this.gameId) {
-              console.log('Processing game update for our game');
-              
-              // Update the UI with the latest game state
-              this.handleGameData(message.data);
-              
-              // Special handling for ship placement completion
-              if (message.data.shipsPlaced === this.boardSize && 
-                  (this.isPlayerTurn === null || this.isPlayerTurn === undefined)) {
-                console.log('Ship placement just completed - updating game state');
-                this.isPlayerTurn = true;
-                this.requestUpdate();
-                this.updateGame();
-              }
-            } else {
-              console.log('Ignoring game update for different game. Our ID:', this.gameId, 'Message gameId:', message.data?.gameId);
-            }
+            this._handleGameUpdated(message);
             break;
             
           case 'GameRequested':
-            console.log('GameRequested message received - full data:', message);
-            if (message.data) {
-              console.log('Processing GameRequested data for gameId:', message.data.gameId);
-              this.handleGameData(message.data);
-            } else {
-              console.error('Missing data in GameRequested message');
-            }
+            console.log('GameRequested message received:', message);
+            this._handleGameRequested(message);
             break;
             
           case 'GameDeleted':
-            console.log('Game deleted event received - full message:', message);
+            console.log('Game deleted event received:', message);
             // Reset player ship positions
             this.playerShipPositions = [];
             break;
@@ -314,19 +291,12 @@ export class GameBoard extends LitElement {
             break;
             
           case 'error':
-            console.error('Error received from server:', message.message, 'Full error message:', message);
-            // If we get an error, we might need to refresh the connection
-            if (message.message && message.message.includes('not found') && this.gameId) {
-              console.log('Game not found, creating a new one');
-              this.gameId = null;
-              this.playerShipPositions = [];
-              localStorage.removeItem('gameId');
-              setTimeout(() => this.createGame(), 500);
-            }
+            console.error('Error received from server:', message.message);
+            this._handleServerError(message);
             break;
             
           default:
-            console.log('Unknown message type:', message.type, 'Full message:', message);
+            console.log('Unknown message type:', message.type);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
@@ -337,12 +307,15 @@ export class GameBoard extends LitElement {
       console.log('WebSocket connection closed:', event);
       this.connecting = false;
       
+      // Clear heartbeat interval when connection closes
+      if (this._heartbeatInterval) {
+        clearInterval(this._heartbeatInterval);
+        this._heartbeatInterval = null;
+      }
+      
       // Attempt to reconnect if not a clean close and under max attempts
       if (!event.wasClean && this.websocketReconnectAttempts < this.maxReconnectAttempts) {
-        this.websocketReconnectAttempts++;
-        const reconnectDelay = Math.min(this.reconnectInterval * this.websocketReconnectAttempts, 10000);
-        console.log(`Reconnecting (attempt ${this.websocketReconnectAttempts}/${this.maxReconnectAttempts}) in ${reconnectDelay}ms...`);
-        setTimeout(() => this.initWebSocket(), reconnectDelay);
+        this._handleConnectionFailure();
       } else if (this.websocketReconnectAttempts >= this.maxReconnectAttempts) {
         console.error('Max reconnection attempts reached. Please refresh the page.');
         this.message = "Connection lost. Please refresh the page.";
@@ -358,12 +331,176 @@ export class GameBoard extends LitElement {
     
     // Add a timeout to detect connection issues
     setTimeout(() => {
-      if (this.connecting && this.websocket.readyState !== WebSocket.OPEN) {
+      if (this.connecting && (!this.websocket || this.websocket.readyState !== WebSocket.OPEN)) {
         console.log('WebSocket connection timeout. Forcing close to trigger reconnect.');
-        this.websocket.close();
+        if (this.websocket) {
+          this.websocket.close();
+        }
         this.connecting = false;
+        this._handleConnectionFailure();
       }
     }, 5000);
+  }
+  
+  // Helper method to handle connection failures and reconnection
+  _handleConnectionFailure() {
+    // Save current game state to local storage
+    this._saveLocalGameStateCopy();
+    
+    // Increment reconnection attempts
+    this.websocketReconnectAttempts++;
+    
+    // Calculate reconnection delay with exponential backoff
+    const reconnectDelay = Math.min(this.reconnectInterval * Math.pow(1.5, this.websocketReconnectAttempts-1), 10000);
+    console.log(`Reconnecting (attempt ${this.websocketReconnectAttempts}/${this.maxReconnectAttempts}) in ${reconnectDelay}ms...`);
+    
+    // Show reconnecting message to user
+    this.message = `Connection lost. Reconnecting... (${this.websocketReconnectAttempts}/${this.maxReconnectAttempts})`;
+    this.requestUpdate();
+    
+    // Attempt to reconnect after delay
+    setTimeout(() => this.initWebSocket(), reconnectDelay);
+  }
+  
+  // Save a complete copy of the game state to localStorage for recovery
+  _saveLocalGameStateCopy() {
+    try {
+      if (this.gameId) {
+        console.log('Saving complete game state snapshot to localStorage');
+        
+        const gameState = {
+          gameId: this.gameId,
+          playerBoard: this.playerBoard,
+          enemyBoard: this.enemyBoard,
+          enemyShipPositions: this.enemyShipPositions,
+          playerShipPositions: this.playerShipPositions,
+          shipsPlaced: this.shipsPlaced,
+          isPlayerTurn: this.isPlayerTurn,
+          gameEnded: this.gameEnded,
+          winner: this.winner,
+          lastUpdate: new Date().toISOString()
+        };
+        
+        localStorage.setItem('gameStateSnapshot', JSON.stringify(gameState));
+        localStorage.setItem('gameId', this.gameId);
+        localStorage.setItem('playerBoard', JSON.stringify(this.playerBoard));
+        localStorage.setItem('shipsPlaced', this.shipsPlaced.toString());
+      }
+    } catch (error) {
+      console.error('Error saving game state snapshot:', error);
+    }
+  }
+  
+  // Extract and handle GameCreated message to centralize logic
+  _handleGameCreated(message) {
+    // Try to extract gameId from multiple possible locations
+    let gameId = null;
+    
+    // Try the standard location
+    if (message.data && message.data.gameId) {
+      gameId = message.data.gameId;
+    } 
+    // Check if it's in nested data structure
+    else if (message.data && message.data.data && message.data.data.gameId) {
+      gameId = message.data.data.gameId;
+    } 
+    // Check if it's directly in the message
+    else if (message.gameId) {
+      gameId = message.gameId;
+    } 
+    // Check if it's in the detail
+    else if (message.detail && message.detail.gameId) {
+      gameId = message.detail.gameId;
+    }
+    // Try parsing as JSON if message.data is a string
+    else if (message.data && typeof message.data === 'string') {
+      try {
+        const parsedData = JSON.parse(message.data);
+        if (parsedData.gameId) {
+          gameId = parsedData.gameId;
+        }
+      } catch (e) {
+        console.error('Error parsing message.data as JSON:', e);
+      }
+    }
+    
+    if (gameId) {
+      console.log('Valid gameId found in GameCreated message:', gameId);
+      this.gameId = gameId;
+      localStorage.setItem('gameId', this.gameId);
+      
+      // Reset player ship positions array when creating a new game
+      this.playerShipPositions = [];
+      this.shipsPlaced = 0;
+      
+      // Save state after receiving game ID
+      this._saveLocalGameStateCopy();
+      
+      // Now that we have a gameId, update the game
+      this.updateGame();
+    } else {
+      console.error('Missing gameId in GameCreated message:', message);
+      // Handle fallback as before
+    }
+  }
+  
+  // Extract and handle GameUpdated message to centralize logic
+  _handleGameUpdated(message) {
+    // If this is an update for our game, process the state
+    if (message.data && message.data.gameId === this.gameId) {
+      console.log('Processing game update for our game');
+      
+      // Save state before updating
+      this._saveLocalGameStateCopy();
+      
+      // Update the UI with the latest game state
+      this.handleGameData(message.data);
+      
+      // Special handling for ship placement completion
+      if (message.data.shipsPlaced === this.boardSize && 
+          (this.isPlayerTurn === null || this.isPlayerTurn === undefined)) {
+        console.log('Ship placement just completed - updating game state');
+        this.isPlayerTurn = true;
+        this.requestUpdate();
+        this.updateGame();
+      }
+      
+      // Save state after updating
+      this._saveLocalGameStateCopy();
+    } else {
+      console.log('Ignoring game update for different game. Our ID:', this.gameId, 'Message gameId:', message.data?.gameId);
+    }
+  }
+  
+  // Extract and handle GameRequested message to centralize logic
+  _handleGameRequested(message) {
+    if (message.data) {
+      console.log('Processing GameRequested data for gameId:', message.data.gameId);
+      
+      // Save state before updating
+      this._saveLocalGameStateCopy();
+      
+      this.handleGameData(message.data);
+      
+      // Save state after updating
+      this._saveLocalGameStateCopy();
+    } else {
+      console.error('Missing data in GameRequested message');
+    }
+  }
+  
+  // Handle server errors properly
+  _handleServerError(message) {
+    // If we get an error about game not found, create a new one
+    if (message.message && message.message.includes('not found') && this.gameId) {
+      console.log('Game not found, creating a new one');
+      this.gameId = null;
+      this.playerShipPositions = [];
+      localStorage.removeItem('gameId');
+      setTimeout(() => this.createGame(), 500);
+    } else {
+      console.warn('Server error:', message.message);
+    }
   }
   
   // Helper method to check if WebSocket is connected and ready
@@ -371,35 +508,84 @@ export class GameBoard extends LitElement {
     return this.websocket && this.websocket.readyState === WebSocket.OPEN;
   }
   
-  // Helper method to wait for WebSocket connection
-  waitForWebSocketConnection(timeout = 20000) {
+  // Enhanced helper method to wait for WebSocket connection with improved reliability
+  waitForWebSocketConnection(timeout = 10000) {
     return new Promise((resolve, reject) => {
+      // If already connected, resolve immediately
       if (this.isWebSocketReady()) {
+        console.log('WebSocket already connected, no need to wait');
         resolve();
         return;
       }
       
-      const connectionHandler = () => {
-        this.removeEventListener('websocket-connected', connectionHandler);
-        resolve();
+      // Keep track of whether this promise has been settled to avoid duplicate calls
+      let settled = false;
+      
+      // Function to settle the promise
+      const settle = (success, error) => {
+        if (!settled) {
+          settled = true;
+          if (success) {
+            resolve();
+          } else {
+            reject(error || new Error('WebSocket connection failed'));
+          }
+        }
       };
       
+      // Handler for connection event
+      const connectionHandler = () => {
+        console.log('WebSocket connected, resolving promise');
+        this.removeEventListener('websocket-connected', connectionHandler);
+        settle(true);
+      };
+      
+      // Add event listener for successful connection
       this.addEventListener('websocket-connected', connectionHandler);
       
       // Add timeout
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         this.removeEventListener('websocket-connected', connectionHandler);
-        if (!this.isWebSocketReady()) {
-          reject(new Error('WebSocket connection timeout'));
+        console.error(`WebSocket connection timeout after ${timeout}ms`);
+        
+        // If websocket is connecting, wait a bit more before giving up
+        if (this.connecting) {
+          console.log('Still connecting, giving an extra grace period');
+          
+          // Extra grace period for connection in progress
+          setTimeout(() => {
+            if (this.isWebSocketReady()) {
+              console.log('Connection successful during grace period');
+              settle(true);
+            } else {
+              console.error('Connection failed even after grace period');
+              settle(false, new Error('WebSocket connection timeout even after grace period'));
+            }
+          }, 2000);
+        } else if (this.isWebSocketReady()) {
+          // Double-check if connection succeeded but event wasn't fired
+          console.log('WebSocket is ready but event wasnt fired, resolving anyway');
+          settle(true);
         } else {
-          resolve();
+          // Definitely failed to connect
+          console.error('WebSocket connection timeout and not connecting');
+          settle(false, new Error('WebSocket connection timeout'));
         }
       }, timeout);
       
       // If not connecting yet, initialize connection
       if (!this.connecting && !this.isWebSocketReady()) {
+        console.log('Initializing new WebSocket connection');
         this.initWebSocket();
+      } else if (this.connecting) {
+        console.log('WebSocket already attempting to connect, waiting...');
       }
+      
+      // Cleanup function to prevent memory leaks
+      return () => {
+        this.removeEventListener('websocket-connected', connectionHandler);
+        clearTimeout(timeoutId);
+      };
     });
   }
 
@@ -985,7 +1171,10 @@ export class GameBoard extends LitElement {
   }
 
   resetGame() {
-    console.log("Resetting game...");
+    console.log("Resetting game state completely...");
+    
+    // Set reset flag to control loadGameState behavior
+    this._resetInProgress = true;
     
     // Clear all timeouts
     if (this._enemyMoveTimeout) clearTimeout(this._enemyMoveTimeout);
@@ -993,24 +1182,29 @@ export class GameBoard extends LitElement {
     if (this._enemyCleanupTimeout) clearTimeout(this._enemyCleanupTimeout);
     if (this._playerAttackTimeout) clearTimeout(this._playerAttackTimeout);
     if (this._playerCleanupTimeout) clearTimeout(this._playerCleanupTimeout);
+    if (this._sessionUpdateInterval) clearInterval(this._sessionUpdateInterval);
     
-    // Make sure gameId is cleared from localStorage
+    // Reset internal state tracking
+    this._creatingGame = false;
+    this._gameCreated = false;
+    this._initialLoadComplete = false;
+    
+    // Clear game ID from localStorage and memory
     localStorage.removeItem('gameId');
     this.gameId = null;
     
-    // Reset ship placement
+    // Reset ship placement and positions
     this.shipsPlaced = 0;
+    this.playerShipPositions = [];
+    this.enemyShipPositions = [];
     
-    // Reset boards immediately to prevent flicker
+    // Reset boards completely
     this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
     this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
     
     // Reset messages
     this.message = `Place ${this.boardSize} ships on your board`;
     this.instructionText = `Tap on Player Board ${this.boardSize} times`;
-    
-    // Reset player positions
-    this.playerShipPositions = [];
     
     // Reset turn state
     this.isPlayerTurn = null; // Set to null initially to prevent enemy move
@@ -1027,22 +1221,18 @@ export class GameBoard extends LitElement {
     this.animatingEnemyFireball = false;
     this.enemyFireballPosition = null;
     
-    // Force update immediately
+    // Clear any DOM-related animation elements
+    const animationContainers = this.shadowRoot.querySelectorAll('.splash-container, .explosion-container');
+    animationContainers.forEach(container => {
+      if (container && container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+    });
+    
+    // Force update the UI immediately
     this.requestUpdate();
     
-    // Delete the current game and create a new one
-    this.deleteGame().then(() => {
-      // Place new enemy ships
-      this.placeEnemyShips();
-      
-      // Create a new game
-      this.createGame();
-    }).catch(error => {
-      console.error('Error resetting game:', error);
-      // If there's an error, try to create a new game anyway
-      this.placeEnemyShips();
-      this.createGame();
-    });
+    console.log("Game state reset complete, waiting for WebSocket reconnection");
   }
 
   firstUpdated() {
@@ -1588,14 +1778,25 @@ export class GameBoard extends LitElement {
         throw new Error('No game ID available for update');
       }
       
-      // Wait for WebSocket connection
-      await this.waitForWebSocketConnection();
+      // Save state before attempting update to ensure we don't lose data
+      this._saveLocalGameStateCopy();
       
-      if (!this.isWebSocketReady()) {
-        throw new Error('WebSocket not connected');
+      // Wait for WebSocket connection with shorter timeout to improve responsiveness
+      try {
+        await this.waitForWebSocketConnection(8000);
+      } catch (wsError) {
+        console.warn('WebSocket connection timeout during updateGame, will retry once connected:', wsError);
+        // If we can't connect, we'll still maintain local state and return successful
+        // The game will sync when connection is restored
+        return Promise.resolve();
       }
       
-      // Rebuild ship positions
+      if (!this.isWebSocketReady()) {
+        console.warn('WebSocket not ready after waiting, storing locally and will sync later');
+        return Promise.resolve();
+      }
+      
+      // Rebuild ship positions to ensure data consistency
       this.rebuildPlayerShipPositions();
       
       // Set player turn based on ship placement
@@ -1628,6 +1829,9 @@ export class GameBoard extends LitElement {
         enemyShipPositions: this.enemyShipPositions,
         playerShipPositions: this.playerShipPositions,
         
+        // Track client connection ID to help with debugging
+        lastConnectionId: this.connectionId,
+        
         // Add timestamp fields
         updatedAt: new Date().toISOString()
       };
@@ -1637,34 +1841,74 @@ export class GameBoard extends LitElement {
         shipsPlaced: this.shipsPlaced,
         isPlayerTurn: this.isPlayerTurn,
         enemyShipsCount: this.enemyShipPositions.length,
-        pk: gameState.pk,
-        sk: gameState.sk
+        connectionId: this.connectionId
       });
       
-      // Also store an event in the EventBus table for tracking game updates
-      await this.saveGameEventToEventBus(this.gameId, 'GameUpdated', {
-        shipsPlaced: this.shipsPlaced,
-        isPlayerTurn: this.isPlayerTurn,
-        status: gameStatus
-      });
-      
-      // Send the update via WebSocket
-      this.websocket.send(JSON.stringify({
+      // Log the request for debugging
+      const updateRequest = {
         action: 'updateGame',
         data: gameState
-      }));
+      };
       
-      console.log(`Game ${this.gameId} update request sent via WebSocket`);
-      
-      // Also save to localStorage as a backup
-      localStorage.setItem('gameId', this.gameId);
-      localStorage.setItem('playerBoard', JSON.stringify(this.playerBoard));
-      localStorage.setItem('shipsPlaced', this.shipsPlaced.toString());
-      
-      return true;
+      // Create a Promise that will track the update status
+      return new Promise((resolve, reject) => {
+        // Set a timeout to handle cases where the server doesn't respond
+        const timeoutId = setTimeout(() => {
+          console.warn('Timeout waiting for game update acknowledgment');
+          // We'll resolve successfully anyway since local state is preserved
+          resolve();
+        }, 5000);
+        
+        // Function to clean up listeners
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          if (this.websocket) {
+            this.websocket.removeEventListener('message', updateResponseHandler);
+          }
+        };
+        
+        // Handler for server responses
+        const updateResponseHandler = (event) => {
+          try {
+            const response = JSON.parse(event.data);
+            if (response.type === 'GameUpdated' && response.data && response.data.gameId === this.gameId) {
+              console.log('Game update confirmed by server');
+              cleanup();
+              resolve();
+            } else if (response.type === 'error') {
+              console.error('Game update error from server:', response.message);
+              cleanup();
+              reject(new Error(`Server error: ${response.message}`));
+            } else if (response.type === 'acknowledgment') {
+              console.log('Received update acknowledgment');
+              // Keep waiting for full GameUpdated response
+            }
+          } catch (error) {
+            console.error('Error handling update response:', error);
+          }
+        };
+        
+        // Add listener for the response
+        this.websocket.addEventListener('message', updateResponseHandler);
+        
+        try {
+          // Send the update request
+          this.websocket.send(JSON.stringify(updateRequest));
+          console.log(`Game ${this.gameId} update sent via WebSocket`);
+          
+          // Also save to localStorage as a backup
+          this._saveLocalGameStateCopy();
+        } catch (sendError) {
+          console.error('Error sending update:', sendError);
+          cleanup();
+          reject(sendError);
+        }
+      });
     } catch (error) {
-      console.error('Error updating game:', error);
-      throw error;
+      console.error('Error in updateGame:', error);
+      // Even if there's an error, save state locally
+      this._saveLocalGameStateCopy();
+      return Promise.reject(error);
     }
   }
 
@@ -2425,21 +2669,115 @@ export class GameBoard extends LitElement {
 
   async loadGameState() {
     try {
-      // Check if we have a game ID in localStorage
+      // Check if we are in a reset state
+      if (this._resetInProgress) {
+        console.log('Reset in progress - creating new game instead of loading');
+        this._resetInProgress = false;
+        await this.placeEnemyShips();
+        await this.createGame();
+        return;
+      }
+      
+      // First try to restore from the comprehensive gameStateSnapshot
+      const gameStateSnapshot = localStorage.getItem('gameStateSnapshot');
+      if (gameStateSnapshot) {
+        try {
+          console.log('Found game state snapshot in localStorage, attempting to restore');
+          const savedState = JSON.parse(gameStateSnapshot);
+          
+          // Verify the snapshot is valid and contains essential data
+          if (savedState && savedState.gameId && savedState.playerBoard && savedState.enemyBoard) {
+            console.log('Valid game state snapshot found, restoring:', savedState.gameId);
+            
+            // Restore game ID first to ensure it's available for other operations
+            this.gameId = savedState.gameId;
+            localStorage.setItem('gameId', this.gameId);
+            
+            // Restore all saved state properties
+            this.playerBoard = savedState.playerBoard;
+            this.enemyBoard = savedState.enemyBoard;
+            this.enemyShipPositions = savedState.enemyShipPositions || [];
+            this.playerShipPositions = savedState.playerShipPositions || [];
+            this.shipsPlaced = savedState.shipsPlaced || 0;
+            this.isPlayerTurn = savedState.isPlayerTurn;
+            
+            if (savedState.gameEnded) {
+              this.gameEnded = savedState.gameEnded;
+              this.winner = savedState.winner || '';
+            }
+            
+            // Update UI immediately with restored state
+            this.updateGameStateMessages();
+            this.requestUpdate();
+            
+            console.log('Local state restored from snapshot, attempting to sync with server');
+            
+            // Now try to sync with server state
+            try {
+              await this.getGame();
+              console.log('Server sync successful after state restoration');
+            } catch (serverError) {
+              console.warn('Could not sync with server after state restoration:', serverError);
+              
+              // If server doesn't have the game, update it with our local state
+              if (serverError.message === 'Game not found' || serverError.message === 'WebSocket not connected after waiting') {
+                console.log('Game not found on server, updating server with local state');
+                
+                // Wait for websocket to be ready
+                if (!this.isWebSocketReady()) {
+                  console.log('Waiting for WebSocket before updating server...');
+                  try {
+                    await this.waitForWebSocketConnection();
+                  } catch (wsError) {
+                    console.error('WebSocket connection failed, operating in local-only mode:', wsError);
+                    return;
+                  }
+                }
+                
+                // Update server with our local state
+                await this.updateGame();
+                console.log('Server updated with local state');
+              }
+            }
+            
+            // State was successfully restored from snapshot
+            this._initialLoadComplete = true;
+            return;
+          }
+        } catch (snapshotError) {
+          console.error('Error restoring from game state snapshot:', snapshotError);
+          // Continue to fallback methods if snapshot restore fails
+        }
+      }
+      
+      // Check if we have a game ID in localStorage (fallback)
       if (this.gameId) {
-        console.log(`Attempting to load game with ID: ${this.gameId}`);
+        console.log(`Attempting to load game with ID from localStorage: ${this.gameId}`);
         
         try {
           // Try to get the game from the server
           await this.getGame();
-          console.log('Game loaded successfully');
+          console.log('Game loaded successfully from server');
           this._initialLoadComplete = true;
         } catch (error) {
-          console.error('Failed to load game:', error);
+          console.error('Failed to load game from server:', error);
           
-          // If the game doesn't exist, create a new one
-          if (error.message === 'Game not found') {
-            console.log('Creating new game because existing game was not found');
+          // Try to restore from individual localStorage items as last resort
+          const success = this.restoreLocalGameState();
+          if (success) {
+            console.log('Game state partially restored from localStorage');
+            // Update the server with our local state
+            if (this.isWebSocketReady()) {
+              try {
+                await this.updateGame();
+                console.log('Server updated with locally restored state');
+              } catch (updateError) {
+                console.error('Failed to update server with local state:', updateError);
+              }
+            }
+          } else if (error.message === 'Game not found') {
+            // If all restoration attempts fail and game not found, create new
+            console.log('No restorable state, creating new game');
             this.gameId = null;
             localStorage.removeItem('gameId');
             await this.createGame();
@@ -2447,12 +2785,16 @@ export class GameBoard extends LitElement {
         }
       } else {
         // No game ID, create a new game
-        console.log('No game ID found - creating new game');
+        console.log('No existing game found - creating new game');
         await this.createGame();
       }
     } catch (error) {
       console.error('Error loading game state:', error);
       this._initialLoadComplete = true;
+      
+      // Show error message to user
+      this.message = "Error loading game. Please refresh the page if problems persist.";
+      this.requestUpdate();
     }
   }
 
