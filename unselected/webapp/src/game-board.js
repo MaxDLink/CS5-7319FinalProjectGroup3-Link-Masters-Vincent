@@ -122,6 +122,43 @@ export class GameBoard extends LitElement {
       this.updateBoardSizes();
     });
     
+    // Add event listener for game-reset event from navbar
+    window.addEventListener('game-reset', () => {
+      console.log('Game reset event received');
+      if (this.gameId) {
+        // Delete the current game first, then create a new one after reset
+        this.deleteGame();
+      } else {
+        // If no game ID, just reset the board
+        this.resetGame();
+      }
+    });
+    
+    // Add event listener for return-to-game event from profile view
+    window.addEventListener('return-to-game', (event) => {
+      console.log('Return to game event received:', event.detail);
+      
+      if (event.detail && event.detail.preserveGameState && event.detail.gameId) {
+        console.log('Preserving game state with gameId:', event.detail.gameId);
+        
+        // Ensure the game ID is set correctly
+        this.gameId = event.detail.gameId;
+        localStorage.setItem('gameId', this.gameId);
+        
+        // Refresh the game state from the server without resetting
+        if (this.isWebSocketReady()) {
+          console.log('WebSocket is ready, fetching game state...');
+          this.getGame();
+        } else {
+          console.log('WebSocket not ready, reconnecting...');
+          // Reconnect WebSocket and then fetch game
+          this.waitForWebSocketConnection()
+            .then(() => this.getGame())
+            .catch(err => console.error('Failed to fetch game after returning:', err));
+        }
+      }
+    });
+    
     // Get saved win/loss stats from local storage
     const savedWins = localStorage.getItem('playerWins');
     const savedLosses = localStorage.getItem('playerLosses');
@@ -256,7 +293,7 @@ export class GameBoard extends LitElement {
   updateGameState() {
     const oldState = this.gameState;
     
-    if (!this.gameId) {
+    if (!this.gameId && this.shipsPlaced === 0) {
       this.gameState = 'INIT';
     } else if (this.shipsPlaced < this.boardSize) {
       this.gameState = 'PLACEMENT';
@@ -1423,11 +1460,31 @@ export class GameBoard extends LitElement {
     // Update message based on whose turn it is
     if (this.isPlayerTurn) {
       this.message = 'Tap on the enemy\'s board to try to hit ships';
-        } else {
+                } else {
       this.message = 'Wait for the enemy\'s turn';
     }
     
     this.requestUpdate(); // Re-render to show updated message
+  }
+
+  // Delete the current game via WebSocket
+  deleteGame() {
+    if (!this.isWebSocketReady() || !this.gameId) {
+      console.log('Cannot delete game: WebSocket not ready or no gameId');
+      this.resetGame();
+      return;
+    }
+    
+    console.log(`Deleting game ${this.gameId}...`);
+    this.websocket.send(JSON.stringify({
+            action: 'deleteGame',
+            data: {
+        gameId: this.gameId
+      }
+    }));
+    
+    // When the deleteGame response comes back, the onmessage handler 
+    // will call resetGame() to start a new game
   }
 
   static get styles() {
