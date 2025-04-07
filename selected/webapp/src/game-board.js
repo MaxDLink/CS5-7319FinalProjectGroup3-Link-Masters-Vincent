@@ -26,7 +26,8 @@ export class GameBoard extends LitElement {
       enemyShipPositions: { type: Array },
       gameId: { type: String },
       wins: { type: Number },
-      losses: { type: Number }
+      losses: { type: Number },
+      gameState: { type: String }
     };
   }
 
@@ -48,6 +49,9 @@ export class GameBoard extends LitElement {
     this.shipsPlaced = 0;
     this.message = `Place your ships! Click on your board to place ${this.boardSize} ships.`;
     this.instructionText = `Tap on Player Board ${this.boardSize} times`;
+    
+    // Game state machine (INIT, PLACEMENT, BATTLE)
+    this.gameState = 'INIT';
     
     // Always start with isPlayerTurn as null to prevent enemy moves until ships are placed
     this.isPlayerTurn = null;
@@ -82,130 +86,476 @@ export class GameBoard extends LitElement {
     this._enemyCleanupTimeout = null;
     this._playerAttackTimeout = null;
     this._playerCleanupTimeout = null;
+    
+    // WebSocket connection properties
+    this.websocket = null;
+    this.websocketReconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this.gameId = localStorage.getItem('gameId');
     
-    // Add event listener for the game-reset event
-    window.addEventListener('game-reset', () => {
-      console.log('Game reset event received');
-      this.resetGame();
+    console.log('GameBoard connected to DOM');
+    
+    // Initialize with the default game state
+    this.gameState = 'INIT';
+    
+    // Check for saved game ID in local storage
+    const savedGameId = localStorage.getItem('gameId');
+    if (savedGameId) {
+      console.log(`Found saved game: ${savedGameId}`);
+      this.gameId = savedGameId;
+    }
+    
+    // Initialize the WebSocket connection
+    this.initWebSocket();
+    
+    // Listen for orientation changes
+    window.addEventListener('orientationchange', () => {
+      console.log("Orientation changed");
+      setTimeout(() => this.updateBoardSizes(), 100);
     });
     
-    // Add event listener for profile view exit event
-    window.addEventListener('user-logged-out', (event) => {
-      console.log('User logged out event received');
-      
-      // Check if we should preserve game state (partial ship placements)
-      if (event.detail && event.detail.preserveGameState) {
-        console.log('Preserving game state during logout');
-        
-        // Ensure wins and losses are saved
-        if (typeof event.detail.wins === 'number') {
-          this.wins = event.detail.wins;
-          localStorage.setItem('playerWins', event.detail.wins);
-        }
-        
-        if (typeof event.detail.losses === 'number') {
-          this.losses = event.detail.losses;
-          localStorage.setItem('playerLosses', event.detail.losses);
-        }
-        
-        // Refresh the game data but don't reset it
-        this.getGame().then(() => {
-          console.log('Game state refreshed after logout');
-          
-          // Force player turn to null during ship placement
-          if (this.shipsPlaced < this.boardSize) {
-            this.isPlayerTurn = null;
-            this.updateGame();
-          }
-        });
+    // Set up window resize listener
+    window.addEventListener('resize', () => {
+      this.updateBoardSizes();
+    });
+    
+    // Add event listener for game-reset event from navbar
+    window.addEventListener('game-reset', () => {
+      console.log('Game reset event received');
+      if (this.gameId) {
+        // Delete the current game first, then create a new one after reset
+        this.deleteGame();
       } else {
-        // If not preserving state, do a full reset
-        console.log('Resetting game after logout');
+        // If no game ID, just reset the board
         this.resetGame();
       }
     });
     
-    // Add event listener for returning from profile view
+    // Add event listener for return-to-game event from profile view
     window.addEventListener('return-to-game', (event) => {
-      console.log('Returning from profile view');
+      console.log('Return to game event received:', event.detail);
       
-      // Make sure to restore wins and losses from the event if available
-      if (event.detail) {
-        if (typeof event.detail.wins === 'number') {
-          this.wins = event.detail.wins;
-          localStorage.setItem('playerWins', event.detail.wins);
-        }
+      if (event.detail && event.detail.preserveGameState && event.detail.gameId) {
+        console.log('Preserving game state with gameId:', event.detail.gameId);
         
-        if (typeof event.detail.losses === 'number') {
-          this.losses = event.detail.losses;
-          localStorage.setItem('playerLosses', event.detail.losses);
-        }
+        // Ensure the game ID is set correctly
+        this.gameId = event.detail.gameId;
+        localStorage.setItem('gameId', this.gameId);
         
-        // Check if we should preserve game state
-        if (event.detail.preserveGameState && event.detail.gameId) {
-          console.log('Preserving game state when returning to game');
-          
-          // Refresh the game data from database
-          this.gameId = event.detail.gameId;
-          this.getGame().then(() => {
-            console.log('Game state refreshed after returning from profile');
-            
-            // Force player turn to null during ship placement
-            if (this.shipsPlaced < this.boardSize) {
-              this.isPlayerTurn = null;
-              this.updateGame();
-            }
-          });
-          return;
+        // Refresh the game state from the server without resetting
+        if (this.isWebSocketReady()) {
+          console.log('WebSocket is ready, fetching game state...');
+          this.getGame();
+        } else {
+          console.log('WebSocket not ready, reconnecting...');
+          // Reconnect WebSocket and then fetch game
+          this.waitForWebSocketConnection()
+            .then(() => this.getGame())
+            .catch(err => console.error('Failed to fetch game after returning:', err));
         }
       }
-      
-      // If not preserving state or no event detail, do a full reset
-      console.log('Resetting game after returning from profile');
-      this.resetGame();
     });
     
-    // Only trigger enemy move if player has placed all ships, it's enemy's turn, and game isn't ended
-    if (!this.isPlayerTurn && !this.gameEnded && this.gameId !== null && this.shipsPlaced >= this.boardSize) {
-      console.log('Enemy moving after page load (all ships placed)');
-      this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
+    // Get saved win/loss stats from local storage
+    const savedWins = localStorage.getItem('playerWins');
+    const savedLosses = localStorage.getItem('playerLosses');
+    
+    if (savedWins !== null) {
+      this.wins = parseInt(savedWins, 10);
     }
     
-    if (this.gameId) {
-      this.getGame().then(() => {
-        // Update message based on the number of ships placed
-        if (this.shipsPlaced < this.boardSize) {
-          this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
-          this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
-          // Ensure player turn is null during ship placement
-          this.isPlayerTurn = null;
-        } else {
-          this.message = "All ships placed! Click on the enemy board to attack.";
-          this.instructionText = "Attack the enemy board";
-          
-          // Check if we need to trigger enemy move after loading game with all ships placed
-          if (!this.isPlayerTurn && !this.gameEnded) {
-            console.log('Enemy moving after ship placement completion');
-            this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
-          }
-        }
-        this.requestUpdate();
-      }).catch(error => {
-        console.error('Error fetching game:', error);
+    if (savedLosses !== null) {
+      this.losses = parseInt(savedLosses, 10);
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    
+    // Close WebSocket connection when component is removed
+    if (this.websocket) {
+      this.websocket.close();
+      this.websocket = null;
+    }
+    
+    // Clear any pending timeouts
+    if (this._enemyMoveTimeout) clearTimeout(this._enemyMoveTimeout);
+    if (this._enemyAnimationTimeout) clearTimeout(this._enemyAnimationTimeout);
+    if (this._enemyCleanupTimeout) clearTimeout(this._enemyCleanupTimeout);
+    if (this._playerAttackTimeout) clearTimeout(this._playerAttackTimeout);
+    if (this._playerCleanupTimeout) clearTimeout(this._playerCleanupTimeout);
+  }
+
+  // Initialize WebSocket connection with state machine awareness
+  initWebSocket() {
+    if (this.websocket && this.websocket.readyState !== WebSocket.CLOSED) {
+      console.log('WebSocket already exists, not recreating');
+      return;
+    }
+    
+    const wsUrl = 'wss://1gnhhkjdx1.execute-api.us-east-1.amazonaws.com/prod';
+    console.log('Initializing WebSocket connection to:', wsUrl);
+    
+    this.websocket = new WebSocket(wsUrl);
+    
+    this.websocket.onopen = () => {
+      console.log('WebSocket connection established');
+      
+      // Dispatch event for connection established
+      const event = new CustomEvent('websocket-connected', { detail: { connected: true } });
+      this.dispatchEvent(event);
+      
+      // If we have a game ID, load game state. Otherwise, create a new game
+      if (this.gameId) {
+        console.log(`Existing game ID (${this.gameId}), fetching game state...`);
+        this.getGame();
+      } else {
+        console.log('No game ID found, creating new game...');
+        this.gameState = 'INIT';
         this.createGame();
-      });
+      }
+    };
+    
+    this.websocket.onmessage = (event) => {
+      const response = JSON.parse(event.data);
+      console.log('WebSocket message received:', response);
+      
+      // Handle response based on action
+      if (response.action === 'createGame' && response.statusCode === 200) {
+        this.gameId = response.data.gameId;
+        console.log(`New game created with ID: ${this.gameId}`);
+        
+        // Initialize game state based on the server response
+        this.handleGameData(response.data);
+        
+        // Cache game ID in local storage
+        localStorage.setItem('gameId', this.gameId);
+      }
+      else if (response.action === 'getGame' && response.statusCode === 200) {
+        console.log('Game data received from server');
+        
+        // Update game state based on server data
+        this.handleGameData(response.data);
+      }
+      else if (response.action === 'updateGame' && response.statusCode === 200) {
+        console.log('Game updated successfully');
+        
+        // Process the updated game data if there are any changes from the server
+        if (response.data && response.data.gameId === this.gameId) {
+          this.handleGameData(response.data);
+        }
+      }
+      else if (response.action === 'deleteGame' && response.statusCode === 200) {
+        console.log('Game deleted successfully');
+        this.resetGame();
+      }
+      else if (response.action === 'error') {
+        console.error('Error from server:', response.message);
+        this.message = `Error: ${response.message}`;
+        this.requestUpdate();
+      }
+      else if (response.action === 'GameUpdated') {
+        console.log('Game updated notification received');
+        
+        // Handle real-time update from another connection
+        if (response.gameId === this.gameId) {
+          console.log('Real-time update for current game, refreshing state...');
+          this.getGame();
+        }
+      }
+    };
+    
+    this.websocket.onclose = (event) => {
+      console.log('WebSocket connection closed:', event.code, event.reason);
+      
+      // If connection was closed unexpectedly, try to reconnect
+      if (!this._intentionalClose) {
+        console.log('Unexpected close. Attempting to reconnect in 3 seconds...');
+        setTimeout(() => {
+          this.initWebSocket();
+        }, 3000);
+      }
+      
+      this.websocket = null;
+    };
+    
+    this.websocket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      this.message = "Connection error. Please try again later.";
+      this.requestUpdate();
+    };
+  }
+  
+  // Update game state machine based on current progress
+  updateGameState() {
+    const oldState = this.gameState;
+    
+    if (!this.gameId && this.shipsPlaced === 0) {
+      this.gameState = 'INIT';
+    } else if (this.shipsPlaced < this.boardSize) {
+      this.gameState = 'PLACEMENT';
     } else {
+      this.gameState = 'BATTLE';
+    }
+    
+    if (oldState !== this.gameState) {
+      console.log(`Game state changed: ${oldState} -> ${this.gameState}`);
+      
+      // Update UI based on new state
+      if (this.gameState === 'PLACEMENT') {
+        this.message = `Place ${this.boardSize - this.shipsPlaced} ships on your board`;
+        this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
+      } else if (this.gameState === 'BATTLE') {
+        this.message = "All ships placed! Click on the enemy board to attack.";
+        this.instructionText = "Attack the enemy board";
+        
+        // Set player turn if transitioning to battle
+        if (this.isPlayerTurn === null) {
+          this.isPlayerTurn = true;
+          this.updateGame();
+        }
+      }
+    }
+  }
+  
+  // Handle game created message
+  handleGameCreated(message) {
+    const gameId = message.data?.gameId || message.gameId;
+    
+    if (gameId) {
+      console.log(`Game created: ${gameId}`);
+      this.gameId = gameId;
+      
+      // Reset player ship positions for new game
+      this.playerShipPositions = [];
+      this.shipsPlaced = 0;
+      
+      // Transition to PLACEMENT state
+      this.gameState = 'PLACEMENT';
+      
+      // Update game on server
+      this.updateGame();
+    } else {
+      console.error('Missing gameId in GameCreated message');
+    }
+  }
+  
+  // Handle server errors
+  handleServerError(message) {
+    if (message.message && message.message.includes('not found') && this.gameId) {
+      console.log('Game not found, creating a new one');
+      this.gameId = null;
+      this.playerShipPositions = [];
+      this.gameState = 'INIT';
+      this.createGame();
+    } else {
+      console.warn('Server error:', message.message);
+    }
+  }
+  
+  // Helper method to check if WebSocket is connected and ready
+  isWebSocketReady() {
+    return this.websocket && this.websocket.readyState === WebSocket.OPEN;
+  }
+  
+  // Create a new game via WebSocket
+  createGame() {
+    if (!this.isWebSocketReady()) {
+      console.log('WebSocket not ready, waiting to create game...');
+      this.waitForWebSocketConnection()
+        .then(() => this.createGame())
+        .catch(() => console.error('Failed to connect'));
+        return;
+      }
+      
+    console.log('Sending create game request...');
+    this.websocket.send(JSON.stringify({
+      action: 'createGame',
+      data: {
+        playerBoard: this.playerBoard,
+        enemyBoard: this.enemyBoard,
+        enemyShipPositions: this.enemyShipPositions
+      }
+    }));
+  }
+  
+  // Update game state on server via WebSocket
+  updateGame() {
+    if (!this.isWebSocketReady() || !this.gameId) return;
+    
+    this.rebuildPlayerShipPositions();
+    
+    console.log(`Updating game (state: ${this.gameState})...`);
+    this.websocket.send(JSON.stringify({
+      action: 'updateGame',
+      data: {
+        gameId: this.gameId,
+        playerBoard: this.playerBoard,
+        enemyBoard: this.enemyBoard,
+        shipsPlaced: this.shipsPlaced,
+        playerShipPositions: this.playerShipPositions,
+        enemyShipPositions: this.enemyShipPositions,
+        isPlayerTurn: this.isPlayerTurn,
+        status: this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS',
+        winner: this.winner || null,
+        wins: this.wins,
+        losses: this.losses,
+        gameState: this.gameState // Include current state in update
+      }
+    }));
+  }
+  
+  // Get game from server via WebSocket
+  getGame() {
+    if (this.isWebSocketReady() && this.gameId) {
+      console.log(`Requesting game data (state: ${this.gameState})...`);
+      this.websocket.send(JSON.stringify({
+        action: 'getGame',
+        data: { gameId: this.gameId }
+      }));
+    }
+  }
+  
+  // Simplified WebSocket connection promise
+  waitForWebSocketConnection(timeout = 5000) {
+    return new Promise((resolve, reject) => {
+      if (this.isWebSocketReady()) return resolve();
+      
+      if (!this.websocket) this.initWebSocket();
+      
+      const handler = () => resolve();
+      this.addEventListener('websocket-connected', handler, { once: true });
+      
+          setTimeout(() => {
+        this.removeEventListener('websocket-connected', handler);
+        reject(new Error('Connection timeout'));
+      }, timeout);
+    });
+  }
+  
+  // Handle player cell click according to game state
+  handlePlayerCellClick(row, col) {
+    console.log(`Player cell clicked: ${row}, ${col} (state: ${this.gameState})`);
+    
+    // If the game is ended, don't allow any moves
+    if (this.gameEnded) {
+      console.log('Game has ended, no more moves allowed');
+      return;
+    }
+    
+    // During the INIT or PLACEMENT states, allow placing ships
+    if (this.gameState === 'INIT' || this.gameState === 'PLACEMENT') {
+      // Don't allow placing ships on cells that already have ships
+      if (this.playerBoard[row][col] === 'S') {
+        console.log('Ship already placed here');
+        return;
+      }
+      
+      // Place a ship on the player's board
+      this.playerBoard[row][col] = 'S';
+      this.shipsPlaced++;
+      
+      // Add to ship positions
+      this.playerShipPositions.push({ row, col });
+      
+      // Update the game state to PLACEMENT once the first ship is placed
+      if (this.gameState === 'INIT' && this.shipsPlaced === 1) {
+        this.gameState = 'PLACEMENT';
+        console.log('Game state changed to: PLACEMENT');
+      }
+      
+      // Play sound effect
+      sounds.initAudioContext();
+      // sounds.PlaceShip();
+      
+      // Update message based on remaining ships to place
+      if (this.shipsPlaced < this.boardSize) {
+        this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
+        this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
+            } else {
+        // All ships placed, transition to BATTLE state
+        this.isPlayerTurn = true; // Player gets first turn after placing all ships
+        this.gameState = 'BATTLE';
+        console.log('Game state changed to: BATTLE');
+        this.message = "All ships placed! Click on the enemy board to attack.";
+        this.instructionText = "Attack the enemy board";
+      }
+      
+      // Update game state on server
+      this.updateGame();
+      
+      // Re-render to show the updated board
+      this.requestUpdate();
+    } 
+    // During BATTLE state, don't allow clicking on your own board
+    else if (this.gameState === 'BATTLE') {
+      this.message = "During battle, tap on the enemy's board to attack.";
+      this.requestUpdate();
+    }
+  }
+  
+  // Load game state method - simplified
+  loadGameState() {
+    if (this.gameId) {
+      this.getGame();
+        } else {
+      this.gameState = 'INIT';
       this.createGame();
     }
+  }
+  
+  resetGame() {
+    console.log("Resetting game...");
     
-    // Call updateViewport when the component is connected to the DOM
-    // this.updateViewport();
-    // window.addEventListener('orientationchange', this.updateViewport.bind(this));
+    // Clear all timeouts
+    if (this._enemyMoveTimeout) clearTimeout(this._enemyMoveTimeout);
+    if (this._enemyAnimationTimeout) clearTimeout(this._enemyAnimationTimeout);
+    if (this._enemyCleanupTimeout) clearTimeout(this._enemyCleanupTimeout);
+    if (this._playerAttackTimeout) clearTimeout(this._playerAttackTimeout);
+    if (this._playerCleanupTimeout) clearTimeout(this._playerCleanupTimeout);
+    
+    // Reset game state
+    this.gameId = null;
+    this.shipsPlaced = 0;
+    this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+    this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+    this.message = `Place ${this.boardSize} ships on your board`;
+    this.instructionText = `Tap on Player Board ${this.boardSize} times`;
+    this.playerShipPositions = [];
+    this.placeEnemyShips();
+    
+    // Reset game flow state
+    this.isPlayerTurn = null;
+    this.gameEnded = false;
+    this.winner = '';
+    
+    // Reset animations
+    this.animatingFireball = false;
+    this.fireballPosition = null;
+    this.lastHitPosition = null;
+    this.hitResult = null;
+    this.lastEnemyHitPosition = null;
+    this.enemyHitResult = null;
+    this.animatingEnemyFireball = false;
+    this.enemyFireballPosition = null;
+    
+    // Reset game state to INIT
+    this.gameState = 'INIT';
+    console.log('Game state reset to: INIT');
+    
+    // Update UI
+    this.requestUpdate();
+    
+    // Create new game if WebSocket is ready
+    if (this.isWebSocketReady()) {
+      this.createGame();
+    } else {
+      console.log('WebSocket not ready, will create game once connected');
+        this.initWebSocket();
+    }
   }
 
   updateViewport() {
@@ -302,21 +652,32 @@ export class GameBoard extends LitElement {
     return board.every(row => row.every(cell => cell !== 'S'));
   }
 
-  handleEnemyCellClick(row, col) { // when the player clicks on the enemy board 
-    if (this.gameEnded || !this.isPlayerTurn) return;
-
-    if (this.shipsPlaced < this.boardSize) {
-      this.message = `Place all ${this.boardSize} ships first!`;
+  // Handle enemy cell click based on game state
+  handleEnemyCellClick(row, col) {
+    console.log(`Enemy cell clicked: ${row}, ${col} (state: ${this.gameState})`);
+    
+    // Only process clicks in BATTLE state
+    if (this.gameState !== 'BATTLE') {
+      console.log('Ignoring click - not in battle phase');
+      this.message = "Place all your ships first!";
       this.requestUpdate();
       return;
     }
 
+    // Check if game is ended or not player's turn
+    if (this.gameEnded || this.isPlayerTurn === false) {
+      console.log('Cannot attack: game ended or not player turn');
+      return;
+    }
+
+    // Check if cell was already targeted
     if (this.enemyBoard[row][col] === 'X' || this.enemyBoard[row][col] === 'O') {
       this.message = 'You already tried that spot!';
       this.requestUpdate();
       return;
     }
-
+    
+    // Start the attack animation
     this.startFireballAnimation(row, col);
 
     // Store attack timeout
@@ -331,7 +692,6 @@ export class GameBoard extends LitElement {
         sounds.HitEnemy();
         this.enemyBoard[row][col] = 'X';
         this.switchTurn(); // the player went, so switch the turn to the enemy 
-        this.updateGame(); // record the hit & turn state in DynamoDB 
         this.createExplosion(row, col, true);
 
         if (this.checkWin(this.enemyBoard)) {
@@ -346,9 +706,11 @@ export class GameBoard extends LitElement {
         this.hitResult = 'miss';
         this.enemyBoard[row][col] = 'O';
         this.switchTurn(); // the player went, so switch the turn to the enemy 
-        this.updateGame(); // record the miss & turn state in DynamoDB 
         this.createWaterSplash(row, col, true);
       }
+      
+      // Update game state
+      this.updateGame();
        
       this.requestUpdate();
 
@@ -365,61 +727,73 @@ export class GameBoard extends LitElement {
     }, 800);
   }
   
-  handlePlayerCellClick(row, col) {
-    console.log(`Player clicked: ${row}, ${col}`);
-    
-    // If game is ended, do nothing
-    if (this.gameEnded) return;
-    
-    // If we're still in the ship placement phase
-    if (this.shipsPlaced < this.boardSize) {
-      // Check if this cell already has a ship
-      if (this.playerBoard[row][col] === 'S') {
-        this.message = "You already placed a ship here!";
-        this.requestUpdate();
-        return;
-      }
-      
-      // Place the ship
-      this.playerBoard[row][col] = 'S';
-      this.playerShipPositions.push({ row, col });
-      this.shipsPlaced++;
-      this.updateGame(); // record the ship placement in DynamoDB 
-      
-      // Update the message
-      if (this.shipsPlaced < this.boardSize) {
-        this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
-        this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
-      } else {
-        // All ships are now placed - start the game with player's turn
-        this.message = "All ships placed! Click on the enemy board to attack.";
-        this.instructionText = "Attack the enemy board";
-        
-        // Explicitly set player's turn when all ships are placed
-        this.isPlayerTurn = true;
-        console.log("All ships placed, setting player's turn");
-        
-        // Update game state in database with player's turn
-        this.updateGame();
-      }
-      
-      this.requestUpdate();
+  // Enemy AI move implementation
+  enemyMove() {
+    // Only allow enemy moves in BATTLE state and when it's the enemy's turn
+    if (this.gameState !== 'BATTLE' || this.gameEnded || this.isPlayerTurn === true) {
+      console.log("Enemy move prevented", {
+        gameState: this.gameState,
+        gameEnded: this.gameEnded,
+        isPlayerTurn: this.isPlayerTurn
+      });
       return;
     }
     
-    // If all ships are already placed and the game has started
-    if (this.shipsPlaced >= this.boardSize) {
-      if (this.isPlayerTurn) {
-        this.message = "Attack the enemy board!";
-        this.instructionText = "Click on the enemy's board";
+    console.log("Enemy is making a move");
+
+    // Store timeout ID so it can be cleared during reset
+    this._enemyMoveTimeout = setTimeout(() => {
+      const move = this.enemyAI.attack(this.playerBoard);
+      if (move) {
+        const { row, col } = move;
+        
+        this.startEnemyFireballAnimation(row, col);
+
+        // Store the animation timeout as well
+        this._enemyAnimationTimeout = setTimeout(() => {
+          this.lastEnemyHitPosition = { row, col };
+
+          if (this.playerBoard[row][col] === 'S') {
+            console.log('Enemy hit player ship!');
+            this.enemyHitResult = 'hit';
+            sounds.initAudioContext();
+            sounds.HitPlayer();
+            this.playerBoard[row][col] = 'X';
+            this.createExplosion(row, col, false); 
+            this.switchTurn(); // the enemy went, so switch the turn to the player
+
+            if (this.checkWin(this.playerBoard)) {
+              console.log('Enemy wins!');
+              sounds.initAudioContext();
+              sounds.Defeat(); // add defeat sound 
+              this.endGame('Enemy');
+              return;
+            }
       } else {
-        this.message = "It's the enemy's turn! Please wait.";
-        this.instructionText = "Wait for enemy move";
-      }
+            console.log('Enemy missed!');
+            this.enemyHitResult = 'miss';
+            this.playerBoard[row][col] = 'O';
+            this.createWaterSplash(row, col, false);
+            this.switchTurn(); // the enemy went, so switch the turn to the player
+          }
+          
+          // Update game state
+          this.updateGame();
+
       this.requestUpdate();
+
+          // Store cleanup timeout
+          this._enemyCleanupTimeout = setTimeout(() => {
+            this.lastEnemyHitPosition = null;
+            this.enemyHitResult = null;
+      this.requestUpdate();
+          }, 1000);
+        }, 800);
     }
+    }, 1000);
   }
 
+  // Start the fireball animation from player board to enemy board
   startFireballAnimation(targetRow, targetCol) {
     // Get the positions of the player board and enemy board
     const playerBoard = this.shadowRoot.querySelector('.player-section .board');
@@ -482,63 +856,6 @@ export class GameBoard extends LitElement {
     };
     
     requestAnimationFrame(animateFireball);
-  }
-
-  enemyMove() {
-    // Never allow enemy to attack during ship placement phase or when game is ended or when it's player's turn
-    if (this.gameEnded || this.isPlayerTurn || this.shipsPlaced < this.boardSize) {
-      console.log("Enemy move prevented - game ended, player's turn, or ships not placed");
-      return;
-    }
-
-    // Store timeout ID so it can be cleared during reset
-    this._enemyMoveTimeout = setTimeout(() => {
-      const move = this.enemyAI.attack(this.playerBoard);
-      if (move) {
-        const { row, col } = move;
-        this.startEnemyFireballAnimation(row, col);
-
-        // Store the animation timeout as well
-        this._enemyAnimationTimeout = setTimeout(() => {
-          this.lastEnemyHitPosition = { row, col };
-
-          if (this.playerBoard[row][col] === 'S') {
-            console.log('Enemy hit player ship!');
-            this.enemyHitResult = 'hit';
-            sounds.initAudioContext();
-            sounds.HitPlayer();
-            this.playerBoard[row][col] = 'X';
-            this.createExplosion(row, col, false); 
-            this.switchTurn(); // the enemy went, so switch the turn to the player 
-            this.updateGame(); // record the hit & turn state in DynamoDB 
-
-            if (this.checkWin(this.playerBoard)) {
-              console.log('Enemy wins!');
-              sounds.initAudioContext();
-              sounds.Defeat(); // add defeat sound 
-              this.endGame('Enemy');
-              return;
-            }
-          } else {
-            console.log('Enemy missed!');
-            this.enemyHitResult = 'miss';
-            this.playerBoard[row][col] = 'O';
-            this.createWaterSplash(row, col, false);
-            this.switchTurn(); // the enemy went, so switch the turn to the player 
-            this.updateGame(); // record the miss & turn state in DynamoDB 
-          }
-
-          this.requestUpdate();
-
-          // Store cleanup timeout
-          this._enemyCleanupTimeout = setTimeout(() => {
-            this.lastEnemyHitPosition = null;
-            this.enemyHitResult = null;
-            this.requestUpdate();
-          }, 1000);
-        }, 800);
-      }
-    }, 1000);
   }
 
   // Start the enemy fireball animation from enemy board to player board
@@ -606,19 +923,6 @@ export class GameBoard extends LitElement {
     requestAnimationFrame(animateEnemyFireball);
   }
 
-  switchTurn() {
-    this.isPlayerTurn = !this.isPlayerTurn;
-    console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);
-    
-    // Update message based on whose turn it is
-    if (this.isPlayerTurn) {
-      this.message = 'Tap on the enemy\'s board to try to hit ships'; // Update message for player's turn
-    } else {
-      this.message = 'Wait for the enemy\'s turn'; // Update message for enemy's turn
-    }
-    this.requestUpdate(); // Re-render to show updated message
-  }
-
   placeEnemyShips() {
     const shipCount = this.boardSize;
     this.enemyShipPositions = [];
@@ -641,40 +945,26 @@ export class GameBoard extends LitElement {
   }
 
   endGame(winner) {
-    console.log(`${winner} wins!`);
+    console.log(`Game ended! Winner: ${winner}`);
+    
+    // Update game state and end flags
     this.gameEnded = true;
     this.winner = winner;
+    this.gameState = 'ENDED';
     
     // Update win/loss counters
     if (winner === 'Player') {
-      this.wins += 1;
-      // Add victory message to chat
-      const chatBox = document.querySelector('chat-box');
-      if (chatBox) {
-        chatBox.addGameMessage("🏆 Congratulations! You've sunk all my ships! Well played!", 'game win');
-      }
+      this.wins = (this.wins || 0) + 1;
+      localStorage.setItem('playerWins', this.wins);
     } else {
-      this.losses += 1;
-      // Add defeat message to chat
-      const chatBox = document.querySelector('chat-box');
-      if (chatBox) {
-        chatBox.addGameMessage("💥 Game Over! I've sunk all your ships! Better luck next time!", 'game lose');
-      }
+      this.losses = (this.losses || 0) + 1;
+      localStorage.setItem('playerLosses', this.losses);
     }
     
-    // Store the latest wins and losses in localStorage
-    localStorage.setItem('playerWins', this.wins);
-    localStorage.setItem('playerLosses', this.losses);
-    
-    // Dispatch event with the updated stats
-    window.dispatchEvent(new CustomEvent('stats-updated', { 
-      detail: { wins: this.wins, losses: this.losses } 
-    }));
-    
-    // Update game status in database
+    // Update game data on server
     this.updateGame();
     
-    // Show winner popup
+    // Show winner popup with delay to ensure DOM is updated
     setTimeout(() => {
       const winnerPopup = this.shadowRoot.querySelector('#winnerPopup');
       if (winnerPopup) {
@@ -683,67 +973,6 @@ export class GameBoard extends LitElement {
         console.error('Winner popup component not found!');
       }
     }, 100);
-  }
-
-  resetGame() {
-    console.log("Resetting game...");
-    
-    // Clear all timeouts
-    if (this._enemyMoveTimeout) clearTimeout(this._enemyMoveTimeout);
-    if (this._enemyAnimationTimeout) clearTimeout(this._enemyAnimationTimeout);
-    if (this._enemyCleanupTimeout) clearTimeout(this._enemyCleanupTimeout);
-    if (this._playerAttackTimeout) clearTimeout(this._playerAttackTimeout);
-    if (this._playerCleanupTimeout) clearTimeout(this._playerCleanupTimeout);
-    
-    // Make sure gameId is cleared from localStorage
-    localStorage.removeItem('gameId');
-    this.gameId = null;
-    
-    // Reset ship placement
-    this.shipsPlaced = 0;
-    
-    // Reset boards immediately to prevent flicker
-    this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
-    this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
-    
-    // Reset messages
-    this.message = `Place ${this.boardSize} ships on your board`;
-    this.instructionText = `Tap on Player Board ${this.boardSize} times`;
-    
-    // Reset player positions
-    this.playerShipPositions = [];
-    
-    // Reset turn state
-    this.isPlayerTurn = null; // Set to null initially to prevent enemy move
-    this.gameEnded = false;
-    this.winner = '';
-    
-    // Reset animation properties
-    this.animatingFireball = false;
-    this.fireballPosition = null;
-    this.lastHitPosition = null;
-    this.hitResult = null;
-    this.lastEnemyHitPosition = null;
-    this.enemyHitResult = null;
-    this.animatingEnemyFireball = false;
-    this.enemyFireballPosition = null;
-    
-    // Force update immediately
-    this.requestUpdate();
-    
-    // Delete the current game and create a new one
-    this.deleteGame().then(() => {
-      // Place new enemy ships
-      this.placeEnemyShips();
-      
-      // Create a new game
-      this.createGame();
-    }).catch(error => {
-      console.error('Error resetting game:', error);
-      // If there's an error, try to create a new game anyway
-      this.placeEnemyShips();
-      this.createGame();
-    });
   }
 
   firstUpdated() {
@@ -1041,127 +1270,221 @@ export class GameBoard extends LitElement {
     }, 1200);
   }
 
-  async createGame() {
-    try {
-      // Make sure ship placement count is reset
-      this.shipsPlaced = 0;
-      
-      const response = await fetch('https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games', {
-        method: 'POST'
-      });
-      const data = await response.json();
-      this.gameId = data.gameId;
-      // Store gameId in local storage
-      localStorage.setItem('gameId', this.gameId);
-      console.log('Game created with ID:', this.gameId);
-      
-      // Update the game with initial state
-      this.updateGame();
-    } catch (error) {
-      console.error('Error creating game:', error);
+  // Helper method to rebuild playerShipPositions from the board data
+  rebuildPlayerShipPositions() {
+    // Reset ship positions
+    this.playerShipPositions = [];
+    
+    // Make sure playerBoard exists and is an array before processing
+    if (!this.playerBoard || !Array.isArray(this.playerBoard)) {
+      console.warn('Player board not properly initialized. Creating empty board.');
+      this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+      return;
     }
-  }
-
-  async updateGame() {
-    try {
-      const gameState = {
-        playerBoard: this.playerBoard,
-        enemyBoard: this.enemyBoard,
-        shipsPlaced: this.shipsPlaced,
-        // grabs hits and misses from the player and enemy boards 
-        playerHits: this.playerShipPositions.filter(pos => this.playerBoard[pos.row][pos.col] === 'X').length,
-        enemyHits: this.enemyShipPositions.filter(pos => this.enemyBoard[pos.row][pos.col] === 'X').length,
-        gameStatus: this.gameEnded ? 'COMPLETED' : 'IN_PROGRESS',
-        isPlayerTurn: this.isPlayerTurn,
-        wins: this.wins,     // Include wins in update
-        losses: this.losses  // Include losses in update
-      };
-
-      const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(gameState)
-      });
-
-      const data = await response.json();
-      console.log(`Game ${this.gameId} updated!`, data);
-    } catch (error) {
-      console.error('Error updating game:', error);
-    }
-  }
-
-  async getGame() {
-    try {
-      const response = await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`);
-      const data = await response.json();
-      if (data && data.gameId) {
-        // grabs the player and enemy boards from DynamoDB, this includes hits and misses 
-        this.playerBoard = data.playerBoard;
-        this.enemyBoard = data.enemyBoard;
-        
-        // Only update shipsPlaced if it's valid
-        if (typeof data.shipsPlaced === 'number' && data.shipsPlaced >= 0) {
-          this.shipsPlaced = data.shipsPlaced;
-        }
-        
-        this.gameEnded = data.status === 'COMPLETED';
-        
-        // If we just created a brand new game, make sure shipsPlaced is 0
-        if (this.shipsPlaced > this.boardSize) {
-          console.warn('Invalid shipsPlaced value detected, resetting to 0');
-          this.shipsPlaced = 0;
-        }
-        
-        // Only set isPlayerTurn from server if all ships are placed
-        if (this.shipsPlaced >= this.boardSize) {
-          this.isPlayerTurn = data.isPlayerTurn;
-        } else {
-          // During ship placement phase, prevent enemy from moving
-          this.isPlayerTurn = null;
-        }
-        
-        // Get win/loss counts if they exist
-        if (data.wins !== undefined) this.wins = data.wins;
-        if (data.losses !== undefined) this.losses = data.losses;
-        
-        // Update message based on the number of ships placed
-        if (this.shipsPlaced < this.boardSize) {
-          this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
-          this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
-        } else {
-          this.message = "All ships placed! Click on the enemy board to attack.";
-          this.instructionText = "Attack the enemy board";
-        }
-        
-        console.log(`Game ${this.gameId} fetched!`, data);
-        console.log(`isPlayerTurn: ${this.isPlayerTurn}, shipsPlaced: ${this.shipsPlaced}`);
-        this.requestUpdate(); // updates the UI with the new game state
+    
+    // Scan through the board to find all ships
+    for (let row = 0; row < this.playerBoard.length; row++) {
+      if (!Array.isArray(this.playerBoard[row])) {
+        console.warn(`Invalid row at index ${row}, skipping`);
+        continue;
       }
-    } catch (error) {
-      console.error('Error fetching game:', error);
-      // If there's an error, clear the gameId and create a new game
-      localStorage.removeItem('gameId');
-      this.gameId = null;
-      this.shipsPlaced = 0; // Reset ship placement count
-      await this.createGame();
+      for (let col = 0; col < this.playerBoard[row].length; col++) {
+        // Include both intact ships ('S') and hit ships ('X') 
+        if (this.playerBoard[row][col] === 'S' || this.playerBoard[row][col] === 'X') {
+          this.playerShipPositions.push({ row, col });
+        }
+      }
     }
+    
+    console.log(`Rebuilt player ship positions: ${this.playerShipPositions.length} ships found (including both intact and hit ships)`);
+  }
+  
+  // Helper method to count ships on the player board
+  countShipsOnBoard() {
+    let count = 0;
+    
+    // Make sure playerBoard exists and is an array before processing
+    if (!this.playerBoard || !Array.isArray(this.playerBoard)) {
+      console.warn('Player board not properly initialized for counting ships');
+      return 0;
+    }
+    
+    for (let row = 0; row < this.playerBoard.length; row++) {
+      if (!Array.isArray(this.playerBoard[row])) {
+        console.warn(`Invalid row at index ${row}, skipping for ship count`);
+        continue;
+      }
+      for (let col = 0; col < this.playerBoard[row].length; col++) {
+        // Count both intact ships ('S') and hit ships ('X') as valid ships
+        if (this.playerBoard[row][col] === 'S' || this.playerBoard[row][col] === 'X') {
+          count++;
+        }
+      }
+    }
+    
+    console.log(`Counted ${count} ships on board (including both intact and hit ships)`);
+    return count;
   }
 
-  async deleteGame() {
-    try {
-      if (this.gameId) {
-        await fetch(`https://zwibl9vs56.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
-          method: 'DELETE'
-        });
-        console.log(`Game ${this.gameId} deleted!`);
-        this.gameId = null;
-        localStorage.removeItem('gameId');
-      }
-    } catch (error) {
-      console.error('Error deleting game:', error);
+  // Helper method to rebuild enemyShipPositions from the board data
+  rebuildEnemyShipPositions() {
+    // Reset ship positions
+    this.enemyShipPositions = [];
+    
+    // Make sure enemyBoard exists and is an array before processing
+    if (!this.enemyBoard || !Array.isArray(this.enemyBoard)) {
+      console.warn('Enemy board not properly initialized. Creating empty board.');
+      this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+      return;
     }
+    
+    // Scan through the board to find all ships
+    for (let row = 0; row < this.enemyBoard.length; row++) {
+      if (!Array.isArray(this.enemyBoard[row])) {
+        console.warn(`Invalid row at index ${row}, skipping`);
+        continue;
+      }
+      for (let col = 0; col < this.enemyBoard[row].length; col++) {
+        // Include both intact ships ('S') and hit ships ('X') 
+        if (this.enemyBoard[row][col] === 'S' || this.enemyBoard[row][col] === 'X') {
+          this.enemyShipPositions.push({ row, col });
+        }
+      }
+    }
+    
+    console.log(`Rebuilt enemy ship positions: ${this.enemyShipPositions.length} ships found (including both intact and hit ships)`);
+  }
+
+  // Handle game data for both initial load and updates
+  handleGameData(gameData) {
+    // Only proceed if the data is for our gameId
+    if (!gameData || gameData.gameId !== this.gameId) {
+      console.warn('Ignoring game data for different gameId', gameData?.gameId, 'our gameId:', this.gameId);
+      return false;
+    }
+    
+    console.log(`Processing game data for ${this.gameId}:`, gameData);
+    
+    // Update boards if provided
+    if (gameData.playerBoard) {
+      this.playerBoard = gameData.playerBoard;
+    }
+    
+    if (gameData.enemyBoard) {
+      this.enemyBoard = gameData.enemyBoard;
+    }
+    
+    // Update ships placed count if provided
+    if (typeof gameData.shipsPlaced === 'number') {
+      this.shipsPlaced = gameData.shipsPlaced;
+    }
+    
+    // Update ship positions if available
+    if (gameData.playerShipPositions) {
+      this.playerShipPositions = gameData.playerShipPositions;
+    } else {
+      // Rebuild ship positions if not provided
+      this.rebuildPlayerShipPositions();
+    }
+    
+    if (gameData.enemyShipPositions) {
+      this.enemyShipPositions = gameData.enemyShipPositions;
+    } else {
+      // Rebuild ship positions if not provided
+      this.rebuildEnemyShipPositions();
+    }
+    
+    // Update game status
+    if (gameData.status === 'COMPLETED') {
+      this.gameEnded = true;
+      if (gameData.winner) {
+        this.winner = gameData.winner;
+      }
+    }
+    
+    // Update turn state
+    if (this.shipsPlaced >= this.boardSize) {
+      if (typeof gameData.isPlayerTurn === 'boolean') {
+        this.isPlayerTurn = gameData.isPlayerTurn;
+      }
+                } else {
+      // During ship placement, isPlayerTurn should be null
+      this.isPlayerTurn = null;
+    }
+    
+    // Update win/loss counts if provided
+    if (typeof gameData.wins === 'number') {
+      this.wins = gameData.wins;
+      localStorage.setItem('playerWins', this.wins);
+    }
+    
+    if (typeof gameData.losses === 'number') {
+      this.losses = gameData.losses;
+      localStorage.setItem('playerLosses', this.losses);
+    }
+    
+    // Update game state based on ships placed
+    if (this.shipsPlaced === 0) {
+      this.gameState = 'INIT';
+      this.message = `Place ${this.boardSize} ships on your board.`;
+      this.instructionText = `Tap on Player Board ${this.boardSize} times`;
+    } else if (this.shipsPlaced < this.boardSize) {
+      this.gameState = 'PLACEMENT';
+      this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
+      this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
+      } else {
+      this.gameState = 'BATTLE';
+      this.message = "All ships placed! Click on the enemy board to attack.";
+      this.instructionText = "Attack the enemy board";
+      
+      // Check if we need to trigger enemy move after loading game with all ships placed
+      if (!this.isPlayerTurn && !this.gameEnded) {
+        console.log('Enemy moving after game data was processed');
+        this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
+      }
+    }
+    
+    console.log(`Game state after data processing: ${this.gameState}`);
+    
+    // Force UI update
+    this.requestUpdate();
+    
+    return true;
+  }
+
+  // Switch turns between player and enemy
+  switchTurn() {
+    this.isPlayerTurn = !this.isPlayerTurn;
+    console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);
+
+    // Update message based on whose turn it is
+    if (this.isPlayerTurn) {
+      this.message = 'Tap on the enemy\'s board to try to hit ships';
+                } else {
+      this.message = 'Wait for the enemy\'s turn';
+    }
+    
+    this.requestUpdate(); // Re-render to show updated message
+  }
+
+  // Delete the current game via WebSocket
+  deleteGame() {
+    if (!this.isWebSocketReady() || !this.gameId) {
+      console.log('Cannot delete game: WebSocket not ready or no gameId');
+      this.resetGame();
+      return;
+    }
+    
+    console.log(`Deleting game ${this.gameId}...`);
+    this.websocket.send(JSON.stringify({
+            action: 'deleteGame',
+            data: {
+        gameId: this.gameId
+      }
+    }));
+    
+    // When the deleteGame response comes back, the onmessage handler 
+    // will call resetGame() to start a new game
   }
 
   static get styles() {
@@ -1508,7 +1831,7 @@ export class GameBoard extends LitElement {
       }
       
       .boards-wrapper {
-        gap: 12px; /* Further reduced gap for mobile */
+        gap: 12px /* Further reduced gap for mobile */
       }
       
       .board-title {

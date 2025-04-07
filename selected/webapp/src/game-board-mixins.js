@@ -188,19 +188,72 @@ const TutorialMixin = (Base) => class extends Base {
     this.gameId = 'tutorial';
     
     this._disableAI = true;
+
+    // Ensure real game data is not affected by tutorial
+    this._originalGameId = localStorage.getItem('gameId');
+    localStorage.removeItem('gameId');
   }
 
+  // Override WebSocket initialization to prevent tutorial from opening WebSockets
+  initWebSocket() {
+    console.log('Tutorial mode - WebSocket initialization prevented');
+    // Create a mock WebSocket that does nothing
+    this.websocket = {
+      readyState: 1, // WebSocket.OPEN
+      send: (msg) => console.log('Tutorial mode - WebSocket send prevented:', msg),
+      close: () => console.log('Tutorial mode - WebSocket close prevented'),
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    };
+    
+    // Fire the connected event to satisfy any waiting promises
+    setTimeout(() => {
+      this.dispatchEvent(new CustomEvent('websocket-connected'));
+    }, 50);
+    
+    return false; // Indicate we've overridden the method
+  }
+
+  // Override WebSocket ready check
+  isWebSocketReady() {
+    return true; // Always return true in tutorial mode
+  }
+  
+  // Override WebSocket waiting
+  waitForWebSocketConnection() {
+    return Promise.resolve(); // Immediately resolve in tutorial mode
+  }
+
+  // Override game state methods to avoid real server interaction
   async createGame() { return { gameId: 'tutorial' }; }
   async updateGame() { return; }
   async getGame() { return; }
   async deleteGame() { return; }
+  async saveGameEventToEventBus() { return; }
+  async updateGameWithEvent() { return; }
+  async loadGameState() { return; }
+  async createSessionRecord() { return; }
   
-  placeEnemyShips() { 
-    return;
-  }
+  // Override game logic methods that might interact with server
+  placeEnemyShips() { return; }
+  enemyMove() { return; }
+  _saveLocalGameStateCopy() { return; }
   
-  enemyMove() {
-    return;
+  // Clean up when the tutorial component is removed
+  disconnectedCallback() {
+    if (super.disconnectedCallback) {
+      super.disconnectedCallback();
+    }
+    
+    // Restore original game ID if it existed
+    if (this._originalGameId) {
+      localStorage.setItem('gameId', this._originalGameId);
+    }
+    
+    // Clean up any intervals or timeouts specific to tutorial
+    if (this._tutorialInterval) {
+      clearInterval(this._tutorialInterval);
+    }
   }
 
   highlightCell(cell, duration = 1000) {
@@ -282,7 +335,6 @@ const TutorialMixin = (Base) => class extends Base {
   }
   
   switchTurn() {
-
     return;
   }
 
@@ -359,12 +411,10 @@ export class ShipPlacementBoard extends TutorialMixin(GameBoard) {
     if (this.shipsPlaced >= this.boardSize) return;
     
     if (this.playerBoard[0][col] === '') {
-
       this.playerBoard[0][col] = 'S';
       this.shipsPlaced++;
       sounds.initAudioContext();
       sounds.HitPlayer();
-
 
       const remainingShips = this.boardSize - this.shipsPlaced;
       const allPlaced = remainingShips === 0;
@@ -374,7 +424,6 @@ export class ShipPlacementBoard extends TutorialMixin(GameBoard) {
       
       this.requestUpdate();
     } else {
-
       this.message = 'You already placed a ship here!';
       this.instructionText = 'Choose an empty cell to place your ship.';
       
@@ -512,7 +561,6 @@ export class PlayerAttackBoard extends TutorialMixin(GameBoard) {
     const enemyCellSelector = `.enemy-board .cell:nth-child(${col + 1})`;
     
     this.animateFireball(playerCellSelector, enemyCellSelector, () => {
-
       this.enemyBoard[0][col] = 'X';
       this.hits++;
       

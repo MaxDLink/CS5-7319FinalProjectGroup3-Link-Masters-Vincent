@@ -117,15 +117,6 @@ export class Tutorial extends LitElement {
   constructor() {
     super(); 
     this.observer = null;
-    
-    // Store original game state to restore later
-    this._originalGameId = localStorage.getItem('gameId');
-    this._originalPlayerBoard = localStorage.getItem('playerBoard');
-    this._originalShipsPlaced = localStorage.getItem('shipsPlaced');
-    this._originalGameStateSnapshot = localStorage.getItem('gameStateSnapshot');
-    
-    // Temporarily clear game state to avoid interference with tutorial
-    localStorage.removeItem('gameId');
   }
 
   firstUpdated() {
@@ -147,34 +138,8 @@ export class Tutorial extends LitElement {
   }
 
   disconnectedCallback() {
-    // Clean up the observer
     if (this.observer) {
       this.observer.disconnect();
-    }
-    
-    // Restore original game state if user navigates away without using the Play button
-    this._restoreOriginalGameState();
-    
-    super.disconnectedCallback();
-  }
-  
-  // Helper to restore original game state
-  _restoreOriginalGameState() {
-    // Only restore if not explicitly cleared by playButton method
-    if (!this._stateCleared) {
-      if (this._originalGameId) {
-        localStorage.setItem('gameId', this._originalGameId);
-      }
-      if (this._originalPlayerBoard) {
-        localStorage.setItem('playerBoard', this._originalPlayerBoard);
-      }
-      if (this._originalShipsPlaced) {
-        localStorage.setItem('shipsPlaced', this._originalShipsPlaced);
-      }
-      if (this._originalGameStateSnapshot) {
-        localStorage.setItem('gameStateSnapshot', this._originalGameStateSnapshot);
-      }
-      console.log('Original game state restored after tutorial');
     }
   }
 
@@ -217,17 +182,11 @@ export class Tutorial extends LitElement {
     const wins = parseInt(localStorage.getItem('playerWins') || '0');
     const losses = parseInt(localStorage.getItem('playerLosses') || '0');
     
-    // Mark that we've intentionally cleared state
-    this._stateCleared = true;
-    
-    // Permanently clear any existing game state
-    localStorage.removeItem('gameId');
-    localStorage.removeItem('playerBoard');
-    localStorage.removeItem('shipsPlaced');
-    localStorage.removeItem('gameStateSnapshot');
-    
     // Remove the tutorial element
     this.remove();
+    
+    // Clear any existing gameId to force a new game
+    localStorage.removeItem('gameId');
     
     // Create main app element
     const appElement = document.createElement('app-element');
@@ -244,46 +203,24 @@ export class Tutorial extends LitElement {
         const gameBoard = appElement.shadowRoot?.querySelector('game-board');
         if (gameBoard) {
           // Cancel any existing enemy move timeouts
-          if (gameBoard._enemyMoveTimeout) clearTimeout(gameBoard._enemyMoveTimeout);
+          clearTimeout(gameBoard._enemyMoveTimeout);
           
           // Restore wins and losses
           gameBoard.wins = wins;
           gameBoard.losses = losses;
           
-          // Reset any WebSocket connection to ensure clean state
-          if (gameBoard.websocket) {
-            gameBoard.websocket.close();
-            gameBoard.websocket = null;
-          }
+          // Force game into ship placement mode
+          gameBoard.isPlayerTurn = null; // Setting to null prevents enemy movement
+          gameBoard.shipsPlaced = 0;
+          gameBoard.gameEnded = false;
+          gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
+          gameBoard.instructionText = `Click to place ships`; // Simplified instruction
           
-          // Wait a moment then initialize WebSocket with clean state
-          setTimeout(() => {
-            // Force game into ship placement mode
-            gameBoard.isPlayerTurn = null; // Setting to null prevents enemy movement
-            gameBoard.shipsPlaced = 0;
-            gameBoard.gameEnded = false;
-            gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
-            gameBoard.instructionText = `Click to place ships`; // Simplified instruction
-            gameBoard.playerBoard = Array(gameBoard.boardSize).fill().map(() => Array(gameBoard.boardSize).fill(''));
-            gameBoard.enemyBoard = Array(gameBoard.boardSize).fill().map(() => Array(gameBoard.boardSize).fill(''));
-            gameBoard.playerShipPositions = [];
-            gameBoard.enemyShipPositions = [];
-            
-            // Re-initialize the WebSocket with clean state
-            gameBoard.initWebSocket();
-            
-            // Wait for WebSocket to connect then create a new game
-            gameBoard.waitForWebSocketConnection().then(() => {
-              gameBoard.createGame();
-            }).catch(error => {
-              console.error('Error connecting to WebSocket after tutorial:', error);
-              gameBoard.createGame(); // Try anyway
-            });
-            
-            gameBoard.requestUpdate();
-          }, 200);
+          // Update the game to save the restored wins/losses
+          gameBoard.updateGame();
+          gameBoard.requestUpdate();
         }
-      }, 300);
+      }, 200);
     }, 100);
   }
 }

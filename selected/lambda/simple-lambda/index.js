@@ -1,38 +1,71 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
+import { EventBridge } from '@aws-sdk/client-eventbridge';
 
 const ddbClient = new DynamoDB({});
 const ddbDocClient = DynamoDBDocument.from(ddbClient);
+const eventBridge = new EventBridge({});
 
 export const handler = async (event) => {
-  if (event.requestContext.http.method === 'OPTIONS') {
-    return { statusCode: 204, headers: corsHeaders() };
-  }
-
-  if (event.requestContext.http.method === 'GET') {
+  console.log('Received event:', JSON.stringify(event, null, 2));
+  
+  // Handle EventBridge event
+  if (event.source === 'system.service' && event['detail-type'] === 'SimpleOperation') {
     try {
-      const result = await ddbDocClient.query({
-        TableName: process.env.DYNAMODB_TABLE,
-        KeyConditionExpression: 'pk = :pk AND sk = :sk',
-        ExpressionAttributeValues: { ':pk': 'user', ':sk': 'name' },
-        Limit: 1,
-        ScanIndexForward: false,
-      });
-
-      return result.Items.length > 0
-        ? { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ name: result.Items[0].name }) }
-        : { statusCode: 404, headers: corsHeaders(), body: JSON.stringify({ message: 'No data found' }) };
+      console.log('Processing SimpleOperation event');
+      const detail = event.detail;
+      
+      // Example: Perform a simple operation based on the event
+      if (detail.operation === 'query') {
+        const result = await ddbDocClient.query({
+          TableName: process.env.DYNAMODB_TABLE,
+          KeyConditionExpression: 'pk = :pk',
+          ExpressionAttributeValues: { ':pk': detail.key },
+          Limit: detail.limit || 10,
+        });
+        
+        // Publish the result as an event
+        if (process.env.EVENT_BUS_NAME) {
+          await eventBridge.putEvents({
+            Entries: [{
+              EventBusName: process.env.EVENT_BUS_NAME,
+              Source: 'system.service',
+              DetailType: 'QueryResult',
+              Detail: JSON.stringify({
+                requestId: detail.requestId,
+                items: result.Items,
+                count: result.Count,
+                scannedCount: result.ScannedCount
+              })
+            }]
+          });
+        }
+      }
+      
+      console.log('Simple operation processed successfully');
+      return { statusCode: 200 };
     } catch (error) {
-      return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ message: 'Error loading data', error: error.message }) };
+      console.error('Error processing SimpleOperation event:', error);
+      
+      // Publish error event
+      if (process.env.EVENT_BUS_NAME) {
+        await eventBridge.putEvents({
+          Entries: [{
+            EventBusName: process.env.EVENT_BUS_NAME,
+            Source: 'system.service',
+            DetailType: 'OperationFailed',
+            Detail: JSON.stringify({
+              error: error.message,
+              requestId: event.detail?.requestId
+            })
+          }]
+        });
+      }
+      
+      throw error;
     }
   }
-
-  return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ message: 'Unsupported HTTP method' }) };
+  
+  console.log('Unsupported event type:', event);
+  return { statusCode: 400, body: JSON.stringify({ message: 'Unsupported event type' }) };
 };
-
-const corsHeaders = () => ({
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
-});

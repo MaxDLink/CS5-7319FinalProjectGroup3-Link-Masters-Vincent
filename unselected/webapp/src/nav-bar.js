@@ -347,12 +347,13 @@ export class NavBar extends LitElement {
     if (this.playAgainClickCount === 1) {
       console.log('Play Again button clicked!');
       
-      // Dispatch the event on the window object to ensure it's globally accessible
-      window.dispatchEvent(new CustomEvent('game-reset', {
+      // Dispatch a custom event that the game-board can listen for
+      const resetEvent = new CustomEvent('game-reset', {
         bubbles: true,
         composed: true // This allows the event to cross shadow DOM boundaries
-      }));
-      console.log('Reset event dispatched on window object');
+      });
+      this.dispatchEvent(resetEvent);
+      console.log('Reset event dispatched');
       
       this.playAgainClickCount = 0; // reset for future clicks 
     } 
