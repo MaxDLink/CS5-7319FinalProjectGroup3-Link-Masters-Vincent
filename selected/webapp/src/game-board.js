@@ -196,7 +196,7 @@ export class GameBoard extends LitElement {
       return;
     }
     
-    const wsUrl = 'wss://1gnhhkjdx1.execute-api.us-east-1.amazonaws.com/prod';
+    const wsUrl = 'wss://ymya3w8fk7.execute-api.us-east-1.amazonaws.com/prod/';
     console.log('Initializing WebSocket connection to:', wsUrl);
     
     this.websocket = new WebSocket(wsUrl);
