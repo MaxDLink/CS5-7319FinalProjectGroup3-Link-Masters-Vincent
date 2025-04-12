@@ -211,14 +211,14 @@ export class GameBoard extends LitElement {
       this.dispatchEvent(event);
 
       //local storage check to prevent endless loop 
-      // const storedGameId = localStorage.getItem('gameId');
-      // if (storedGameId) {
-      //   this.gameId = storedGameId; 
-      //   console.log('Game ID found in local storage:', this.gameId);
-      //   this.getGame(); 
-      //   return; 
-      // }
-      if (!this.gameId && this.isCreatingGame) {
+      const storedGameId = localStorage.getItem('gameId');
+      if (storedGameId) {
+        this.gameId = storedGameId; 
+        console.log('Game ID found in local storage:', this.gameId);
+        this.getGame(); 
+        return; 
+      }
+      if (!this.gameId) {
         this.createGame(); // root cause of endless loop 
       }
     };
@@ -426,7 +426,12 @@ export class GameBoard extends LitElement {
     return new Promise((resolve, reject) => {
       if (this.isWebSocketReady()) return resolve();
       
-      if (!this.websocket) this.initWebSocket();
+      if (!this.websocket){
+        console.log('calling initWebSocket');
+        this.initWebSocket();
+      }
+        
+      
       
       const handler = () => resolve();
       this.addEventListener('websocket-connected', handler, { once: true });

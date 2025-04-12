@@ -244,7 +244,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game creation events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameCreated'],
+        detailType: ['CreateGameRequest'],
       },
       targets: [new targets.LambdaFunction(createGameLambda)],
     });
@@ -445,7 +445,8 @@ export class App extends cdk.Stack {
           'GameCreated', 
           'GameUpdated', 
           'GameDeleted', 
-          'GameRequested'
+          'GameRequested',
+          // 'CreateGameRequest'
         ],
       },
       targets: [new targets.LambdaFunction(webSocketSenderLambda)],

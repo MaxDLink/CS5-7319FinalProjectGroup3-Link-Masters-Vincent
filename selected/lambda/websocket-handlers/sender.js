@@ -57,9 +57,9 @@ exports.handler = async (event) => {
     };
     
     // For GameCreated events, make sure gameId is directly accessible at message.data.gameId
-    if (messageType === 'GameCreated') {
+    if (messageType === 'GameCreated') { // game created returned by eventBridge 
       // Log the original structure
-      console.log('Original GameCreated message structure:', JSON.stringify(message, null, 2));
+      console.log('Original GameCreated/CreateGameRequest message structure:', JSON.stringify(message, null, 2));
       
       // Fix common issues with EventBridge event structure
       if (!message.data.gameId && message.data.detail && message.data.detail.gameId) {
@@ -80,7 +80,7 @@ exports.handler = async (event) => {
         }
       }
       
-      console.log('Final GameCreated message structure:', JSON.stringify(message, null, 2));
+      console.log('Final GameCreated/CreateGameRequest message structure:', JSON.stringify(message, null, 2));
     }
     
     console.log('Prepared message:', JSON.stringify(message, null, 2));
