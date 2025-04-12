@@ -30,7 +30,7 @@ exports.handler = async (event) => {
     
     // Prepare the message based on the event
     const messageType = event['detail-type'] || 'UnknownEvent';
-    
+ 
     // Extract detail data - handle string or object
     let detailData = {};
     if (typeof event.detail === 'string') {
@@ -84,6 +84,9 @@ exports.handler = async (event) => {
     }
     if (messageType === 'GameUpdated') {
       console.log("The game has been updated!")
+    }
+    if (messageType === 'GameRequested') {
+      console.log("The game has been requested with GameRequested type!")
     }
     console.log('Prepared message:', JSON.stringify(message, null, 2));
     

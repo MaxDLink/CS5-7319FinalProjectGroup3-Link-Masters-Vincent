@@ -226,7 +226,7 @@ function getDetailTypeForAction(action) {
   const actionMap = {
     'createGame': 'CreateGameRequest',
     'updateGame': 'UpdateGameRequest',
-    'getGame': 'GameRequested',
+    'getGame': 'GetGameRequest',
     'deleteGame': 'GameDeleted',
     'placeShip': 'ShipPlaced',
     'attackPosition': 'AttackInitiated',

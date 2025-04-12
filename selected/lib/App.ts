@@ -288,7 +288,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game request events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameRequested'],
+        detailType: ['GetGameRequest'],
       },
       targets: [new targets.LambdaFunction(getGameLambda)],
     });

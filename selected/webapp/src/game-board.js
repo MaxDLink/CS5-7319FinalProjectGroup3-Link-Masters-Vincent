@@ -209,8 +209,8 @@ export class GameBoard extends LitElement {
       // Dispatch event for connection established
       const event = new CustomEvent('websocket-connected', { detail: { connected: true } });
       this.dispatchEvent(event);
-
-      //local storage check to prevent endless loop 
+      
+       //local storage check to prevent endless loop 
       const storedGameId = localStorage.getItem('gameId');
       if (storedGameId) {
         this.gameId = storedGameId; 
@@ -221,6 +221,8 @@ export class GameBoard extends LitElement {
       if (!this.gameId) {
         this.createGame(); 
       }
+      this.getGame(); 
+     
     };
     
     this.websocket.onmessage = (event) => {
@@ -241,7 +243,7 @@ export class GameBoard extends LitElement {
         localStorage.setItem('gameId', this.gameId);
         console.log('Game ID after creating game:', this.gameId);
       }
-      else if (response.action === 'getGame' && response.statusCode === 200) {
+      else if (response.action === 'getGame') {
         console.log('Game data received from server');
         
         // Update game state based on server data
@@ -413,7 +415,7 @@ export class GameBoard extends LitElement {
   
   // Get game from server via WebSocket
   getGame() {
-    if (this.isWebSocketReady() && this.gameId) {
+    if (this.isWebSocketReady()) {
       console.log(`Requesting game data (state: ${this.gameState})...`);
       this.websocket.send(JSON.stringify({
         action: 'getGame',
