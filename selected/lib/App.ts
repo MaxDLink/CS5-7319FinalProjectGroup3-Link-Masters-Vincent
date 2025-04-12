@@ -244,7 +244,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game creation events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameCreated'],
+        detailType: ['CreateGameRequest'],
       },
       targets: [new targets.LambdaFunction(createGameLambda)],
     });
@@ -255,7 +255,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game update events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameUpdated'],
+        detailType: ['UpdateGameRequest'],
       },
       targets: [new targets.LambdaFunction(updateGameLambda)],
     });
@@ -266,7 +266,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game deletion events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameDeleted'],
+        detailType: ['GameDeleteRequest'],
       },
       targets: [new targets.LambdaFunction(deleteGameLambda)],
     });
@@ -288,7 +288,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game request events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameRequested'],
+        detailType: ['GetGameRequest'],
       },
       targets: [new targets.LambdaFunction(getGameLambda)],
     });
@@ -436,7 +436,7 @@ export class App extends cdk.Stack {
     );
 
     // Create EventBridge rule to trigger the WebSocket sender Lambda when game events occur
-    new events.Rule(this, 'GameWebSocketSenderRule', {
+    new events.Rule(this, 'GameWebSocketSenderRule', { 
       eventBus,
       description: 'Rule for forwarding game events to WebSocket clients',
       eventPattern: {
@@ -445,7 +445,8 @@ export class App extends cdk.Stack {
           'GameCreated', 
           'GameUpdated', 
           'GameDeleted', 
-          'GameRequested'
+          'GameRequested',
+         
         ],
       },
       targets: [new targets.LambdaFunction(webSocketSenderLambda)],

@@ -7,7 +7,7 @@ exports.handler = async (event) => {
     console.log('Event received:', JSON.stringify(event, null, 2));
     
     // Extract details from the event
-    const detail = JSON.parse(event.detail);
+    const detail = event.detail;
     const connectionId = detail.connectionId;
     const gameId = detail.gameId;
     

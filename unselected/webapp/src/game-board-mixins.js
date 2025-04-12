@@ -54,7 +54,7 @@ const TutorialStyles = css`
   }
 
   .cell {
-    width: calc((var(--board-width) - 40px) / 4);
+    width: calc((var(--board-width) - 120px) / 4);
     height: 64px;
     background-color: #2c3e50;
     border-radius: 6px;
