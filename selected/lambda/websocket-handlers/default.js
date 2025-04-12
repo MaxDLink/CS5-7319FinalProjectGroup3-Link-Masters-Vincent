@@ -165,7 +165,7 @@ exports.handler = async (event) => {
     }
     
     // Forward the message to EventBridge with appropriate source and detail type
-    const eventEntry = {
+    const eventEntry = { // foward any message to eventBridge 
       Source: 'game.service',
       DetailType: getDetailTypeForAction(message.action),
       Detail: JSON.stringify({
@@ -225,7 +225,7 @@ exports.handler = async (event) => {
 function getDetailTypeForAction(action) {
   const actionMap = {
     'createGame': 'CreateGameRequest',
-    'updateGame': 'GameUpdated',
+    'updateGame': 'UpdateGameRequest',
     'getGame': 'GameRequested',
     'deleteGame': 'GameDeleted',
     'placeShip': 'ShipPlaced',

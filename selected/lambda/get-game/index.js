@@ -58,7 +58,7 @@ exports.handler = async (event) => {
     await eventBridge.putEvents({
       Entries: [{
         Source: 'game.service',
-        DetailType: 'GameRequested',
+        DetailType: 'GameRequested', //change to gameUpdateRequest 
         Detail: JSON.stringify({
           gameId: gameId,
           connectionId: connectionId,

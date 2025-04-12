@@ -82,7 +82,9 @@ exports.handler = async (event) => {
       
       console.log('Final GameCreated/CreateGameRequest message structure:', JSON.stringify(message, null, 2));
     }
-    
+    if (messageType === 'GameUpdated') {
+      console.log("The game has been updated!")
+    }
     console.log('Prepared message:', JSON.stringify(message, null, 2));
     
     // If we have a specific target connection, send only to that client

@@ -219,7 +219,7 @@ export class GameBoard extends LitElement {
         return; 
       }
       if (!this.gameId) {
-        this.createGame(); // root cause of endless loop 
+        this.createGame(); 
       }
     };
     
@@ -230,7 +230,7 @@ export class GameBoard extends LitElement {
       // Handle response based on action
       // only goes into this if this.isCreatingGame is true. Once a game is created, this.isCreatingGame is set to false in localstorage to 
       // persist between refreshes and websocket reconnects 
-      if (response.type === 'GameCreated' && !this.gameId && this.isCreatingGame) {
+      if (response.type === 'GameCreated' && !this.gameId) {
         this.gameId = response.gameId;
         console.log(`New game created with ID: ${this.gameId}`);
         
@@ -386,6 +386,7 @@ export class GameBoard extends LitElement {
   
   // Update game state on server via WebSocket
   updateGame() {
+    console.log("Gameid before updateGame", this.gameId);
     if (!this.isWebSocketReady() || !this.gameId) return;
     
     this.rebuildPlayerShipPositions();

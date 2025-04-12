@@ -255,7 +255,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game update events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameUpdated'],
+        detailType: ['UpdateGameRequest'],
       },
       targets: [new targets.LambdaFunction(updateGameLambda)],
     });
@@ -436,7 +436,7 @@ export class App extends cdk.Stack {
     );
 
     // Create EventBridge rule to trigger the WebSocket sender Lambda when game events occur
-    new events.Rule(this, 'GameWebSocketSenderRule', {
+    new events.Rule(this, 'GameWebSocketSenderRule', { 
       eventBus,
       description: 'Rule for forwarding game events to WebSocket clients',
       eventPattern: {
