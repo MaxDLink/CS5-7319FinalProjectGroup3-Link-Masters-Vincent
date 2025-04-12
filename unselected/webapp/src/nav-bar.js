@@ -159,11 +159,11 @@ export class NavBar extends LitElement {
     
     // Initialize UserManager with the same config used in profile-lit.js
     this.userManager = new UserManager({
-      authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_m9CtZ8Zr3",
-      client_id: "tj2n9mnpm20nn9d015ahkr7da",
+      authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_VtsIc3ZeH",
+      client_id: "9ihaiqmpt1f94sci2553h6cfn",
       redirect_uri: `${window.location.origin}/`,
       response_type: "code",
-      scope: "email openid profile"
+      scope: "email openid phone"
     });
   }
 

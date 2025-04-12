@@ -107,11 +107,11 @@ class ProfileElement extends LitElement {
     
     // Configure the UserManager with your Cognito settings
     this.userManager = new UserManager({
-      authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_m9CtZ8Zr3",
-      client_id: "tj2n9mnpm20nn9d015ahkr7da",
+      authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_VtsIc3ZeH",
+      client_id: "9ihaiqmpt1f94sci2553h6cfn",
       redirect_uri: `${window.location.origin}/`,
       response_type: "code",
-      scope: "email openid profile"
+      scope: "email openid phone"
     });
     
     // Bind the event handler
@@ -273,9 +273,9 @@ class ProfileElement extends LitElement {
       await this.userManager.removeUser();
       
       // Use the same direct URL approach that works in login.js
-      const clientId = "tj2n9mnpm20nn9d015ahkr7da";
+      const clientId = "9ihaiqmpt1f94sci2553h6cfn";
       const logoutUri = `${window.location.origin}/`;
-      const cognitoDomain = "https://us-east-1m9ctz8zr3.auth.us-east-1.amazoncognito.com";
+      const cognitoDomain = "https://us-east-1vtsic3zeh.auth.us-east-1.amazoncognito.com";
       
       // Redirect to Cognito logout page
       window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
