@@ -27,7 +27,8 @@ export class GameBoard extends LitElement {
       gameId: { type: String },
       wins: { type: Number },
       losses: { type: Number },
-      gameState: { type: String }
+      gameState: { type: String },
+      isCreatingGame: { type: Boolean }
     };
   }
 
@@ -91,6 +92,13 @@ export class GameBoard extends LitElement {
     this.websocket = null;
     this.websocketReconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
+
+    // Set to false in handler. Flag to prevent endless loop of creating games: init --> onopen --> createGame() --> wait for websocket --> Init 
+    // use local storage to persist across websocket reconnects 
+    // if no local storage, set to true 
+    // if local storage, set to false 
+    this.isCreatingGame = !localStorage.getItem('gameCreationAttempted');
+
   }
 
   connectedCallback() {
@@ -100,13 +108,6 @@ export class GameBoard extends LitElement {
     
     // Initialize with the default game state
     this.gameState = 'INIT';
-    
-    // Check for saved game ID in local storage
-    const savedGameId = localStorage.getItem('gameId');
-    if (savedGameId) {
-      console.log(`Found saved game: ${savedGameId}`);
-      this.gameId = savedGameId;
-    }
     
     // Initialize the WebSocket connection
     this.initWebSocket();
@@ -144,6 +145,7 @@ export class GameBoard extends LitElement {
         // Ensure the game ID is set correctly
         this.gameId = event.detail.gameId;
         localStorage.setItem('gameId', this.gameId);
+        // fetch game id from dynamo db 
         
         // Refresh the game state from the server without resetting
         if (this.isWebSocketReady()) {
@@ -190,7 +192,7 @@ export class GameBoard extends LitElement {
   }
 
   // Initialize WebSocket connection with state machine awareness
-  initWebSocket() {
+  initWebSocket() { // Where the websocket starts in the program 
     if (this.websocket && this.websocket.readyState !== WebSocket.CLOSED) {
       console.log('WebSocket already exists, not recreating');
       return;
@@ -207,15 +209,17 @@ export class GameBoard extends LitElement {
       // Dispatch event for connection established
       const event = new CustomEvent('websocket-connected', { detail: { connected: true } });
       this.dispatchEvent(event);
-      
-      // If we have a game ID, load game state. Otherwise, create a new game
-      if (this.gameId) {
-        console.log(`Existing game ID (${this.gameId}), fetching game state...`);
-        this.getGame();
-      } else {
-        console.log('No game ID found, creating new game...');
-        this.gameState = 'INIT';
-        this.createGame();
+
+      //local storage check to prevent endless loop 
+      // const storedGameId = localStorage.getItem('gameId');
+      // if (storedGameId) {
+      //   this.gameId = storedGameId; 
+      //   console.log('Game ID found in local storage:', this.gameId);
+      //   this.getGame(); 
+      //   return; 
+      // }
+      if (!this.gameId && this.isCreatingGame) {
+        this.createGame(); // root cause of endless loop 
       }
     };
     
@@ -224,8 +228,10 @@ export class GameBoard extends LitElement {
       console.log('WebSocket message received:', response);
       
       // Handle response based on action
-      if (response.action === 'createGame' && response.statusCode === 200) {
-        this.gameId = response.data.gameId;
+      // only goes into this if this.isCreatingGame is true. Once a game is created, this.isCreatingGame is set to false in localstorage to 
+      // persist between refreshes and websocket reconnects 
+      if (response.type === 'GameCreated' && !this.gameId && this.isCreatingGame) {
+        this.gameId = response.gameId;
         console.log(`New game created with ID: ${this.gameId}`);
         
         // Initialize game state based on the server response
@@ -233,6 +239,7 @@ export class GameBoard extends LitElement {
         
         // Cache game ID in local storage
         localStorage.setItem('gameId', this.gameId);
+        console.log('Game ID after creating game:', this.gameId);
       }
       else if (response.action === 'getGame' && response.statusCode === 200) {
         console.log('Game data received from server');
@@ -350,7 +357,7 @@ export class GameBoard extends LitElement {
       this.gameId = null;
       this.playerShipPositions = [];
       this.gameState = 'INIT';
-      this.createGame();
+      //this.createGame();
     } else {
       console.warn('Server error:', message.message);
     }
@@ -362,18 +369,13 @@ export class GameBoard extends LitElement {
   }
   
   // Create a new game via WebSocket
-  createGame() {
-    if (!this.isWebSocketReady()) {
-      console.log('WebSocket not ready, waiting to create game...');
-      this.waitForWebSocketConnection()
-        .then(() => this.createGame())
-        .catch(() => console.error('Failed to connect'));
-        return;
-      }
-      
+  createGame() {  
     console.log('Sending create game request...');
+    this.isCreatingGame = false; 
+    // stores a key value pair in local storage where key is gameCreationAttempted and value is true 
+    localStorage.setItem('gameCreationAttempted', 'true');
     this.websocket.send(JSON.stringify({
-      action: 'createGame',
+      action: 'createGame', // create game action through websocket 
       data: {
         playerBoard: this.playerBoard,
         enemyBoard: this.enemyBoard,
@@ -503,7 +505,7 @@ export class GameBoard extends LitElement {
       this.getGame();
         } else {
       this.gameState = 'INIT';
-      this.createGame();
+      // this.createGame();
     }
   }
   
@@ -551,7 +553,7 @@ export class GameBoard extends LitElement {
     
     // Create new game if WebSocket is ready
     if (this.isWebSocketReady()) {
-      this.createGame();
+      //this.createGame();
     } else {
       console.log('WebSocket not ready, will create game once connected');
         this.initWebSocket();
@@ -1364,7 +1366,7 @@ export class GameBoard extends LitElement {
     }
     
     console.log(`Processing game data for ${this.gameId}:`, gameData);
-    
+    // TODO - we get more handle response messages after this is hit for some reason, which makes new games get created 
     // Update boards if provided
     if (gameData.playerBoard) {
       this.playerBoard = gameData.playerBoard;
