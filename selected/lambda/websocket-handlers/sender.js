@@ -51,7 +51,8 @@ exports.handler = async (event) => {
     // Construct message with proper structure that frontend expects
     const message = {
       type: messageType,
-      data: detailData,  // Include all detail data directly
+      data: detailData,
+      gameId: detailData.gameId, // Always put gameId at top level
       timestamp: new Date().toISOString()
     };
     
