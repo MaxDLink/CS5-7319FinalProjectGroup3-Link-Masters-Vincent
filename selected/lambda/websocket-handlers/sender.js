@@ -88,6 +88,9 @@ exports.handler = async (event) => {
     if (messageType === 'GameRequested') {
       console.log("The game has been requested with GameRequested type!")
     }
+    if (messageType === 'GameDeleteRequest') {
+      console.log("The game has been deleted with GameDeleteRequest type!")
+    }
     console.log('Prepared message:', JSON.stringify(message, null, 2));
     
     // If we have a specific target connection, send only to that client

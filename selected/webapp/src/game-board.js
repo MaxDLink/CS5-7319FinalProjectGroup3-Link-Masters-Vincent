@@ -227,10 +227,10 @@ export class GameBoard extends LitElement {
     this.websocket.onmessage = (event) => {
       const response = JSON.parse(event.data);
       console.log('WebSocket message received:', response);
-      
+
       // console.log('response action: ', response.type);
 
-      // Handle response based on action
+      // Handle response based on action from websocket
       // only goes into this if this.isCreatingGame is true. Once a game is created, this.isCreatingGame is set to false in localstorage to 
       // persist between refreshes and websocket reconnects 
       if (response.type === 'GameCreated' && !this.gameId) {

@@ -227,7 +227,7 @@ function getDetailTypeForAction(action) {
     'createGame': 'CreateGameRequest',
     'updateGame': 'UpdateGameRequest',
     'getGame': 'GetGameRequest',
-    'deleteGame': 'GameDeleted',
+    'deleteGame': 'GameDeleteRequest',
     'placeShip': 'ShipPlaced',
     'attackPosition': 'AttackInitiated',
     'saveEventBusRecord': 'EventBusRecordSaved',

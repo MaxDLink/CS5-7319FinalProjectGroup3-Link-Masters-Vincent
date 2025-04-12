@@ -266,7 +266,7 @@ export class App extends cdk.Stack {
       description: 'Rule for game deletion events',
       eventPattern: {
         source: ['game.service'],
-        detailType: ['GameDeleted'],
+        detailType: ['GameDeleteRequest'],
       },
       targets: [new targets.LambdaFunction(deleteGameLambda)],
     });
