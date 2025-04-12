@@ -215,13 +215,12 @@ export class GameBoard extends LitElement {
       if (storedGameId) {
         this.gameId = storedGameId; 
         console.log('Game ID found in local storage:', this.gameId);
-        this.getGame(); 
+        this.getGame();  
         return; 
       }
       if (!this.gameId) {
         this.createGame(); 
       }
-      this.getGame(); 
      
     };
     

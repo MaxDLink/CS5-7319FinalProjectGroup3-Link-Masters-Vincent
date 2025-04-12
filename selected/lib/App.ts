@@ -446,7 +446,7 @@ export class App extends cdk.Stack {
           'GameUpdated', 
           'GameDeleted', 
           'GameRequested',
-          // 'CreateGameRequest'
+         
         ],
       },
       targets: [new targets.LambdaFunction(webSocketSenderLambda)],
