@@ -224,7 +224,7 @@ exports.handler = async (event) => {
 // Helper function to map client actions to EventBridge detail types
 function getDetailTypeForAction(action) {
   const actionMap = {
-    'createGame': 'GameCreated',
+    'createGame': 'CreateGameRequest',
     'updateGame': 'GameUpdated',
     'getGame': 'GameRequested',
     'deleteGame': 'GameDeleted',
