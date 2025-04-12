@@ -228,6 +228,8 @@ export class GameBoard extends LitElement {
       const response = JSON.parse(event.data);
       console.log('WebSocket message received:', response);
       
+      // console.log('response action: ', response.type);
+
       // Handle response based on action
       // only goes into this if this.isCreatingGame is true. Once a game is created, this.isCreatingGame is set to false in localstorage to 
       // persist between refreshes and websocket reconnects 
@@ -242,13 +244,13 @@ export class GameBoard extends LitElement {
         localStorage.setItem('gameId', this.gameId);
         console.log('Game ID after creating game:', this.gameId);
       }
-      else if (response.action === 'getGame') {
+      else if (response.type === 'GameRequested') {
         console.log('Game data received from server');
         
         // Update game state based on server data
         this.handleGameData(response.data);
       }
-      else if (response.action === 'updateGame' && response.statusCode === 200) {
+      else if (response.type === 'GameUpdated') {
         console.log('Game updated successfully');
         
         // Process the updated game data if there are any changes from the server
@@ -256,7 +258,7 @@ export class GameBoard extends LitElement {
           this.handleGameData(response.data);
         }
       }
-      else if (response.action === 'deleteGame' && response.statusCode === 200) {
+      else if (response.type === 'GameDeleted') {
         console.log('Game deleted successfully');
         this.resetGame();
       }
