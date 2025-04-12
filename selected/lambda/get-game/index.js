@@ -73,13 +73,22 @@ exports.handler = async (event) => {
     console.log('Attempting to publish GameRequested event to EventBridge');
     console.log('Using event bus:', process.env.EVENT_BUS_NAME);
     
-    // Create a simplified event payload for better compatibility (similar to create-game)
-    const simpleEventData = {
+    // Include all game data in the event payload
+    const eventData = {
       gameId: gameId,
-      connectionId: connectionId
+      connectionId: connectionId,
+      playerBoard: gameData.playerBoard,
+      enemyBoard: gameData.enemyBoard,
+      shipsPlaced: gameData.shipsPlaced,
+      playerHits: gameData.playerHits,
+      enemyHits: gameData.enemyHits,
+      status: gameData.status,
+      isPlayerTurn: gameData.isPlayerTurn,
+      wins: gameData.wins,
+      losses: gameData.losses
     };
     
-    console.log('Using simplified event data:', JSON.stringify(simpleEventData, null, 2));
+    console.log('Using event data:', JSON.stringify(eventData, null, 2));
     console.log('EVENT_BUS_NAME environment variable:', process.env.EVENT_BUS_NAME);
     
     try {
@@ -87,7 +96,7 @@ exports.handler = async (event) => {
       const eventEntry = {
         Source: 'game.service',
         DetailType: 'GameRequested', 
-        Detail: JSON.stringify(simpleEventData),
+        Detail: JSON.stringify(eventData),
         EventBusName: process.env.EVENT_BUS_NAME
       };
       
