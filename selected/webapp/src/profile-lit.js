@@ -236,7 +236,6 @@ class ProfileElement extends LitElement {
     // Clear authentication and game state data
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userId');
-    localStorage.removeItem('gameId');
     localStorage.removeItem('playerBoard');
     localStorage.removeItem('shipsPlaced');
     localStorage.removeItem('gameStateSnapshot');
@@ -245,7 +244,7 @@ class ProfileElement extends LitElement {
     window.dispatchEvent(new CustomEvent('user-logged-out', {
       detail: { 
         preserveGameState: false,
-        gameId: null,
+        gameId: gameId,
         wins: 0, 
         losses: 0 
       }
