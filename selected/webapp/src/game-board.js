@@ -198,7 +198,7 @@ export class GameBoard extends LitElement {
       return;
     }
     
-    const wsUrl = 'wss://smgmzzjzpf.execute-api.us-east-1.amazonaws.com/prod/';
+    const wsUrl = 'wss://yzondw43l7.execute-api.us-east-1.amazonaws.com/prod/';
     console.log('Initializing WebSocket connection to:', wsUrl);
     
     this.websocket = new WebSocket(wsUrl);
@@ -259,7 +259,8 @@ export class GameBoard extends LitElement {
         }
       }
       else if (response.type === 'GameDeleted') {
-        console.log('Game deleted successfully');
+        console.log('Game deleted successfully'); 
+        this.createGame();
         this.resetGame();
       }
       else if (response.action === 'error') {
