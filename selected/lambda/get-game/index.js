@@ -17,13 +17,6 @@ exports.handler = async (event) => {
     const connectionId = detail.connectionId;
     const gameId = detail.gameId;
     
-    // if (!gameId) {
-    //   return {
-    //     statusCode: 400,
-    //     body: JSON.stringify({ message: 'Game ID is required' })
-    //   };
-    // }
-    
     // Retrieve the game from DynamoDB
     const result = await dynamoDB.get({
       TableName: process.env.DYNAMODB_TABLE,

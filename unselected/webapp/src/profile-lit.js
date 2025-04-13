@@ -253,36 +253,42 @@ class ProfileElement extends LitElement {
     this.wins = 0;
     this.losses = 0;
     
-    // Dispatch an event to notify other components about logout
-    window.dispatchEvent(new CustomEvent('user-logged-out', {
+    // Create the logout event
+    const logoutEvent = new CustomEvent('user-logged-out', {
       detail: { 
         preserveGameState: true,
         gameId: gameId,
         wins: 0, 
         losses: 0 
-      }
-    }));
+      },
+      bubbles: true,
+      composed: true
+    });
     
-    // Remove this component from the DOM to return to the game
-    if (this.parentNode) {
-      this.parentNode.removeChild(this);
-    }
+    // Dispatch the event and wait a moment for it to be processed
+    window.dispatchEvent(logoutEvent);
     
     try {
       // First try to sign out locally
       await this.userManager.removeUser();
+      
+      // Wait a short moment to allow game state updates to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Remove this component from the DOM
+      if (this.parentNode) {
+        this.parentNode.removeChild(this);
+      }
       
       // Use the same direct URL approach that works in login.js
       const clientId = "9ihaiqmpt1f94sci2553h6cfn";
       const logoutUri = `${window.location.origin}/`;
       const cognitoDomain = "https://us-east-1vtsic3zeh.auth.us-east-1.amazoncognito.com";
       
-      // Redirect to Cognito logout page
+      // Now redirect to Cognito logout page
       window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
     } catch (error) {
       console.error('Logout error:', error);
-      
-      // If there's an error, at least try to reload the page
       window.location.reload();
     }
   }

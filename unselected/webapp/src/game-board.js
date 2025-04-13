@@ -697,7 +697,6 @@ export class GameBoard extends LitElement {
     
     // Make sure gameId is cleared from localStorage
     localStorage.removeItem('gameId');
-    this.gameId = null;
     
     // Reset ship placement
     this.shipsPlaced = 0;
@@ -1045,7 +1044,7 @@ export class GameBoard extends LitElement {
     try {
       // Make sure ship placement count is reset
       this.shipsPlaced = 0;
-      const response = await fetch('https://7k6dm8div5.execute-api.us-east-1.amazonaws.com/games', {
+      const response = await fetch('https://jyd33nlwg4.execute-api.us-east-1.amazonaws.com/games', {
         method: 'POST'
       });
       const data = await response.json();
@@ -1076,7 +1075,7 @@ export class GameBoard extends LitElement {
         losses: this.losses  // Include losses in update
       };
 
-      const response = await fetch(`https://7k6dm8div5.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
+      const response = await fetch(`https://jyd33nlwg4.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -1093,7 +1092,7 @@ export class GameBoard extends LitElement {
 
   async getGame() {
     try {
-      const response = await fetch(`https://7k6dm8div5.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`);
+      const response = await fetch(`https://jyd33nlwg4.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`);
       const data = await response.json();
       if (data && data.gameId) {
         // grabs the player and enemy boards from DynamoDB, this includes hits and misses 
@@ -1148,10 +1147,11 @@ export class GameBoard extends LitElement {
     }
   }
 
-  async deleteGame() {
+  async deleteGame() { 
+    console.log('deleting game:', this.gameId);
     try {
       if (this.gameId) {
-        await fetch(`https://7k6dm8div5.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
+        await fetch(`https://jyd33nlwg4.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
           method: 'DELETE'
         });
         console.log(`Game ${this.gameId} deleted!`);

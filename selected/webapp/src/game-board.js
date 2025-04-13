@@ -198,7 +198,7 @@ export class GameBoard extends LitElement {
       return;
     }
     
-    const wsUrl = 'wss://smgmzzjzpf.execute-api.us-east-1.amazonaws.com/prod/';
+    const wsUrl = 'wss://yzondw43l7.execute-api.us-east-1.amazonaws.com/prod/';
     console.log('Initializing WebSocket connection to:', wsUrl);
     
     this.websocket = new WebSocket(wsUrl);
@@ -247,6 +247,12 @@ export class GameBoard extends LitElement {
       else if (response.type === 'GameRequested') {
         console.log('Game data received from server');
         
+        // Check if we need to trigger enemy move after loading game with all ships placed
+        if (!this.isPlayerTurn && !this.gameEnded) {
+          console.log('Enemy moving after game requested');
+          this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
+        } 
+
         // Update game state based on server data
         this.handleGameData(response.data);
       }
@@ -259,7 +265,8 @@ export class GameBoard extends LitElement {
         }
       }
       else if (response.type === 'GameDeleted') {
-        console.log('Game deleted successfully');
+        console.log('Game deleted successfully'); 
+        this.createGame();
         this.resetGame();
       }
       else if (response.action === 'error') {
@@ -1448,11 +1455,6 @@ export class GameBoard extends LitElement {
       this.message = "All ships placed! Click on the enemy board to attack.";
       this.instructionText = "Attack the enemy board";
       
-      // Check if we need to trigger enemy move after loading game with all ships placed
-      if (!this.isPlayerTurn && !this.gameEnded) {
-        console.log('Enemy moving after game data was processed');
-        this._enemyMoveTimeout = setTimeout(() => this.enemyMove(), 1000);
-      }
     }
     
     console.log(`Game state after data processing: ${this.gameState}`);
