@@ -697,7 +697,6 @@ export class GameBoard extends LitElement {
     
     // Make sure gameId is cleared from localStorage
     localStorage.removeItem('gameId');
-    this.gameId = null;
     
     // Reset ship placement
     this.shipsPlaced = 0;
@@ -1148,7 +1147,8 @@ export class GameBoard extends LitElement {
     }
   }
 
-  async deleteGame() {
+  async deleteGame() { 
+    console.log('deleting game:', this.gameId);
     try {
       if (this.gameId) {
         await fetch(`https://jyd33nlwg4.execute-api.us-east-1.amazonaws.com/games/${this.gameId}`, {
