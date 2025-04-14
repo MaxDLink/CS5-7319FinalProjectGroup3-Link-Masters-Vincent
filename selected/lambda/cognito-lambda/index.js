@@ -1,13 +1,3 @@
-import { CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
-
-const cognito = new CognitoIdentityProviderClient({ region: "us-east-1" });
-
-const userPoolConfig = {
-    region: "us-east-1",
-    userPoolId: "us-east-1_0OuOMPrYV",
-    clientId: "53dbt4feojdrr5i9gpeameio62",
-};
-
 const corsHeaders = {
     "access-control-allow-origin": [
         {
@@ -57,7 +47,6 @@ export const handler = async (event) => {
         return request;
     }
 
-    // Handle OPTIONS preflight
     if (request.method === "OPTIONS") {
         return {
             status: "204",
@@ -66,16 +55,12 @@ export const handler = async (event) => {
         };
     }
 
-    // Check for auth code in query string
     const queryString = request.querystring || "";
-    const hasAuthCode = queryString.includes("code=");
-
-    if (hasAuthCode) {
+    if (queryString.includes("code=")) {
         console.log("Auth code present, allowing request");
         return request;
     }
 
-    // Check for auth cookie
     const cookies = request.headers.cookie || [];
     const authCookie = cookies.find((cookie) =>
         cookie.value.includes("CognitoToken=")
@@ -118,7 +103,8 @@ export const handler = async (event) => {
             },
         };
     }
-
-    console.log("Auth cookie found, allowing request");
-    return request;
+    else {
+        console.log("Auth cookie found, allowing request");
+        return request;
+    }
 };
