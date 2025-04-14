@@ -6,10 +6,8 @@ exports.handler = async (event) => {
   try {
     console.log('Event received:', JSON.stringify(event, null, 2));
     
-    // Extract details from the event
-    const detail = event.detail;
-    const connectionId = detail.connectionId;
-    const gameId = detail.gameId;
+    const connectionId = event.detail.connectionId;
+    const gameId = event.detail.gameId;
     
     if (!gameId) {
       return {
@@ -17,8 +15,15 @@ exports.handler = async (event) => {
         body: JSON.stringify({ message: 'Game ID is required' })
       };
     }
+
+    if (!connectionId) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: 'Connection ID is required' })
+      };
+    }
     
-    // Delete the game from DynamoDB
+    // Database Interaction
     await dynamoDB.delete({
       TableName: process.env.DYNAMODB_TABLE,
       Key: {
@@ -29,7 +34,7 @@ exports.handler = async (event) => {
     
     console.log(`Game ${gameId} deleted successfully`);
     
-    // Publish an event to notify about the game deletion
+    // Publish to EventBridge
     await eventBridge.putEvents({
       Entries: [{
         Source: 'game.service',
@@ -50,9 +55,9 @@ exports.handler = async (event) => {
         gameId: gameId
       })
     };
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error deleting game:', error);
-    
     return {
       statusCode: 500,
       body: JSON.stringify({ 
@@ -62,10 +67,3 @@ exports.handler = async (event) => {
     };
   }
 };
-
-const corsHeaders = () => ({
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json'
-}); 

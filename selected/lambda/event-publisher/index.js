@@ -3,19 +3,15 @@ const eventBridge = new AWS.EventBridge();
 
 exports.handler = async (event) => {
   try {
-    // Parse the request body
     const body = JSON.parse(event.body || '{}');
     
     // Create an EventBridge event
     const params = {
       Entries: [
         {
-          // Event envelope fields
           Source: body.source || 'api.gateway',
           DetailType: body.detailType || 'ApiRequest',
           EventBusName: process.env.EVENT_BUS_NAME,
-          
-          // Event content
           Detail: JSON.stringify(body.detail || {}),
           
           // Optional fields
@@ -24,7 +20,7 @@ exports.handler = async (event) => {
       ]
     };
     
-    // Put the event on the event bus
+    // Publish to the EventBridge
     const result = await eventBridge.putEvents(params).promise();
     
     return {
@@ -38,7 +34,8 @@ exports.handler = async (event) => {
         eventId: result.Entries[0].EventId
       })
     };
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error publishing event:', error);
     
     return {
