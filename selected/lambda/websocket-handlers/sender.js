@@ -6,7 +6,6 @@ exports.handler = async (event) => {
   console.log('Event received by sender:', JSON.stringify(event, null, 2));
   
   try {
-    // Log event structure for debugging
     console.log('Event structure:');
     console.log('- detail-type:', event['detail-type']);
     console.log('- source:', event.source);
