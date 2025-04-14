@@ -6,38 +6,34 @@ exports.handler = async (event) => {
   try {
     console.log('Event received:', JSON.stringify(event, null, 2));
     
-    // Extract details from the event
-    let detail;
-    if (typeof event.detail === 'string') {
-      detail = JSON.parse(event.detail);
-    } else {
-      detail = event.detail || {};
-    }
-    
-    const connectionId = detail.connectionId;
-    const gameId = detail.gameId;
+    const connectionId = event.detail.connectionId ?? 'unknown';
+    const gameId = event.detail.gameId ?? 'unknown';
     
     // Retrieve the game from DynamoDB
-    const result = await dynamoDB.get({
-      TableName: process.env.DYNAMODB_TABLE,
-      Key: {
-        pk: `GAME#${gameId}`,
-        sk: 'METADATA'
-      }
-    }).promise();
+    let result;
+    if (gameId !== 'unknown') {
+      result = await dynamoDB.get({
+        TableName: process.env.DYNAMODB_TABLE,
+        Key: {
+          pk: `GAME#${gameId}`,
+          sk: 'METADATA'
+        }
+      }).promise();
+    }
     
-    // Check if the game exists
-    if (!result.Item) {
+    const gameData = result.Item ?? null;
+
+    // If game is not present in the database 
+    if (!gameData) {
       console.log(`Game ${gameId} not found`);
       
-      // Create a simplified error event payload
       const errorEventData = {
         gameId: gameId,
         connectionId: connectionId,
         error: 'Game not found'
       };
       
-      // Publish a not found event
+      // make another request for game
       try {
         await eventBridge.putEvents({
           Entries: [{
@@ -58,15 +54,11 @@ exports.handler = async (event) => {
         body: JSON.stringify({ message: 'Game not found' })
       };
     }
-    
-    const gameData = result.Item;
+
     console.log(`Game ${gameId} retrieved successfully`);
-    
-    // Publish an event with the game data
     console.log('Attempting to publish GameRequested event to EventBridge');
     console.log('Using event bus:', process.env.EVENT_BUS_NAME);
     
-    // Include all game data in the event payload
     const eventData = {
       gameId: gameId,
       connectionId: connectionId,
@@ -85,7 +77,6 @@ exports.handler = async (event) => {
     console.log('EVENT_BUS_NAME environment variable:', process.env.EVENT_BUS_NAME);
     
     try {
-      // Build the complete event entry for better debugging
       const eventEntry = {
         Source: 'game.service',
         DetailType: 'GameRequested', 
@@ -101,13 +92,13 @@ exports.handler = async (event) => {
       
       console.log('EventBridge putEvents response:', JSON.stringify(eventResult, null, 2));
       
-      // Check if there were any event publishing failures
       if (eventResult.FailedEntryCount > 0) {
         console.error('Failed to publish event:', JSON.stringify(eventResult.Entries, null, 2));
       }
-    } catch (eventError) {
+    }
+    catch (eventError) {
       console.error('Error publishing event to EventBridge:', eventError);
-      // Continue execution even if event publishing fails
+      // CHECK  still let this return even with error
     }
     
     return {
@@ -117,7 +108,8 @@ exports.handler = async (event) => {
         game: gameData
       })
     };
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error retrieving game:', error);
     
     return {

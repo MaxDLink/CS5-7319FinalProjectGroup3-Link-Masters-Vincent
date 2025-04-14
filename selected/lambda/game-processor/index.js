@@ -4,11 +4,10 @@ const dynamoDB = new AWS.DynamoDB.DocumentClient();
 exports.handler = async (event) => {
   console.log('Received event:', JSON.stringify(event, null, 2));
   
+  // Handle event types
   try {
-    // The event data is in the event.detail field
     const detail = event.detail;
     
-    // Process the event based on its type
     switch(event.detailType) {
       case 'GameCreated':
         await handleGameCreated(detail);
@@ -38,10 +37,11 @@ exports.handler = async (event) => {
   }
 };
 
+// Handlers
+
 async function handleGameCreated(detail) {
   console.log('Processing game creation:', detail);
   
-  // Example: Insert the game data into DynamoDB
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Item: {
@@ -61,7 +61,6 @@ async function handleGameCreated(detail) {
 async function handleGameUpdated(detail) {
   console.log('Processing game update:', detail);
   
-  // Example: Update the game data in DynamoDB
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
@@ -84,7 +83,6 @@ async function handleGameUpdated(detail) {
 async function handleGameDeleted(detail) {
   console.log('Processing game deletion:', detail);
   
-  // Example: Delete the game data from DynamoDB
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
     Key: {
