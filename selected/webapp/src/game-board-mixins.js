@@ -3,160 +3,6 @@ import { GameBoard } from './game-board.js';
 import { sounds } from './sounds.js';
 
 /**
- * Shared styles for all tutorial boards 
- */
-const TutorialStyles = css`
-  :host {
-    --board-size: 4;
-    --board-width: 340px;
-    --ship-color: rgba(52, 152, 219, 0.7);
-    --hit-color: rgba(46, 204, 113, 0.7);
-    --miss-color: rgba(231, 76, 60, 0.7);
-    --player-hit-color: rgba(231, 76, 60, 0.7);
-    display: block;
-    width: 100%;
-  }
-
-  .tutorial-card {
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto;
-    text-align: center;
-    padding: 20px 0;
-  }
-
-  .board-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 40px;
-    margin: 20px 0;
-    position: relative;
-  }
-
-  .board-title {
-    font-size: 24px;
-    color: #3498db;
-    margin-bottom: 15px;
-    font-weight: 500;
-  }
-
-  .board {
-    width: var(--board-width);
-    height: 80px;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    background-color: #1a1a1a;
-    padding: 8px;
-    border-radius: 8px;
-    gap: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .cell {
-    width: calc((var(--board-width) - 120px) / 4);
-    height: 64px;
-    background-color: #2c3e50;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 28px;
-  }
-
-  .cell.ship {
-    background-color: var(--ship-color);
-  }
-
-  .cell.hit {
-    background-color: var(--hit-color);
-  }
-
-  .cell.miss {
-    background-color: var(--miss-color);
-  }
-
-  .cell.player-ship-hit {
-    background-color: var(--player-hit-color);
-  }
-
-  .message {
-    font-size: 28px;
-    color: white;
-    margin-bottom: 16px;
-    font-weight: 500;
-  }
-
-  .instruction-text {
-    font-size: 22px;
-    color: #bdc3c7;
-    margin-bottom: 24px;
-  }
-
-  .tutorial-highlight { 
-    animation: pulse 2s infinite; 
-    box-shadow: 0 0 15px rgba(52, 152, 219, 0.8);
-  }
-
-  /* Fireball styles matching game-board.js */
-  .fireball, .enemy-fireball {
-    position: absolute;
-    font-size: 2.5em;
-    z-index: 100;
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-    filter: drop-shadow(0 0 15px rgba(255, 100, 0, 0.8));
-    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  }
-
-  .fireball {
-    animation: pulse-fire 0.3s infinite alternate, rotate-clockwise 0.8s infinite linear;
-  }
-
-  .enemy-fireball {
-    animation: pulse-fire 0.3s infinite alternate, rotate-counterclockwise 0.8s infinite linear;
-  }
-
-  @keyframes pulse-fire {
-    0% { transform: translate(-50%, -50%) scale(0.9); }
-    100% { transform: translate(-50%, -50%) scale(1.1); }
-  }
-
-  @keyframes rotate-clockwise {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    100% { transform: translate(-50%, -50%) rotate(360deg); }
-  }
-
-  @keyframes rotate-counterclockwise {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    100% { transform: translate(-50%, -50%) rotate(-360deg); }
-  }
-
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-  }
-
-  @media (max-width: 768px) {
-    :host { --board-width: 300px; }
-    .message { font-size: 24px; }
-    .instruction-text { font-size: 20px; }
-    .board { height: 70px; }
-    .cell { height: 54px; }
-  }
-
-  @media (max-width: 480px) {
-    :host { --board-width: 260px; }
-    .cell { font-size: 22px; height: 45px; }
-    .board { height: 61px; }
-    .message { font-size: 22px; }
-    .instruction-text { font-size: 18px; }
-  }
-`;
-
-/**
  * Tutorial base mixin that provides common functionality for all tutorial boards
  */
 const TutorialMixin = (Base) => class extends Base {
@@ -189,42 +35,34 @@ const TutorialMixin = (Base) => class extends Base {
     
     this._disableAI = true;
 
-    // Ensure real game data is not affected by tutorial
+    // ensure real game data is not affected by tutorial
     this._originalGameId = localStorage.getItem('gameId');
     localStorage.removeItem('gameId');
   }
 
-  // Override WebSocket initialization to prevent tutorial from opening WebSockets
+  // override websocket initialization to prevent tutorial from opening WebSockets with a mock websocket and responses
   initWebSocket() {
     console.log('Tutorial mode - WebSocket initialization prevented');
-    // Create a mock WebSocket that does nothing
     this.websocket = {
-      readyState: 1, // WebSocket.OPEN
+      readyState: 1,
       send: (msg) => console.log('Tutorial mode - WebSocket send prevented:', msg),
       close: () => console.log('Tutorial mode - WebSocket close prevented'),
       addEventListener: () => {},
       removeEventListener: () => {}
     };
     
-    // Fire the connected event to satisfy any waiting promises
     setTimeout(() => {
       this.dispatchEvent(new CustomEvent('websocket-connected'));
     }, 50);
     
-    return false; // Indicate we've overridden the method
-  }
-
-  // Override WebSocket ready check
-  isWebSocketReady() {
-    return true; // Always return true in tutorial mode
+    return false;
   }
   
-  // Override WebSocket waiting
   waitForWebSocketConnection() {
-    return Promise.resolve(); // Immediately resolve in tutorial mode
+    return Promise.resolve();
   }
 
-  // Override game state methods to avoid real server interaction
+  // override game state methods to avoid real server interaction
   async createGame() { return { gameId: 'tutorial' }; }
   async updateGame() { return; }
   async getGame() { return; }
@@ -233,24 +71,20 @@ const TutorialMixin = (Base) => class extends Base {
   async updateGameWithEvent() { return; }
   async loadGameState() { return; }
   async createSessionRecord() { return; }
-  
-  // Override game logic methods that might interact with server
   placeEnemyShips() { return; }
   enemyMove() { return; }
   _saveLocalGameStateCopy() { return; }
   
-  // Clean up when the tutorial component is removed
+  // clean up when the tutorial component is removed
   disconnectedCallback() {
     if (super.disconnectedCallback) {
       super.disconnectedCallback();
     }
-    
-    // Restore original game ID if it existed
+
     if (this._originalGameId) {
       localStorage.setItem('gameId', this._originalGameId);
     }
     
-    // Clean up any intervals or timeouts specific to tutorial
     if (this._tutorialInterval) {
       clearInterval(this._tutorialInterval);
     }
@@ -329,15 +163,7 @@ const TutorialMixin = (Base) => class extends Base {
     
     requestAnimationFrame(animate);
   }
-
-  checkWin() { 
-    return false; 
-  }
   
-  switchTurn() {
-    return;
-  }
-
   static get styles() {
     return [
       super.styles || css``,
@@ -519,10 +345,6 @@ export class EnemyAttackBoard extends TutorialMixin(GameBoard) {
     });
   }
 
-  handlePlayerCellClick(row, col) {
-    return;
-  }
-
   handleEnemyCellClick(row, col) {
     this.message = 'Enemy is attacking now!';
     this.instructionText = '';
@@ -542,14 +364,11 @@ export class PlayerAttackBoard extends TutorialMixin(GameBoard) {
     this.hits = 0;
     this.isPlayerTurn = true;
     
-    // Force override any inherited ship placement messages
-    this.shipsPlaced = this.boardSize; // Mark all ships as placed
+    this.shipsPlaced = this.boardSize;
   }
   
-  // Make sure we handle the initial render to override any inherited messages
   connectedCallback() {
     super.connectedCallback();
-    // Reset message in case it was overridden before first render
     this.message = 'Click on enemy cells to attack';
     this.instructionText = 'Click on the enemy\'s board to attack.';
   }
@@ -586,7 +405,157 @@ export class PlayerAttackBoard extends TutorialMixin(GameBoard) {
   }
 }
 
-// Register all components
+const TutorialStyles = css`
+  :host {
+    --board-size: 4;
+    --board-width: 340px;
+    --ship-color: rgba(52, 152, 219, 0.7);
+    --hit-color: rgba(46, 204, 113, 0.7);
+    --miss-color: rgba(231, 76, 60, 0.7);
+    --player-hit-color: rgba(231, 76, 60, 0.7);
+    display: block;
+    width: 100%;
+  }
+
+  .tutorial-card {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .board-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    margin: 20px 0;
+    position: relative;
+  }
+
+  .board-title {
+    font-size: 24px;
+    color: #3498db;
+    margin-bottom: 15px;
+    font-weight: 500;
+  }
+
+  .board {
+    width: var(--board-width);
+    height: 80px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background-color: #1a1a1a;
+    padding: 8px;
+    border-radius: 8px;
+    gap: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .cell {
+    width: calc((var(--board-width) - 120px) / 4);
+    height: 64px;
+    background-color: #2c3e50;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 28px;
+  }
+
+  .cell.ship {
+    background-color: var(--ship-color);
+  }
+
+  .cell.hit {
+    background-color: var(--hit-color);
+  }
+
+  .cell.miss {
+    background-color: var(--miss-color);
+  }
+
+  .cell.player-ship-hit {
+    background-color: var(--player-hit-color);
+  }
+
+  .message {
+    font-size: 28px;
+    color: white;
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+
+  .instruction-text {
+    font-size: 22px;
+    color: #bdc3c7;
+    margin-bottom: 24px;
+  }
+
+  .tutorial-highlight { 
+    animation: pulse 2s infinite; 
+    box-shadow: 0 0 15px rgba(52, 152, 219, 0.8);
+  }
+
+  /* Fireball styles matching game-board.js */
+  .fireball, .enemy-fireball {
+    position: absolute;
+    font-size: 2.5em;
+    z-index: 100;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 0 15px rgba(255, 100, 0, 0.8));
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  }
+
+  .fireball {
+    animation: pulse-fire 0.3s infinite alternate, rotate-clockwise 0.8s infinite linear;
+  }
+
+  .enemy-fireball {
+    animation: pulse-fire 0.3s infinite alternate, rotate-counterclockwise 0.8s infinite linear;
+  }
+
+  @keyframes pulse-fire {
+    0% { transform: translate(-50%, -50%) scale(0.9); }
+    100% { transform: translate(-50%, -50%) scale(1.1); }
+  }
+
+  @keyframes rotate-clockwise {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  @keyframes rotate-counterclockwise {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(-360deg); }
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  @media (max-width: 768px) {
+    :host { --board-width: 300px; }
+    .message { font-size: 24px; }
+    .instruction-text { font-size: 20px; }
+    .board { height: 70px; }
+    .cell { height: 54px; }
+  }
+
+  @media (max-width: 480px) {
+    :host { --board-width: 260px; }
+    .cell { font-size: 22px; height: 45px; }
+    .board { height: 61px; }
+    .message { font-size: 22px; }
+    .instruction-text { font-size: 18px; }
+  }
+`;
+
 customElements.define('ship-placement-board', ShipPlacementBoard);
 customElements.define('enemy-attack-board', EnemyAttackBoard);
 customElements.define('player-attack-board', PlayerAttackBoard); 

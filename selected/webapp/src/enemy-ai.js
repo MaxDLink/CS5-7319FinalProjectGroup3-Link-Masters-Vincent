@@ -4,7 +4,6 @@ export class EnemyAI {
       this.possibleMoves = this.generateAllPossibleMoves();
     }
   
-    // Generate all possible moves based on the board size
     generateAllPossibleMoves() {
       const moves = [];
       for (let row = 0; row < this.boardSize; row++) {
@@ -15,21 +14,19 @@ export class EnemyAI {
       return moves;
     }
   
-    // Randomly select a move from the list of possible moves
     selectRandomMove() {
       if (this.possibleMoves.length === 0) {
         console.warn('No more possible moves, regenerating all moves');
         this.possibleMoves = this.generateAllPossibleMoves();
         
-        // Filter out moves that have already been made (if playerBoard is provided)
+        // Filter out moves that have been made already (if playerBoard is provided)
         if (this.lastPlayerBoard) {
           this.possibleMoves = this.possibleMoves.filter(move => {
             const cell = this.lastPlayerBoard[move.row][move.col];
-            return cell !== 'X' && cell !== 'O'; // Filter out cells that are already hit or miss
+            return (cell !== 'X' && cell !== 'O');
           });
         }
         
-        // If still no moves, return null (this should never happen in a normal game)
         if (this.possibleMoves.length === 0) {
           console.error('Still no possible moves after regeneration');
           return null;
@@ -40,19 +37,15 @@ export class EnemyAI {
       return this.possibleMoves.splice(randomIndex, 1)[0];
     }
   
-    // Simulate an attack on the player's board
     attack(playerBoard) {
       if (playerBoard) {
-        // Store the current player board for filtering already attacked cells
         this.lastPlayerBoard = playerBoard;
         
-        // Filter out moves that have already been made
         this.possibleMoves = this.possibleMoves.filter(move => {
           const cell = playerBoard[move.row][move.col];
-          return cell !== 'X' && cell !== 'O'; // Filter out cells that are already hit or miss
+          return cell !== 'X' && cell !== 'O';
         });
         
-        // Simple AI: randomly select a cell to attack
         const move = this.selectRandomMove();
         
         if (move) {
@@ -60,8 +53,7 @@ export class EnemyAI {
           console.log("Enemy AI is thinking....");
           console.log(`Enemy attacks: ${row}, ${col}`);
           
-          // Note: We're only returning the move, not modifying the board
-          // The actual board modification happens in the GameBoard component
+          // Move is sent to the GameBoard component to have it applied to the local state
           return move;
         }
         return null;

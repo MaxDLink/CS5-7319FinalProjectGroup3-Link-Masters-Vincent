@@ -20,31 +20,7 @@ import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 export class App extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-
-    const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-east-1_m9CtZ8Zr3');
-
-    const eventBusClient = new cognito.UserPoolClient(this, 'EventBusClient', {
-      userPool,
-      userPoolClientName: 'EventBridgeArchitectureClient',
-      generateSecret: false,
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
-        adminUserPassword: true,
-      },
-      oAuth: {
-        flows: {
-          authorizationCodeGrant: true,
-          implicitCodeGrant: true,
-        },
-        scopes: [
-          cognito.OAuthScope.OPENID,
-          cognito.OAuthScope.EMAIL,
-          cognito.OAuthScope.PROFILE,
-        ]
-      }
-    });
-
+    
     const originAccessIdentity = new OriginAccessIdentity(this, 'WebAppOriginAccessIdentity');
 
     const bucket = new Bucket(this, 'WebAppBucket', {

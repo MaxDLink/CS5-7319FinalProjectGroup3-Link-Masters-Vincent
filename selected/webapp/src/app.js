@@ -6,7 +6,6 @@ import './ship.js';
 
 class App extends LitElement {
 
-
   static get properties() {
     return {
       route: {type: String}
@@ -19,10 +18,11 @@ class App extends LitElement {
     console.log('App constructor')
   }
 
+  // Bypass login for now
   _onLogin(event) {
     this.route = event.detail.isLoggedIn ? 'game' : 'login'
     console.log('App login event', event.detail.isLoggedIn)
-    this.route = 'game'; // bypass login for now
+    this.route = 'game';
   }
 
   render() {

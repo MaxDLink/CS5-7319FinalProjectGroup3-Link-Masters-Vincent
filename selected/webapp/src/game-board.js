@@ -441,8 +441,6 @@ export class GameBoard extends LitElement {
         this.initWebSocket();
       }
         
-      
-      
       const handler = () => resolve();
       this.addEventListener('websocket-connected', handler, { once: true });
       
@@ -457,7 +455,6 @@ export class GameBoard extends LitElement {
   handlePlayerCellClick(row, col) {
     console.log(`Player cell clicked: ${row}, ${col} (state: ${this.gameState})`);
     
-    // If the game is ended, don't allow any moves
     if (this.gameEnded) {
       console.log('Game has ended, no more moves allowed');
       return;
@@ -465,18 +462,14 @@ export class GameBoard extends LitElement {
     
     // During the INIT or PLACEMENT states, allow placing ships
     if (this.gameState === 'INIT' || this.gameState === 'PLACEMENT') {
-      // Don't allow placing ships on cells that already have ships
       if (this.playerBoard[row][col] === 'S') {
         console.log('Ship already placed here');
         return;
       }
       
-      // Place a ship on the player's board
       this.playerBoard[row][col] = 'S';
-      this.shipsPlaced++;
-      
-      // Add to ship positions
       this.playerShipPositions.push({ row, col });
+      this.shipsPlaced++;
       
       // Update the game state to PLACEMENT once the first ship is placed
       if (this.gameState === 'INIT' && this.shipsPlaced === 1) {
@@ -484,7 +477,7 @@ export class GameBoard extends LitElement {
         console.log('Game state changed to: PLACEMENT');
       }
       
-      // Play sound effect
+      // Play PlaceShip sound effect
       sounds.initAudioContext();
       // sounds.PlaceShip();
       
@@ -492,49 +485,44 @@ export class GameBoard extends LitElement {
       if (this.shipsPlaced < this.boardSize) {
         this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
         this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
-            } else {
+      }
+      else {
         // All ships placed, transition to BATTLE state
-        this.isPlayerTurn = true; // Player gets first turn after placing all ships
+        this.isPlayerTurn = true;
         this.gameState = 'BATTLE';
         console.log('Game state changed to: BATTLE');
         this.message = "All ships placed! Click on the enemy board to attack.";
         this.instructionText = "Attack the enemy board";
       }
       
-      // Update game state on server
       this.updateGame();
-      
-      // Re-render to show the updated board
-      this.requestUpdate();
+      this.requestUpdate(); // re-render board from server-state
     } 
-    // During BATTLE state, don't allow clicking on your own board
+
     else if (this.gameState === 'BATTLE') {
-      this.message = "During battle, tap on the enemy's board to attack.";
+      this.message = "During battle, tap on the enemy's board to attack."; // Not your own board
       this.requestUpdate();
     }
   }
   
-  // Load game state method - simplified
   loadGameState() {
-    if (this.gameId) {
+    if (this.gameId)
       this.getGame();
-        } else {
+    else {
       this.gameState = 'INIT';
-      // this.createGame();
+      this.createGame();
     }
   }
   
   resetGame() {
     console.log("Resetting game...");
     
-    // Clear all timeouts
     if (this._enemyMoveTimeout) clearTimeout(this._enemyMoveTimeout);
     if (this._enemyAnimationTimeout) clearTimeout(this._enemyAnimationTimeout);
     if (this._enemyCleanupTimeout) clearTimeout(this._enemyCleanupTimeout);
     if (this._playerAttackTimeout) clearTimeout(this._playerAttackTimeout);
     if (this._playerCleanupTimeout) clearTimeout(this._playerCleanupTimeout);
     
-    // Reset game state
     this.gameId = null;
     this.shipsPlaced = 0;
     this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
@@ -544,12 +532,10 @@ export class GameBoard extends LitElement {
     this.playerShipPositions = [];
     this.placeEnemyShips();
     
-    // Reset game flow state
     this.isPlayerTurn = null;
     this.gameEnded = false;
     this.winner = '';
     
-    // Reset animations
     this.animatingFireball = false;
     this.fireballPosition = null;
     this.lastHitPosition = null;
@@ -559,19 +545,16 @@ export class GameBoard extends LitElement {
     this.animatingEnemyFireball = false;
     this.enemyFireballPosition = null;
     
-    // Reset game state to INIT
     this.gameState = 'INIT';
     console.log('Game state reset to: INIT');
     
-    // Update UI
     this.requestUpdate();
     
-    // Create new game if WebSocket is ready
     if (this.isWebSocketReady()) {
-      //this.createGame();
+      this.createGame();
     } else {
       console.log('WebSocket not ready, will create game once connected');
-        this.initWebSocket();
+      this.initWebSocket();
     }
   }
 
@@ -583,21 +566,21 @@ export class GameBoard extends LitElement {
       document.getElementById("viewport").setAttribute("content", "width=device-width, initial-scale=1.0");
       // Reset styles for portrait
       if (board) {
-        board.style.width = '40vmin'; // Reset to original size
-        board.style.height = '40vmin'; // Reset to original size
+        board.style.width = '40vmin';
+        board.style.height = '40vmin';
       }
     } else if (orn.includes('landscape')) {
       console.log("Scaling boards to fit landscape");
-      const boardSize = '40vmin'; // Define a common size for both width and height
-      document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0"); // Adjust width for landscape
-      console.log("landscape!"); // Print to console when in landscape mode
-      // Adjust styles for landscape
+      const boardSize = '40vmin';
+      document.getElementById("viewport").setAttribute("content", "width=900px, initial-scale=1.0");
+      console.log("landscape!");
+
       if (board) {
         console.log("Accessing boards to scale them");
-        boardContainer.style.flexDirection = 'row'; // Change to row for landscape
-        boardContainer.style.justifyContent = 'space-around'; // Space boards evenly
-        playerBoard.style.margin = '10px'; // Set margin for player board
-        enemyBoard.style.margin = '10px'; // Set margin for enemy board
+        boardContainer.style.flexDirection = 'row';
+        boardContainer.style.justifyContent = 'space-around';
+        playerBoard.style.margin = '10px';
+        enemyBoard.style.margin = '10px';
       }
     }
   }
@@ -665,11 +648,9 @@ export class GameBoard extends LitElement {
   }
 
   checkWin(board) {
-    // Check if all ships ('S') have been hit ('X')
     return board.every(row => row.every(cell => cell !== 'S'));
   }
 
-  // Handle enemy cell click based on game state
   handleEnemyCellClick(row, col) {
     console.log(`Enemy cell clicked: ${row}, ${col} (state: ${this.gameState})`);
     
@@ -694,10 +675,8 @@ export class GameBoard extends LitElement {
       return;
     }
     
-    // Start the attack animation
     this.startFireballAnimation(row, col);
 
-    // Store attack timeout
     this._playerAttackTimeout = setTimeout(() => {
       console.log(`Player attacks: ${row}, ${col}`);
       this.lastHitPosition = { row, col };
@@ -707,36 +686,35 @@ export class GameBoard extends LitElement {
         this.hitResult = 'hit';
         sounds.initAudioContext();
         sounds.HitEnemy();
+
         this.enemyBoard[row][col] = 'X';
-        this.switchTurn(); // the player went, so switch the turn to the enemy 
+        this.switchTurn();
         this.createExplosion(row, col, true);
 
         if (this.checkWin(this.enemyBoard)) {
           console.log('Player wins!');
           sounds.initAudioContext();
-          sounds.Victory(); // add victory sound 
+          sounds.Victory();
           this.endGame('Player');
           return;
         }
-      } else {
+      }
+      else {
         console.log('Miss!');
         this.hitResult = 'miss';
         this.enemyBoard[row][col] = 'O';
-        this.switchTurn(); // the player went, so switch the turn to the enemy 
+        this.switchTurn();
         this.createWaterSplash(row, col, true);
       }
       
-      // Update game state
       this.updateGame();
-       
       this.requestUpdate();
 
-      // Store cleanup and enemy move timeout
       this._playerCleanupTimeout = setTimeout(() => {
         this.lastHitPosition = null;
         this.hitResult = null;
         this.requestUpdate();
-        // Start enemy move if game is not ended and it's enemy's turn
+
         if (!this.gameEnded && !this.isPlayerTurn) {
           this.enemyMove();
         }
@@ -744,7 +722,6 @@ export class GameBoard extends LitElement {
     }, 800);
   }
   
-  // Enemy AI move implementation
   enemyMove() {
     // Only allow enemy moves in BATTLE state and when it's the enemy's turn
     if (this.gameState !== 'BATTLE' || this.gameEnded || this.isPlayerTurn === true) {
@@ -777,42 +754,39 @@ export class GameBoard extends LitElement {
             sounds.HitPlayer();
             this.playerBoard[row][col] = 'X';
             this.createExplosion(row, col, false); 
-            this.switchTurn(); // the enemy went, so switch the turn to the player
+            this.switchTurn();
 
             if (this.checkWin(this.playerBoard)) {
               console.log('Enemy wins!');
               sounds.initAudioContext();
-              sounds.Defeat(); // add defeat sound 
+              sounds.Defeat(); 
               this.endGame('Enemy');
               return;
             }
-      } else {
+          }
+          else {
             console.log('Enemy missed!');
             this.enemyHitResult = 'miss';
             this.playerBoard[row][col] = 'O';
             this.createWaterSplash(row, col, false);
-            this.switchTurn(); // the enemy went, so switch the turn to the player
+            this.switchTurn();
           }
           
-          // Update game state
           this.updateGame();
+          this.requestUpdate();
 
-      this.requestUpdate();
-
-          // Store cleanup timeout
           this._enemyCleanupTimeout = setTimeout(() => {
             this.lastEnemyHitPosition = null;
             this.enemyHitResult = null;
-      this.requestUpdate();
+            this.requestUpdate();
           }, 1000);
         }, 800);
-    }
+      }
     }, 1000);
   }
 
   // Start the fireball animation from player board to enemy board
   startFireballAnimation(targetRow, targetCol) {
-    // Get the positions of the player board and enemy board
     const playerBoard = this.shadowRoot.querySelector('.player-section .board');
     const enemyBoard = this.shadowRoot.querySelector('.enemy-section .board');
     const targetCell = enemyBoard.querySelectorAll('.cell')[targetRow * this.boardSize + targetCol];
@@ -822,27 +796,23 @@ export class GameBoard extends LitElement {
       return;
     }
     
-    // Get the positions
+
     const playerRect = playerBoard.getBoundingClientRect();
     const targetRect = targetCell.getBoundingClientRect();
     
-    // Calculate start and end positions
     const startX = playerRect.left + playerRect.width / 2;
     const startY = playerRect.top + playerRect.height / 2;
     const endX = targetRect.left + targetRect.width / 2;
     const endY = targetRect.top + targetRect.height / 2;
     
-    // Start animation
     this.animatingFireball = true;
     this.fireballPosition = { 
       x: startX, 
       y: startY 
     };
     
-    // Force a synchronous update to prevent layout shifts
     this.requestUpdate();
     
-    // Animate the fireball
     const animationDuration = 800; // ms
     const startTime = performance.now();
     
@@ -850,7 +820,6 @@ export class GameBoard extends LitElement {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Calculate current position using easing function
       const easeOutQuad = t => t * (2 - t); // Acceleration then deceleration
       const easedProgress = easeOutQuad(progress);
       
@@ -864,7 +833,6 @@ export class GameBoard extends LitElement {
       if (progress < 1) {
         requestAnimationFrame(animateFireball);
       } else {
-        // End animation
         setTimeout(() => {
           this.animatingFireball = false;
           this.requestUpdate();
@@ -877,7 +845,6 @@ export class GameBoard extends LitElement {
 
   // Start the enemy fireball animation from enemy board to player board
   startEnemyFireballAnimation(targetRow, targetCol) {
-    // Get the positions of the player board and enemy board
     const playerBoard = this.shadowRoot.querySelector('.player-section .board');
     const enemyBoard = this.shadowRoot.querySelector('.enemy-section .board');
     const targetCell = playerBoard.querySelectorAll('.cell')[targetRow * this.boardSize + targetCol];
@@ -886,28 +853,23 @@ export class GameBoard extends LitElement {
       console.error('Could not find elements for enemy animation');
       return;
     }
-    
-    // Get the positions
+
     const enemyRect = enemyBoard.getBoundingClientRect();
     const targetRect = targetCell.getBoundingClientRect();
     
-    // Calculate start and end positions
     const startX = enemyRect.left + enemyRect.width / 2;
     const startY = enemyRect.top + enemyRect.height / 2;
     const endX = targetRect.left + targetRect.width / 2;
     const endY = targetRect.top + targetRect.height / 2;
     
-    // Start animation
     this.animatingEnemyFireball = true;
     this.enemyFireballPosition = { 
       x: startX, 
       y: startY 
     };
     
-    // Force a synchronous update to prevent layout shifts
     this.requestUpdate();
     
-    // Animate the fireball
     const animationDuration = 800; // ms
     const startTime = performance.now();
     
@@ -915,8 +877,7 @@ export class GameBoard extends LitElement {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Calculate current position using easing function
-      const easeOutQuad = t => t * (2 - t); // Acceleration then deceleration
+      const easeOutQuad = t => t * (2 - t);
       const easedProgress = easeOutQuad(progress);
       
       this.enemyFireballPosition = {
@@ -929,7 +890,6 @@ export class GameBoard extends LitElement {
       if (progress < 1) {
         requestAnimationFrame(animateEnemyFireball);
       } else {
-        // End animation
         setTimeout(() => {
           this.animatingEnemyFireball = false;
           this.requestUpdate();
@@ -955,7 +915,7 @@ export class GameBoard extends LitElement {
         }
       }
     }
-    // only call updateGame if there is a gameId 
+ 
     if (this.gameId) {
       this.updateGame();
     }
@@ -964,7 +924,6 @@ export class GameBoard extends LitElement {
   endGame(winner) {
     console.log(`Game ended! Winner: ${winner}`);
     
-    // Update game state and end flags
     this.gameEnded = true;
     this.winner = winner;
     this.gameState = 'ENDED';
@@ -978,10 +937,8 @@ export class GameBoard extends LitElement {
       localStorage.setItem('playerLosses', this.losses);
     }
     
-    // Update game data on server
     this.updateGame();
     
-    // Show winner popup with delay to ensure DOM is updated
     setTimeout(() => {
       const winnerPopup = this.shadowRoot.querySelector('#winnerPopup');
       if (winnerPopup) {
@@ -992,14 +949,10 @@ export class GameBoard extends LitElement {
     }, 100);
   }
 
+  // Calculate and set the optimal board size based on viewport
   firstUpdated() {
-    // Set CSS variables based on board size
-    this.style.setProperty('--board-size', this.boardSize);
-    
-    // Calculate and set the optimal board size based on viewport
     this.updateBoardSizes();
-    
-    // Add resize listener to adjust board sizes when window is resized
+    this.style.setProperty('--board-size', this.boardSize);
     window.addEventListener('resize', this.updateBoardSizes.bind(this));
   }
   
@@ -1007,39 +960,30 @@ export class GameBoard extends LitElement {
   updateBoardSizes() {
     const vh = window.innerHeight;
     const vw = window.innerWidth;
-    
-    // Determine if we're in landscape or portrait mode
     const isLandscape = vw > vh;
     
-    // Calculate card width - larger to use more space
     const cardWidth = Math.min(vw * 0.95, isLandscape ? 600 : 650);
     this.style.setProperty('--card-width', `${cardWidth}px`);
     
-    // Calculate available height (accounting for padding, etc.)
-    // Use more of the available height
     const availableHeight = vh * 0.85;
     
     if (isLandscape) {
-      // In landscape, make boards larger
       const boardSize = Math.min(cardWidth * 0.7, availableHeight * 0.4);
       this.style.setProperty('--board-max-width', `${boardSize}px`);
       this.style.setProperty('--board-height', `${boardSize}px`);
-    } else {
-      // In portrait, make boards larger but ensure they're square
-      // Each board gets about 35% of available height
+    }
+    else {
       const boardSize = Math.min(cardWidth * 0.9, availableHeight * 0.35);
       this.style.setProperty('--board-max-width', `${boardSize}px`);
       this.style.setProperty('--board-height', `${boardSize}px`);
     }
     
-    // Adjust font size based on board size
     const fontSize = isLandscape ? 
       Math.max(0.9, Math.min(1.3, cardWidth / 600)) : 
       Math.max(0.8, Math.min(1.2, cardWidth / 400));
     
     this.style.setProperty('--cell-font-size', `${fontSize}em`);
     
-    // Force layout recalculation
     this.requestUpdate();
   }
 
@@ -1047,7 +991,6 @@ export class GameBoard extends LitElement {
     const board = isEnemyBoard ? this.shadowRoot.querySelector('.enemy-section .board') : this.shadowRoot.querySelector('.player-section .board');
     if (!board) return;
     
-    // Get the position of the cell
     const cell = board.querySelectorAll('.row')[row].querySelectorAll('.cell')[col];
     const rect = cell.getBoundingClientRect();
     
@@ -1063,49 +1006,42 @@ export class GameBoard extends LitElement {
     splashContainer.style.zIndex = '1000';
     this.shadowRoot.appendChild(splashContainer);
     
-    // Center point of the cell
     const centerX = rect.left + rect.width/2;
     const centerY = rect.top + rect.height/2;
     
     // Create water droplets with evenly distributed directions
-    const dropletCount = 8; // Exactly 8 droplets
-    const dropletEmojis = ['💧', '💦', '🌊']; // Water emojis
+    const dropletCount = 8;
+    const dropletEmojis = ['💧', '💦', '🌊'];
     
-    // Create droplets in a radial pattern (evenly spaced around a circle)
     for (let i = 0; i < dropletCount; i++) {
       const droplet = document.createElement('div');
       droplet.className = 'water-droplet';
       
-      // Randomly select one of the water emojis
       const randomEmoji = dropletEmojis[Math.floor(Math.random() * dropletEmojis.length)];
       droplet.textContent = randomEmoji;
       
-      // Calculate angle for even distribution around a circle (360 degrees)
       const angle = (i / dropletCount) * Math.PI * 2;
-      const distance = 60; // Fixed distance for all droplets
+      const distance = 60;
       
-      // Calculate end position
       const endX = centerX + Math.cos(angle) * distance;
       const endY = centerY + Math.sin(angle) * distance;
       
-      // Position at center of cell
       droplet.style.position = 'absolute';
       droplet.style.left = `${centerX}px`;
       droplet.style.top = `${centerY}px`;
       droplet.style.transform = 'translate(-50%, -50%)';
       
-      // Animation
       droplet.animate([
-        { // starting position
+        {
           transform: 'translate(-50%, -50%) scale(0.2)',
           opacity: 0
         },
-        { // visible state
+        {
           transform: 'translate(-50%, -50%) scale(1.0)',
           opacity: 1,
           offset: 0.2
         },
-        { // end position
+        {
           transform: `translate(calc(${endX}px - ${centerX}px), calc(${endY}px - ${centerY}px)) scale(0.5)`,
           opacity: 0
         }
@@ -1115,11 +1051,10 @@ export class GameBoard extends LitElement {
         fill: 'forwards'
       });
       
-      // Add to container
       splashContainer.appendChild(droplet);
     }
     
-    // Add a central splash
+    // Add central splash
     const splash = document.createElement('div');
     splash.className = 'water-splash-center';
     splash.textContent = '💦';
@@ -1128,23 +1063,22 @@ export class GameBoard extends LitElement {
     splash.style.top = `${centerY}px`;
     splash.style.transform = 'translate(-50%, -50%)';
     
-    // Animate the central splash
     splash.animate([
-      { // starting position
+      {
         transform: 'translate(-50%, -50%) scale(0.1)',
         opacity: 0
       },
-      { // visible state
+      {
         transform: 'translate(-50%, -50%) scale(1.0)',
         opacity: 1,
         offset: 0.2
       },
-      { // expanded state
+      {
         transform: 'translate(-50%, -50%) scale(2.0)',
         opacity: 0.8,
         offset: 0.5
       },
-      { // end position
+      {
         transform: 'translate(-50%, -50%) scale(0.5)',
         opacity: 0
       }
@@ -1154,7 +1088,6 @@ export class GameBoard extends LitElement {
       fill: 'forwards'
     });
     
-    // Add to container
     splashContainer.appendChild(splash);
     
     // Remove splash container after all animations complete
@@ -1169,7 +1102,6 @@ export class GameBoard extends LitElement {
     const board = isEnemyBoard ? this.shadowRoot.querySelector('.enemy-section .board') : this.shadowRoot.querySelector('.player-section .board');
     if (!board) return;
     
-    // Get the position of the cell
     const cell = board.querySelectorAll('.row')[row].querySelectorAll('.cell')[col];
     const rect = cell.getBoundingClientRect();
     
@@ -1185,49 +1117,41 @@ export class GameBoard extends LitElement {
     explosionContainer.style.zIndex = '1000';
     this.shadowRoot.appendChild(explosionContainer);
     
-    // Center point of the cell
     const centerX = rect.left + rect.width/2;
     const centerY = rect.top + rect.height/2;
     
-    // Create explosion particles with evenly distributed directions
-    const particleCount = 16; // Exactly 16 particles
-    const particleEmojis = ['✨', '💥', '🔥']; // Explosion emojis
+    const particleCount = 16;
+    const particleEmojis = ['✨', '💥', '🔥'];
     
-    // Create particles in a radial pattern (evenly spaced around a circle)
     for (let i = 0; i < particleCount; i++) {
       const particle = document.createElement('div');
       particle.className = 'explosion-particle';
-      
-      // Randomly select one of the explosion emojis
+
       const randomEmoji = particleEmojis[Math.floor(Math.random() * particleEmojis.length)];
       particle.textContent = randomEmoji;
       
-      // Calculate angle for even distribution around a circle (360 degrees)
       const angle = (i / particleCount) * Math.PI * 2;
-      const distance = 80; // Fixed distance for all particles
+      const distance = 80;
       
-      // Calculate end position
       const endX = centerX + Math.cos(angle) * distance;
       const endY = centerY + Math.sin(angle) * distance;
       
-      // Position at center of cell
       particle.style.position = 'absolute';
       particle.style.left = `${centerX}px`;
       particle.style.top = `${centerY}px`;
       particle.style.transform = 'translate(-50%, -50%)';
       
-      // Animation
       particle.animate([
-        { // starting position
+        {
           transform: 'translate(-50%, -50%) scale(0.2)',
           opacity: 0
         },
-        { // visible state
+        {
           transform: 'translate(-50%, -50%) scale(1.0)',
           opacity: 1,
           offset: 0.2
         },
-        { // end position
+        {
           transform: `translate(calc(${endX}px - ${centerX}px), calc(${endY}px - ${centerY}px)) scale(0.5)`,
           opacity: 0
         }
@@ -1237,7 +1161,6 @@ export class GameBoard extends LitElement {
         fill: 'forwards'
       });
       
-      // Add to container
       explosionContainer.appendChild(particle);
     }
     
@@ -1250,23 +1173,23 @@ export class GameBoard extends LitElement {
     explosion.style.top = `${centerY}px`;
     explosion.style.transform = 'translate(-50%, -50%)';
     
-    // Animate the central explosion
+
     explosion.animate([
-      { // starting position
+      {
         transform: 'translate(-50%, -50%) scale(0.1)',
         opacity: 0
       },
-      { // visible state
+      {
         transform: 'translate(-50%, -50%) scale(1.0)',
         opacity: 1,
         offset: 0.2
       },
-      { // expanded state
+      {
         transform: 'translate(-50%, -50%) scale(2.0)',
         opacity: 0.8,
         offset: 0.5
       },
-      { // end position
+      {
         transform: 'translate(-50%, -50%) scale(0.5)',
         opacity: 0
       }
@@ -1289,10 +1212,8 @@ export class GameBoard extends LitElement {
 
   // Helper method to rebuild playerShipPositions from the board data
   rebuildPlayerShipPositions() {
-    // Reset ship positions
     this.playerShipPositions = [];
     
-    // Make sure playerBoard exists and is an array before processing
     if (!this.playerBoard || !Array.isArray(this.playerBoard)) {
       console.warn('Player board not properly initialized. Creating empty board.');
       this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
@@ -1305,8 +1226,7 @@ export class GameBoard extends LitElement {
         console.warn(`Invalid row at index ${row}, skipping`);
         continue;
       }
-      for (let col = 0; col < this.playerBoard[row].length; col++) {
-        // Include both intact ships ('S') and hit ships ('X') 
+      for (let col = 0; col < this.playerBoard[row].length; col++) { 
         if (this.playerBoard[row][col] === 'S' || this.playerBoard[row][col] === 'X') {
           this.playerShipPositions.push({ row, col });
         }
@@ -1320,7 +1240,6 @@ export class GameBoard extends LitElement {
   countShipsOnBoard() {
     let count = 0;
     
-    // Make sure playerBoard exists and is an array before processing
     if (!this.playerBoard || !Array.isArray(this.playerBoard)) {
       console.warn('Player board not properly initialized for counting ships');
       return 0;
@@ -1332,7 +1251,6 @@ export class GameBoard extends LitElement {
         continue;
       }
       for (let col = 0; col < this.playerBoard[row].length; col++) {
-        // Count both intact ships ('S') and hit ships ('X') as valid ships
         if (this.playerBoard[row][col] === 'S' || this.playerBoard[row][col] === 'X') {
           count++;
         }
@@ -1345,10 +1263,8 @@ export class GameBoard extends LitElement {
 
   // Helper method to rebuild enemyShipPositions from the board data
   rebuildEnemyShipPositions() {
-    // Reset ship positions
     this.enemyShipPositions = [];
     
-    // Make sure enemyBoard exists and is an array before processing
     if (!this.enemyBoard || !Array.isArray(this.enemyBoard)) {
       console.warn('Enemy board not properly initialized. Creating empty board.');
       this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
@@ -1362,7 +1278,6 @@ export class GameBoard extends LitElement {
         continue;
       }
       for (let col = 0; col < this.enemyBoard[row].length; col++) {
-        // Include both intact ships ('S') and hit ships ('X') 
         if (this.enemyBoard[row][col] === 'S' || this.enemyBoard[row][col] === 'X') {
           this.enemyShipPositions.push({ row, col });
         }
@@ -1374,7 +1289,6 @@ export class GameBoard extends LitElement {
 
   // Handle game data for both initial load and updates
   handleGameData(gameData) {
-    // Only proceed if the data is for our gameId
     if (!gameData || gameData.gameId !== this.gameId) {
       console.warn('Ignoring game data for different gameId', gameData?.gameId, 'our gameId:', this.gameId);
       return false;
@@ -1382,36 +1296,25 @@ export class GameBoard extends LitElement {
     
     console.log(`Processing game data for ${this.gameId}:`, gameData);
     // TODO - we get more handle response messages after this is hit for some reason, which makes new games get created 
-    // Update boards if provided
-    if (gameData.playerBoard) {
+    if (gameData.playerBoard)
       this.playerBoard = gameData.playerBoard;
-    }
     
-    if (gameData.enemyBoard) {
+    if (gameData.enemyBoard)
       this.enemyBoard = gameData.enemyBoard;
-    }
     
-    // Update ships placed count if provided
-    if (typeof gameData.shipsPlaced === 'number') {
+    if (typeof gameData.shipsPlaced === 'number')
       this.shipsPlaced = gameData.shipsPlaced;
-    }
     
-    // Update ship positions if available
-    if (gameData.playerShipPositions) {
+    if (gameData.playerShipPositions)
       this.playerShipPositions = gameData.playerShipPositions;
-    } else {
-      // Rebuild ship positions if not provided
+    else
       this.rebuildPlayerShipPositions();
-    }
     
-    if (gameData.enemyShipPositions) {
+    if (gameData.enemyShipPositions)
       this.enemyShipPositions = gameData.enemyShipPositions;
-    } else {
-      // Rebuild ship positions if not provided
+    else
       this.rebuildEnemyShipPositions();
-    }
     
-    // Update game status
     if (gameData.status === 'COMPLETED') {
       this.gameEnded = true;
       if (gameData.winner) {
@@ -1419,15 +1322,11 @@ export class GameBoard extends LitElement {
       }
     }
     
-    // Update turn state
-    if (this.shipsPlaced >= this.boardSize) {
-      if (typeof gameData.isPlayerTurn === 'boolean') {
-        this.isPlayerTurn = gameData.isPlayerTurn;
-      }
-                } else {
-      // During ship placement, isPlayerTurn should be null
+    // Change turns
+    if (this.shipsPlaced >= this.boardSize && typeof gameData.isPlayerTurn === 'boolean')
+      this.isPlayerTurn = gameData.isPlayerTurn;
+    else
       this.isPlayerTurn = null;
-    }
     
     // Update win/loss counts if provided
     if (typeof gameData.wins === 'number') {
@@ -1445,11 +1344,13 @@ export class GameBoard extends LitElement {
       this.gameState = 'INIT';
       this.message = `Place ${this.boardSize} ships on your board.`;
       this.instructionText = `Tap on Player Board ${this.boardSize} times`;
-    } else if (this.shipsPlaced < this.boardSize) {
+    }
+    else if (this.shipsPlaced < this.boardSize) {
       this.gameState = 'PLACEMENT';
       this.message = `Place ${this.boardSize - this.shipsPlaced} more ships on your board.`;
       this.instructionText = `Tap on Player Board ${this.boardSize - this.shipsPlaced} times`;
-      } else {
+    }
+    else {
       this.gameState = 'BATTLE';
       this.message = "All ships placed! Click on the enemy board to attack.";
       this.instructionText = "Attack the enemy board";
@@ -1458,7 +1359,6 @@ export class GameBoard extends LitElement {
     
     console.log(`Game state after data processing: ${this.gameState}`);
     
-    // Force UI update
     this.requestUpdate();
     
     return true;
@@ -1469,14 +1369,12 @@ export class GameBoard extends LitElement {
     this.isPlayerTurn = !this.isPlayerTurn;
     console.log(`Turn switched. Is it player's turn? ${this.isPlayerTurn}`);
 
-    // Update message based on whose turn it is
-    if (this.isPlayerTurn) {
+    if (this.isPlayerTurn)
       this.message = 'Tap on the enemy\'s board to try to hit ships';
-                } else {
+    else
       this.message = 'Wait for the enemy\'s turn';
-    }
     
-    this.requestUpdate(); // Re-render to show updated message
+    this.requestUpdate();
   }
 
   // Delete the current game via WebSocket
