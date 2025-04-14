@@ -6,9 +6,7 @@ exports.handler = async (event) => {
   try {
     console.log('Event received:', JSON.stringify(event, null, 2));
     
-    // Extract details from the event
     const detail = event.detail;
-    const connectionId = detail.connectionId;
     const gameId = detail.gameId;
     
     if (!gameId) {
@@ -18,8 +16,8 @@ exports.handler = async (event) => {
       };
     }
     
-    // Get the current game data
-    const getResult = await dynamoDB.get({
+    // Database Interaction
+    const result = await dynamoDB.get({
       TableName: process.env.DYNAMODB_TABLE,
       Key: {
         pk: `GAME#${gameId}`,
@@ -27,26 +25,26 @@ exports.handler = async (event) => {
       }
     }).promise();
     
-    // Check if the game exists
-    if (!getResult.Item) {
+    const gameData = result.Item ?? null;
+
+    if (!gameData) {
       return {
         statusCode: 404,
         body: JSON.stringify({ message: 'Game not found' })
       };
     }
     
-    // Prepare the update data
     const updateItem = {
-      ...getResult.Item,
-      playerBoard: detail.playerBoard || getResult.Item.playerBoard,
-      enemyBoard: detail.enemyBoard || getResult.Item.enemyBoard,
-      shipsPlaced: detail.shipsPlaced !== undefined ? detail.shipsPlaced : getResult.Item.shipsPlaced,
-      playerHits: detail.playerHits !== undefined ? detail.playerHits : getResult.Item.playerHits,
-      enemyHits: detail.enemyHits !== undefined ? detail.enemyHits : getResult.Item.enemyHits,
-      status: detail.gameStatus || getResult.Item.status,
-      isPlayerTurn: detail.isPlayerTurn !== undefined ? detail.isPlayerTurn : getResult.Item.isPlayerTurn,
-      wins: detail.wins !== undefined ? detail.wins : getResult.Item.wins,
-      losses: detail.losses !== undefined ? detail.losses : getResult.Item.losses,
+      ...gameData,
+      playerBoard: detail.playerBoard || gameData.playerBoard,
+      enemyBoard: detail.enemyBoard || gameData.enemyBoard,
+      shipsPlaced: detail.shipsPlaced !== undefined ? detail.shipsPlaced : gameData.shipsPlaced,
+      playerHits: detail.playerHits !== undefined ? detail.playerHits : gameData.playerHits,
+      enemyHits: detail.enemyHits !== undefined ? detail.enemyHits : gameData.enemyHits,
+      status: detail.gameStatus || gameData.status,
+      isPlayerTurn: detail.isPlayerTurn !== undefined ? detail.isPlayerTurn : gameData.isPlayerTurn,
+      wins: detail.wins !== undefined ? detail.wins : gameData.wins,
+      losses: detail.losses !== undefined ? detail.losses : gameData.losses,
       updatedAt: new Date().toISOString()
     };
     
@@ -65,7 +63,7 @@ exports.handler = async (event) => {
         DetailType: 'GameUpdated',
         Detail: JSON.stringify({
           gameId: gameId,
-          connectionId: connectionId,
+          connectionId: detail.connectionId,
           playerBoard: updateItem.playerBoard,
           enemyBoard: updateItem.enemyBoard,
           shipsPlaced: updateItem.shipsPlaced,
@@ -99,10 +97,3 @@ exports.handler = async (event) => {
     };
   }
 };
-
-const corsHeaders = () => ({
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'PUT, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json'
-}); 
