@@ -2,12 +2,11 @@ const AWS = require('aws-sdk');
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 const eventBridge = new AWS.EventBridge();
 
-// This Lambda function is triggered when a client disconnects from the WebSocket API
+// This lambda is triggered when a client disconnects from the WebSocket API
 exports.handler = async (event) => {
   const connectionId = event.requestContext.connectionId;
   
   try {
-    // Remove the connection ID from DynamoDB
     await dynamoDB.delete({
       TableName: process.env.CONNECTIONS_TABLE,
       Key: {

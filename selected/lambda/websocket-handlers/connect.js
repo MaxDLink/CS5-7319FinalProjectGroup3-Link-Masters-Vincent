@@ -2,7 +2,7 @@ const AWS = require('aws-sdk');
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 const eventBridge = new AWS.EventBridge();
 
-// This Lambda function is triggered when a client connects to the WebSocket API
+// This lambda is triggered when a client connects to the WebSocket API
 exports.handler = async (event) => {
   console.log('Connect event received:', JSON.stringify(event, null, 2));
   
@@ -49,7 +49,7 @@ exports.handler = async (event) => {
   } catch (error) {
     console.error('Error in connect handler:', error);
     
-    // Attempt to publish error event even if there was a connection issue
+    // Attempt to publish an error event even if there was a connection issue
     try {
       await eventBridge.putEvents({
         Entries: [{
