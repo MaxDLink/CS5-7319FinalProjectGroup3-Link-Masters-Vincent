@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { sounds } from './sounds.js';
 import { EnemyAI } from './enemy-ai.js';
-
+import { WinnerPopup } from './winner-popup.js';
 export class GameBoard extends LitElement {
   static get properties() {
     return {
