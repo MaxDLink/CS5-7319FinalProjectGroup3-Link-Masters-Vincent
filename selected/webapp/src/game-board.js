@@ -479,7 +479,7 @@ export class GameBoard extends LitElement {
       
       // Play PlaceShip sound effect
       sounds.initAudioContext();
-      // sounds.PlaceShip();
+      sounds.HitPlayer();
       
       // Update message based on remaining ships to place
       if (this.shipsPlaced < this.boardSize) {
