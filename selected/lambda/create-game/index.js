@@ -9,38 +9,23 @@ exports.handler = async (event) => {
         console.log("Event received:", JSON.stringify(event, null, 2));
 
         let connectionId;
+        let data;
 
-        // Parse connectionId from event data
+        // Parse data from event
         try {
-            if (typeof event.detail === "string") {
-                detail = JSON.parse(event.detail);
-            } else if (
-                typeof event.detail === "object" &&
-                event.detail !== null
-            ) {
-                detail = event.detail;
+            if (typeof event.data === "string") {
+                data = JSON.parse(event.data);
+            } else if (typeof event.data === "object" && event.data !== null) {
+                data = event.data;
             } else {
-                console.warn(
-                    "Unable to extract connectionId from event, using fallback"
-                );
-                connectionId = "unknown";
-                return;
+                console.warn("No valid data found in event");
+                data = {};
             }
 
-            connectionId = event.detail.connectionId ?? event.detail.data?.connectionId;
-
-            if (connectionId) {
-                console.log("Extracted connectionId: ", connectionId);
-                connectionId;
-            } else {
-                console.warn("Unable to extract connectionId");
-                connectionId = "unknown";
-            }
+            connectionId = event.connectionId ?? "unknown";
         } catch (error) {
-            console.error(
-                "Error parsing connectionId from event, using fallback:",
-                error
-            );
+            console.error("Error parsing event data:", error);
+            data = {};
             connectionId = "unknown";
         }
 
@@ -52,12 +37,9 @@ exports.handler = async (event) => {
             pk: `GAME#${gameId}`,
             sk: "METADATA",
             gameId: gameId,
-            playerBoard: Array(4)
-                .fill()
-                .map(() => Array(4).fill("")),
-            enemyBoard: Array(4)
-                .fill()
-                .map(() => Array(4).fill("")),
+            playerBoard: data.playerBoard ?? Array(4).fill().map(() => Array(4).fill("")),
+            enemyBoard: data.enemyBoard ?? Array(4).fill().map(() => Array(4).fill("")),
+            enemyShipPositions: data.enemyShipPositions ?? [],
             shipsPlaced: 0,
             playerHits: 0,
             enemyHits: 0,
@@ -77,16 +59,15 @@ exports.handler = async (event) => {
             })
             .promise();
 
-        console.log(
-            `Game ${gameId} created successfully and stored in DynamoDB`
-        );
+        console.log(`Game ${gameId} created successfully and stored in DynamoDB`);
 
-		// Data to send to EventBridge
+        // Data to send to EventBridge
         const eventData = {
             gameId: gameId,
             connectionId: connectionId,
             playerBoard: gameItem.playerBoard,
             enemyBoard: gameItem.enemyBoard,
+            enemyShipPositions: gameItem.enemyShipPositions,
             shipsPlaced: gameItem.shipsPlaced,
             status: gameItem.status,
             isPlayerTurn: gameItem.isPlayerTurn,
@@ -104,7 +85,7 @@ exports.handler = async (event) => {
             JSON.stringify(eventData, null, 2)
         );
 
-		// Publish the event to EventBridge
+        // Publish the event to EventBridge
         const eventResult = await eventBridge
             .putEvents({
                 Entries: [
