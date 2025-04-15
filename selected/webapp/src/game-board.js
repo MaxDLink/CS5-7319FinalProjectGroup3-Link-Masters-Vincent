@@ -197,7 +197,7 @@ export class GameBoard extends LitElement {
       return;
     }
     
-    const wsUrl = 'wss://yzondw43l7.execute-api.us-east-1.amazonaws.com/prod/';
+    const wsUrl = 'wss://gfs49hvr95.execute-api.us-east-1.amazonaws.com/prod';
     console.log('Initializing WebSocket connection to:', wsUrl);
     
     this.websocket = new WebSocket(wsUrl);
@@ -232,7 +232,7 @@ export class GameBoard extends LitElement {
       // Handle response based on action from websocket
       // only goes into this if this.isCreatingGame is true. Once a game is created, this.isCreatingGame is set to false in localstorage to 
       // persist between refreshes and websocket reconnects 
-      if (response.type === 'GameCreated' && !this.gameId) {
+      if (response.type === 'GameCreated') {
         this.gameId = response.gameId;
         console.log(`New game created with ID: ${this.gameId}`);
         
@@ -381,10 +381,9 @@ export class GameBoard extends LitElement {
   createGame() {  
     console.log('Sending create game request...');
     this.isCreatingGame = false; 
-    // stores a key value pair in local storage where key is gameCreationAttempted and value is true 
     localStorage.setItem('gameCreationAttempted', 'true');
     this.websocket.send(JSON.stringify({
-      action: 'createGame', // create game action through websocket 
+      action: 'createGame',
       data: {
         playerBoard: this.playerBoard,
         enemyBoard: this.enemyBoard,
@@ -1387,8 +1386,8 @@ export class GameBoard extends LitElement {
     
     console.log(`Deleting game ${this.gameId}...`);
     this.websocket.send(JSON.stringify({
-            action: 'deleteGame',
-            data: {
+      action: 'deleteGame',
+      data: {
         gameId: this.gameId
       }
     }));
