@@ -384,6 +384,8 @@ export class GameBoard extends LitElement {
       this.playerBoard[row][col] = 'S';
       this.playerShipPositions.push({ row, col });
       this.shipsPlaced++;
+      sounds.initAudioContext();
+      sounds.HitPlayer();
       this.updateGame(); // record the ship placement in DynamoDB 
       
       // Update the message
