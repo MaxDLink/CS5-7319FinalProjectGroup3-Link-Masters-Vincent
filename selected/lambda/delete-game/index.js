@@ -6,8 +6,11 @@ exports.handler = async (event) => {
   try {
     console.log('Event received:', JSON.stringify(event, null, 2));
     
-    const connectionId = event.detail.connectionId;
-    const gameId = event.detail.gameId;
+    // Parse the detail from the EventBridge event
+    const detail = typeof event.detail === 'string' ? JSON.parse(event.detail) : event.detail;
+    
+    const connectionId = detail.connectionId;
+    const gameId = detail.gameId;
     
     if (!gameId) {
       return {
