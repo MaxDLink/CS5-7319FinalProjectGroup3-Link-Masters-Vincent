@@ -13,7 +13,7 @@ exports.handler = async (event) => {
     
     // Parse Data from event
     const detail = event.detail || (typeof event.detail === 'string' ? JSON.parse(event.detail) : {});
-    const targetConnectionId = detail.connectionId;
+    const targetConnectionId = detail.data?.connectionId || detail.connectionId;
     
     const endpoint = process.env.WEBSOCKET_ENDPOINT;
     if (!endpoint) {
@@ -29,9 +29,9 @@ exports.handler = async (event) => {
  
     // Extract detail data - handle string or object
     let detailData = {};
-    if (typeof event.detail === 'string') {
+    if (typeof event.data === 'string') {
       try {
-        detailData = JSON.parse(event.detail);
+        detailData = JSON.parse(event.data);
       } catch (e) {
         console.error('Error parsing event.detail string:', e);
       }
@@ -85,8 +85,8 @@ exports.handler = async (event) => {
     }
     console.log('Prepared message:', JSON.stringify(message, null, 2));
     
-    // If we have a specific target connection, send only to that client
-    if (targetConnectionId) {
+    // Validate connectionId before attempting to send
+    if (targetConnectionId && targetConnectionId !== 'unknown') {
       console.log(`Sending message to specific connection: ${targetConnectionId}`);
       
       try {
@@ -110,8 +110,8 @@ exports.handler = async (event) => {
       }
     }
     
-    // Otherwise, broadcast to all connected clients
-    console.log('Broadcasting message to all connected clients');
+    // If no valid target connection or connectionId is 'unknown', broadcast to all clients
+    console.log('No valid target connection found, broadcasting to all connected clients');
     
     const connectionData = await dynamoDB.scan({
       TableName: process.env.CONNECTIONS_TABLE
