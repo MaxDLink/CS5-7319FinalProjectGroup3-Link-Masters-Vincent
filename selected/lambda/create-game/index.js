@@ -13,16 +13,16 @@ exports.handler = async (event) => {
 
         // Parse data from event
         try {
-            if (typeof event.data === "string") {
-                data = JSON.parse(event.data);
-            } else if (typeof event.data === "object" && event.data !== null) {
-                data = event.data;
+            if (typeof event.detail === "string") {
+                data = JSON.parse(event.detail);
+            } else if (typeof event.detail === "object" && event.detail !== null) {
+                data = event.detail;
             } else {
                 console.warn("No valid data found in event");
                 data = {};
             }
 
-            connectionId = event.connectionId ?? "unknown";
+            connectionId = data.connectionId ?? "unknown";
         } catch (error) {
             console.error("Error parsing event data:", error);
             data = {};
