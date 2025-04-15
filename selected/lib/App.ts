@@ -6,10 +6,9 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import { RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import { HttpApi, CorsHttpMethod, HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { Distribution, OriginAccessIdentity, ViewerProtocolPolicy } from 'aws-cdk-lib/aws-cloudfront';
 import { BlockPublicAccess, Bucket } from 'aws-cdk-lib/aws-s3';
-import { S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -33,7 +32,7 @@ export class App extends cdk.Stack {
     // Define CloudFront 
     const distribution = new Distribution(this, 'WebAppDistribution', {
       defaultBehavior: {
-        origin: new S3BucketOrigin(bucket, {
+        origin: new S3Origin(bucket, {
           originAccessIdentity: originAccessIdentity,
         }),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,

@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { sounds } from './sounds.js';
 import { EnemyAI } from './enemy-ai.js';
-
+import { WinnerPopup } from './winner-popup.js';
 export class GameBoard extends LitElement {
   static get properties() {
     return {
@@ -479,7 +479,7 @@ export class GameBoard extends LitElement {
       
       // Play PlaceShip sound effect
       sounds.initAudioContext();
-      // sounds.PlaceShip();
+      sounds.HitPlayer();
       
       // Update message based on remaining ships to place
       if (this.shipsPlaced < this.boardSize) {
