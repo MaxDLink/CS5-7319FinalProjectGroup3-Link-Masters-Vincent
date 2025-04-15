@@ -120,7 +120,6 @@ export class Tutorial extends LitElement {
   }
 
   firstUpdated() {
-    // Set up intersection observer for scroll animations
     this.observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -131,7 +130,6 @@ export class Tutorial extends LitElement {
       threshold: 0.1
     });
 
-    // Observe all sections and game board containers
     this.shadowRoot.querySelectorAll('section, .game-board-container').forEach(el => {
       this.observer.observe(el);
     });
@@ -178,45 +176,33 @@ export class Tutorial extends LitElement {
   playButton() {
     console.log('Play button clicked!');
     
-    // Save existing win/loss counts
     const wins = parseInt(localStorage.getItem('playerWins') || '0');
     const losses = parseInt(localStorage.getItem('playerLosses') || '0');
     
-    // Remove the tutorial element
     this.remove();
     
-    // Clear any existing gameId to force a new game
     localStorage.removeItem('gameId');
     
-    // Create main app element
     const appElement = document.createElement('app-element');
     document.body.appendChild(appElement);
     
-    // Set the route to 'game' which will display the navbar and game-board
     setTimeout(() => {
-      // Use the app's login method to set route to 'game'
       appElement.route = 'game';
       
-      // Wait for game-board to be initialized
       setTimeout(() => {
-        // Get the game board and initialize it for ship placement
         const gameBoard = appElement.shadowRoot?.querySelector('game-board');
         if (gameBoard) {
-          // Cancel any existing enemy move timeouts
           clearTimeout(gameBoard._enemyMoveTimeout);
           
-          // Restore wins and losses
           gameBoard.wins = wins;
           gameBoard.losses = losses;
           
-          // Force game into ship placement mode
-          gameBoard.isPlayerTurn = null; // Setting to null prevents enemy movement
+          gameBoard.isPlayerTurn = null; 
           gameBoard.shipsPlaced = 0;
           gameBoard.gameEnded = false;
           gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
-          gameBoard.instructionText = `Click to place ships`; // Simplified instruction
+          gameBoard.instructionText = `Click to place ships`; 
           
-          // Update the game to save the restored wins/losses
           gameBoard.updateGame();
           gameBoard.requestUpdate();
         }
