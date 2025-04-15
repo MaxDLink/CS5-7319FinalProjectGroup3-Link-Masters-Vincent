@@ -524,11 +524,12 @@ export class GameBoard extends LitElement {
     
     this.gameId = null;
     this.shipsPlaced = 0;
+    // Clear player board and ship positions
     this.playerBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+    this.playerShipPositions = [];
     this.enemyBoard = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
     this.message = `Place ${this.boardSize} ships on your board`;
     this.instructionText = `Tap on Player Board ${this.boardSize} times`;
-    this.playerShipPositions = [];
     this.placeEnemyShips();
     
     this.isPlayerTurn = null;
@@ -548,7 +549,6 @@ export class GameBoard extends LitElement {
     console.log('Game state reset to: INIT');
     
     this.requestUpdate();
-    
   }
 
   updateViewport() {
@@ -1288,20 +1288,22 @@ export class GameBoard extends LitElement {
     }
     
     console.log(`Processing game data for ${this.gameId}:`, gameData);
-    // TODO - we get more handle response messages after this is hit for some reason, which makes new games get created 
-    if (gameData.playerBoard)
-      this.playerBoard = gameData.playerBoard;
     
-    if (gameData.enemyBoard)
-      this.enemyBoard = gameData.enemyBoard;
-    
-    if (typeof gameData.shipsPlaced === 'number')
-      this.shipsPlaced = gameData.shipsPlaced;
-    
-    if (gameData.playerShipPositions)
-      this.playerShipPositions = gameData.playerShipPositions;
-    else
-      this.rebuildPlayerShipPositions();
+    // Only update boards if not in INIT state to prevent overwriting reset state
+    if (this.gameState !== 'INIT') {
+      if (gameData.playerBoard)
+        this.playerBoard = gameData.playerBoard;
+      
+      if (gameData.enemyBoard)
+        this.enemyBoard = gameData.enemyBoard;
+      
+      if (typeof gameData.shipsPlaced === 'number')
+        this.shipsPlaced = gameData.shipsPlaced;
+      
+      if (gameData.playerShipPositions) {
+        this.playerShipPositions = gameData.playerShipPositions;
+      }
+    }
     
     if (gameData.enemyShipPositions)
       this.enemyShipPositions = gameData.enemyShipPositions;
@@ -1347,7 +1349,6 @@ export class GameBoard extends LitElement {
       this.gameState = 'BATTLE';
       this.message = "All ships placed! Click on the enemy board to attack.";
       this.instructionText = "Attack the enemy board";
-      
     }
     
     console.log(`Game state after data processing: ${this.gameState}`);
