@@ -549,12 +549,6 @@ export class GameBoard extends LitElement {
     
     this.requestUpdate();
     
-    if (this.isWebSocketReady()) {
-      this.createGame();
-    } else {
-      console.log('WebSocket not ready, will create game once connected');
-      this.initWebSocket();
-    }
   }
 
   updateViewport() {
