@@ -32,7 +32,7 @@ cd selected/webapp && npm run build && cd .. && cdk deploy
 
 If you want to avoid deploying, here are the deployed links that you can paste into your browser. This way you can quickly test the deployed versions without having to configure your aws account.
 
-Selected: https://d3lgu0g9lgbw30.cloudfront.net
+Selected: https://d11c06n3ofnp72.cloudfront.net 
 
 Unselected: https://d2sv6rk6q755dp.cloudfront.net
 
