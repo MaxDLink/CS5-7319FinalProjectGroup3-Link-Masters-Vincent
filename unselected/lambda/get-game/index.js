@@ -10,6 +10,8 @@ export const handler = async (event) => {
   }
 
   const gameId = event.pathParameters?.gameId;
+
+  // Handle missing gameId
   if (!gameId) {
     return {
       statusCode: 400,
@@ -18,6 +20,7 @@ export const handler = async (event) => {
     };
   }
 
+  // Attempt game retrieval
   try {
     const result = await ddbDocClient.get({
       TableName: process.env.DYNAMODB_TABLE,

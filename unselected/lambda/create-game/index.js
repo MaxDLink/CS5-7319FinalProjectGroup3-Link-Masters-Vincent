@@ -10,6 +10,7 @@ export const handler = async (event) => {
     return { statusCode: 204, headers: corsHeaders() };
   }
 
+  // Attempt game creation
   try {
     const gameId = uuidv4();
     const timestamp = new Date().toISOString();
@@ -20,14 +21,14 @@ export const handler = async (event) => {
         pk: `GAME#${gameId}`,
         sk: 'METADATA',
         gameId: gameId,
-        status: 'SETUP', // SETUP, IN_PROGRESS, COMPLETED
+        status: 'SETUP', // Statuses are SETUP, IN_PROGRESS, and COMPLETED
         isPlayerTurn: true,
         createdAt: timestamp,
         updatedAt: timestamp,
-        playerBoard: Array(4).fill(Array(4).fill(null)), // 4x4 empty board
+        playerBoard: Array(4).fill(Array(4).fill(null)),
         enemyBoard: Array(4).fill(Array(4).fill(null)),
-        wins: 0,  // Add wins field with default 0
-        losses: 0 // Add losses field with default 0
+        wins: 0,
+        losses: 0 
       }
     };
 
