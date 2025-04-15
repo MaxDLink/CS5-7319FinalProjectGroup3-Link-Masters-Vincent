@@ -32,10 +32,9 @@ export class WinnerPopup extends LitElement {
     this.winner = winner;
     this.visible = true;
     
-    // Make sure we call requestUpdate() before playing sounds
     this.requestUpdate();
     
-    // Play victory or defeat sound - add a small delay to ensure component is ready
+    // Play victory or defeat sound
     setTimeout(() => {
       sounds.initAudioContext();
       console.log(`Playing ${winner === 'Player' ? 'victory' : 'defeat'} sound`);

@@ -1,19 +1,8 @@
-/* global Event */
 import {html, css, LitElement} from 'lit'
 import { UserManager } from 'oidc-client-ts'
 import { Log } from 'oidc-client-ts';
 Log.setLogger(console);
 
-/**
- * @module Login
- * @description UI web component.
- */
-
-/**
- * @class Login
- * @extends {LitElement}
- * @description Web component handle login and logout
- */
 export class Login extends LitElement {
   static get styles() {
     return css`
@@ -59,10 +48,7 @@ export class Login extends LitElement {
       post_logout_redirect_uri: `${window.location.origin}/`,
       response_type: "code",
       scope: "email openid phone",
-      // cognito specific settings
-      // no revoke of "access token" (https://github.com/authts/oidc-client-ts/issues/262)
       revokeTokenTypes: ["refresh_token"],
-      // no silent renew via "prompt=none" (https://github.com/authts/oidc-client-ts/issues/366)
       automaticSilentRenew: false,
     }
 
@@ -77,19 +63,18 @@ export class Login extends LitElement {
       if (this.user) {
         console.log('User Logged In');
         localStorage.setItem('isLoggedIn', 'true');
-        // Dispatch login-success event
+
         this.dispatchEvent(new CustomEvent('login-success', {
           bubbles: true,
           composed: true,
           detail: { user: this.user }
         }));
-      } else {
+      }
+      else {
         console.log('User Not Logged In');
         localStorage.setItem('isLoggedIn', 'false');
       }
-      // fire an event to the app to update the route
       this.dispatchEvent(new CustomEvent('login', {detail: {isLoggedIn: this.user ? true : false}}))
-      // console.log(this.user)
     })
 
     if (window.location.search.includes("code")) {
@@ -100,7 +85,7 @@ export class Login extends LitElement {
             this.user = user
             console.log(this.user)
             localStorage.setItem('isLoggedIn', 'true');
-            // Dispatch login-success event after redirect callback
+
             this.dispatchEvent(new CustomEvent('login-success', {
               bubbles: true,
               composed: true,
@@ -134,7 +119,6 @@ export class Login extends LitElement {
   }
 
   _onClickLogin() {
-    // this.dispatchEvent(new CustomEvent('login', {detail: {}}))
     this.userManager.signinRedirect().then(data => {
       console.log(data)
     })
@@ -145,7 +129,6 @@ export class Login extends LitElement {
     this.userManager.removeUser()
     const clientId = "9ihaiqmpt1f94sci2553h6cfn"; //mine:2c3i2f2t829bjrbpgj6fem79n4 //OG: 1ttf4hijhkkf4nc3h3ame5e16a
     const logoutUri = `${window.location.origin}/`;
-    // https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com/oauth2/token
     const cognitoDomain = "https://us-east-1vtsic3zeh.auth.us-east-1.amazoncognito.com"; //Mine: https://us-east-10ouompryv.auth.us-east-1.amazoncognito.com //OG: https://backend-auth.auth.us-east-1.amazoncognito.com
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
   }

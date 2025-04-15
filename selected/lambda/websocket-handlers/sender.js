@@ -1,41 +1,37 @@
 const AWS = require('aws-sdk');
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 
-// This Lambda function sends messages to connected WebSocket clients
+// This lambda sends messages to connected WebSocket clients
 exports.handler = async (event) => {
   console.log('Event received by sender:', JSON.stringify(event, null, 2));
   
   try {
-    // Log event structure for debugging
     console.log('Event structure:');
     console.log('- detail-type:', event['detail-type']);
     console.log('- source:', event.source);
     console.log('- detail type:', typeof event.detail);
     
-    // Extract connection ID if present in the event (for targeted messages)
+    // Parse Data from event
     const detail = event.detail || (typeof event.detail === 'string' ? JSON.parse(event.detail) : {});
-    const targetConnectionId = detail.connectionId;
+    const targetConnectionId = detail.data?.connectionId || detail.connectionId;
     
-    // Get the WebSocket API endpoint
     const endpoint = process.env.WEBSOCKET_ENDPOINT;
     if (!endpoint) {
       throw new Error('WEBSOCKET_ENDPOINT environment variable is not set');
     }
     
-    // Create API Gateway Management API client
     const apigwManagementApi = new AWS.ApiGatewayManagementApi({
       apiVersion: '2018-11-29',
       endpoint: endpoint
     });
     
-    // Prepare the message based on the event
     const messageType = event['detail-type'] || 'UnknownEvent';
  
     // Extract detail data - handle string or object
     let detailData = {};
-    if (typeof event.detail === 'string') {
+    if (typeof event.data === 'string') {
       try {
-        detailData = JSON.parse(event.detail);
+        detailData = JSON.parse(event.data);
       } catch (e) {
         console.error('Error parsing event.detail string:', e);
       }
@@ -45,20 +41,16 @@ exports.handler = async (event) => {
     
     console.log('Extracted detail data:', JSON.stringify(detailData, null, 2));
     
-    // Extract the specific fields we need from detail
     const connectionId = detailData.connectionId;
     
-    // Construct message with proper structure that frontend expects
     const message = {
       type: messageType,
       data: detailData,
-      gameId: detailData.gameId, // Always put gameId at top level
+      gameId: detailData.gameId,
       timestamp: new Date().toISOString()
     };
     
-    // For GameCreated events, make sure gameId is directly accessible at message.data.gameId
-    if (messageType === 'GameCreated') { // game created returned by eventBridge 
-      // Log the original structure
+    if (messageType === 'GameCreated') {
       console.log('Original GameCreated/CreateGameRequest message structure:', JSON.stringify(message, null, 2));
       
       // Fix common issues with EventBridge event structure
@@ -82,20 +74,21 @@ exports.handler = async (event) => {
       
       console.log('Final GameCreated/CreateGameRequest message structure:', JSON.stringify(message, null, 2));
     }
-    if (messageType === 'GameUpdated') {
+    else if (messageType === 'GameUpdated') {
       console.log("The game has been updated!")
     }
-    if (messageType === 'GameRequested') {
+    else if (messageType === 'GameRequested') {
       console.log("The game has been requested with GameRequested type!")
     }
-    if (messageType === 'GameDeleteRequest') {
+    else if (messageType === 'GameDeleteRequest') {
       console.log("The game has been deleted with GameDeleteRequest type!")
     }
     console.log('Prepared message:', JSON.stringify(message, null, 2));
     
-    // If we have a specific target connection, send only to that client
-    if (targetConnectionId) {
+    // Validate connectionId before attempting to send
+    if (targetConnectionId && targetConnectionId !== 'unknown') {
       console.log(`Sending message to specific connection: ${targetConnectionId}`);
+      
       try {
         await apigwManagementApi.postToConnection({
           ConnectionId: targetConnectionId,
@@ -103,8 +96,8 @@ exports.handler = async (event) => {
         }).promise();
         console.log(`Message sent to ${targetConnectionId} successfully`);
         return { statusCode: 200, body: 'Message sent' };
-      } catch (error) {
-        // Handle stale connections
+      }
+      catch (error) {
         if (error.statusCode === 410) {
           console.log(`Found stale connection, removing ${targetConnectionId}`);
           await dynamoDB.delete({
@@ -113,14 +106,13 @@ exports.handler = async (event) => {
           }).promise();
           return { statusCode: 410, body: 'Client disconnected' };
         }
-        throw error; // Re-throw other errors
+        throw error;
       }
     }
     
-    // Otherwise, broadcast to all connected clients
-    console.log('Broadcasting message to all connected clients');
+    // If no valid target connection or connectionId is 'unknown', broadcast to all clients
+    console.log('No valid target connection found, broadcasting to all connected clients');
     
-    // Get all connected clients from DynamoDB
     const connectionData = await dynamoDB.scan({
       TableName: process.env.CONNECTIONS_TABLE
     }).promise();

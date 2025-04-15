@@ -10,6 +10,8 @@ export const handler = async (event) => {
   }
 
   const gameId = event.pathParameters?.gameId;
+
+  // Handle Missing gameId
   if (!gameId) {
     return {
       statusCode: 400,
@@ -18,6 +20,7 @@ export const handler = async (event) => {
     };
   }
 
+  // Attempt game deletion
   try {
     await ddbDocClient.delete({
       TableName: process.env.DYNAMODB_TABLE,
@@ -32,7 +35,8 @@ export const handler = async (event) => {
       headers: corsHeaders(),
       body: JSON.stringify({ message: 'Game deleted successfully' })
     };
-  } catch (error) {
+  }
+  catch (error) {
     return {
       statusCode: 500,
       headers: corsHeaders(),

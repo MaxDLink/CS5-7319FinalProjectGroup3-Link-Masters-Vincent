@@ -2,7 +2,6 @@ import { LitElement, html, css } from 'lit';
 import './nav-bar.js';
 import './login.js';
 import './game-board.js';
-import './ship.js';
 
 class App extends LitElement {
 

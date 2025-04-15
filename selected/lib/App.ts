@@ -6,7 +6,6 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import { RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import { HttpApi, CorsHttpMethod, HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { Distribution, OriginAccessIdentity, ViewerProtocolPolicy } from 'aws-cdk-lib/aws-cloudfront';
 import { BlockPublicAccess, Bucket } from 'aws-cdk-lib/aws-s3';
 import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
@@ -20,48 +19,17 @@ import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 export class App extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-
-    // TODO: Define cognito ARN for backend services 
-    const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-east-1_m9CtZ8Zr3');
-    const client = cognito.UserPoolClient.fromUserPoolClientId(this, 'ExistingUserPoolClient', '53dbt4feojdrr5i9gpeameio62');
-
-    // Create a new app client specifically for the EventBridge architecture
-    const eventBusClient = new cognito.UserPoolClient(this, 'EventBusClient', {
-      userPool,
-      userPoolClientName: 'EventBridgeArchitectureClient',
-      generateSecret: false,
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
-        adminUserPassword: true,
-      },
-      oAuth: {
-        flows: {
-          authorizationCodeGrant: true,
-          implicitCodeGrant: true,
-        },
-        scopes: [
-          cognito.OAuthScope.OPENID,
-          cognito.OAuthScope.EMAIL,
-          cognito.OAuthScope.PROFILE,
-        ]
-      }
-    });
-
-    // webapp stack 
+    
     const originAccessIdentity = new OriginAccessIdentity(this, 'WebAppOriginAccessIdentity');
 
-    // S3 bucket for static website hosting
     const bucket = new Bucket(this, 'WebAppBucket', {
       publicReadAccess: false,
       removalPolicy: RemovalPolicy.RETAIN,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
     });
-
-    // Grant CloudFront Origin Access Identity permission to read from the bucket
     bucket.grantRead(originAccessIdentity);
 
-    // CloudFront distribution
+    // Define CloudFront 
     const distribution = new Distribution(this, 'WebAppDistribution', {
       defaultBehavior: {
         origin: new S3Origin(bucket, {
@@ -78,20 +46,25 @@ export class App extends cdk.Stack {
         }
       ],
     });
-    // Deploy the HTML file to the S3 bucket
+
+    // Deploy the HTML to the bucket
     new BucketDeployment(this, 'WebAppDeployment', {
-      sources: [Source.asset('./webapp/dist')], // Path to your webapp folder containing index.html
+      sources: [Source.asset('./webapp/dist')],
       destinationBucket: bucket,
       distribution, 
       distributionPaths: ['/*'], 
     });
-    // Output the CloudFront URL
+
     new CfnOutput(this, 'WebAppURL', {
       value: `https://${distribution.domainName}`,
       description: 'The URL of the deployed web application',
     });
 
-    // EVENTBUS STACK //
+    const eventBus = new events.EventBus(this, 'GameEventBus', {
+      eventBusName: 'game-events'
+    });
+
+    // Define Database
 
     const table = new Table(this, 'MyTable', {
       partitionKey: { name:'pk', type: AttributeType.STRING },
@@ -101,12 +74,15 @@ export class App extends cdk.Stack {
       billingMode: BillingMode.PAY_PER_REQUEST,
     });
 
-    const eventBus = new events.EventBus(this, 'GameEventBus', {
-      eventBusName: 'game-events'
+    const connectionsTable = new Table(this, 'WebSocketConnections', {
+      partitionKey: { name: 'connectionId', type: AttributeType.STRING },
+      timeToLiveAttribute: 'ttl',
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
+    // Define Lambdas
 
-    // Create Game Lambda
     const createGameLambda = new NodejsFunction(this, 'CreateGameLambda', {
       entry: 'lambda/create-game/index.js',
       handler: 'handler',
@@ -119,7 +95,6 @@ export class App extends cdk.Stack {
     table.grantReadWriteData(createGameLambda);
     eventBus.grantPutEventsTo(createGameLambda);
 
-    // Get Game Lambda
     const getGameLambda = new NodejsFunction(this, 'GetGameLambda', {
       entry: 'lambda/get-game/index.js',
       handler: 'handler',
@@ -132,7 +107,6 @@ export class App extends cdk.Stack {
     table.grantReadData(getGameLambda);
     eventBus.grantPutEventsTo(getGameLambda);
 
-    // Update Game Lambda
     const updateGameLambda = new NodejsFunction(this, 'UpdateGameLambda', {
       entry: 'lambda/update-game/index.js',
       handler: 'handler',
@@ -145,7 +119,6 @@ export class App extends cdk.Stack {
     table.grantReadWriteData(updateGameLambda);
     eventBus.grantPutEventsTo(updateGameLambda);
 
-    // Delete Game Lambda
     const deleteGameLambda = new NodejsFunction(this, 'DeleteGameLambda', {
       entry: 'lambda/delete-game/index.js',
       handler: 'handler',
@@ -158,8 +131,87 @@ export class App extends cdk.Stack {
     table.grantReadWriteData(deleteGameLambda);
     eventBus.grantPutEventsTo(deleteGameLambda);
 
-    
-    // Rule for game creation events
+    const eventPublisherLambda = new NodejsFunction(this, 'EventPublisherLambda', {
+      entry: 'lambda/event-publisher/index.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        EVENT_BUS_NAME: eventBus.eventBusName,
+      },
+    });
+    eventBus.grantPutEventsTo(eventPublisherLambda);
+
+    const webSocketConnectHandler = new NodejsFunction(this, 'WebSocketConnectHandler', {
+      entry: 'lambda/websocket-handlers/connect.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        EVENT_BUS_NAME: eventBus.eventBusName,
+      },
+    });
+    eventBus.grantPutEventsTo(webSocketConnectHandler);
+    connectionsTable.grantReadWriteData(webSocketConnectHandler);
+    webSocketConnectHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+
+    const webSocketDisconnectHandler = new NodejsFunction(this, 'WebSocketDisconnectHandler', {
+      entry: 'lambda/websocket-handlers/disconnect.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        EVENT_BUS_NAME: eventBus.eventBusName,
+      },
+    });
+    eventBus.grantPutEventsTo(webSocketDisconnectHandler);
+    connectionsTable.grantReadWriteData(webSocketDisconnectHandler);
+    webSocketDisconnectHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+
+    const webSocketDefaultHandler = new NodejsFunction(this, 'WebSocketDefaultHandler', {
+      entry: 'lambda/websocket-handlers/default.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        EVENT_BUS_NAME: eventBus.eventBusName,
+        DYNAMODB_TABLE: table.tableName,
+      },
+    });
+    eventBus.grantPutEventsTo(webSocketDefaultHandler);
+    table.grantReadWriteData(webSocketDefaultHandler);
+    connectionsTable.grantReadWriteData(webSocketDefaultHandler);
+    webSocketDefaultHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+
+    const webSocketApi = new WebSocketApi(this, 'GameWebSocketApi', {
+      connectRouteOptions: { integration: new WebSocketLambdaIntegration('ConnectIntegration', webSocketConnectHandler) },
+      disconnectRouteOptions: { integration: new WebSocketLambdaIntegration('DisconnectIntegration', webSocketDisconnectHandler) },
+      defaultRouteOptions: { integration: new WebSocketLambdaIntegration('DefaultIntegration', webSocketDefaultHandler) },
+    });
+
+    const webSocketStage = new WebSocketStage(this, 'GameWebSocketStage', {
+      webSocketApi,
+      stageName: 'prod',
+      autoDeploy: true,
+    });
+
+    const webSocketSenderLambda = new NodejsFunction(this, 'WebSocketSenderLambda', {
+      entry: 'lambda/websocket-handlers/sender.js',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        WEBSOCKET_ENDPOINT: webSocketStage.url.replace('wss://', ''),
+      },
+    });
+    connectionsTable.grantReadWriteData(webSocketSenderLambda);
+    webSocketSenderLambda.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
+
+    webSocketSenderLambda.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['execute-api:ManageConnections'],
+        resources: [`arn:aws:execute-api:${this.region}:${this.account}:${webSocketApi.apiId}/${webSocketStage.stageName}/*`],
+      })
+    );
+
+    // Event Rules
+
     new events.Rule(this, 'GameCreatedRule', {
       eventBus,
       description: 'Rule for game creation events',
@@ -170,7 +222,6 @@ export class App extends cdk.Stack {
       targets: [new targets.LambdaFunction(createGameLambda)],
     });
 
-    // Rule for game update events
     new events.Rule(this, 'GameUpdatedRule', {
       eventBus,
       description: 'Rule for game update events',
@@ -181,7 +232,6 @@ export class App extends cdk.Stack {
       targets: [new targets.LambdaFunction(updateGameLambda)],
     });
 
-    // Rule for game deletion events
     new events.Rule(this, 'GameDeletedRule', {
       eventBus,
       description: 'Rule for game deletion events',
@@ -192,8 +242,6 @@ export class App extends cdk.Stack {
       targets: [new targets.LambdaFunction(deleteGameLambda)],
     });
 
-
-    // Rule for game request events
     new events.Rule(this, 'GameRequestedRule', {
       eventBus,
       description: 'Rule for game request events',
@@ -204,6 +252,22 @@ export class App extends cdk.Stack {
       targets: [new targets.LambdaFunction(getGameLambda)],
     });
 
+    new events.Rule(this, 'GameWebSocketSenderRule', { 
+      eventBus,
+      description: 'Rule for forwarding game events to WebSocket clients',
+      eventPattern: {
+        source: ['game.service'],
+        detailType: [
+          'GameCreated', 
+          'GameUpdated', 
+          'GameDeleted', 
+          'GameRequested',
+        ],
+      },
+      targets: [new targets.LambdaFunction(webSocketSenderLambda)],
+    });
+
+    // Define API
 
     const api = new HttpApi(this, 'EventBridgeApi', {
       apiName: 'EventBridgeApi',
@@ -218,119 +282,10 @@ export class App extends cdk.Stack {
       },
     });
 
-    const eventPublisherLambda = new NodejsFunction(this, 'EventPublisherLambda', {
-      entry: 'lambda/event-publisher/index.js',
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      environment: {
-        EVENT_BUS_NAME: eventBus.eventBusName,
-      },
-    });
-    eventBus.grantPutEventsTo(eventPublisherLambda);
-
     api.addRoutes({
       path: '/events',
       methods: [HttpMethod.POST],
       integration: new HttpLambdaIntegration('EventPublisherIntegration', eventPublisherLambda),
     });
-
-    
-
-    const webSocketConnectHandler = new NodejsFunction(this, 'WebSocketConnectHandler', {
-      entry: 'lambda/websocket-handlers/connect.js',
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      environment: {
-        EVENT_BUS_NAME: eventBus.eventBusName,
-      },
-    });
-    eventBus.grantPutEventsTo(webSocketConnectHandler);
-
-    const webSocketDisconnectHandler = new NodejsFunction(this, 'WebSocketDisconnectHandler', {
-      entry: 'lambda/websocket-handlers/disconnect.js',
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      environment: {
-        EVENT_BUS_NAME: eventBus.eventBusName,
-      },
-    });
-    eventBus.grantPutEventsTo(webSocketDisconnectHandler);
-
-    const webSocketDefaultHandler = new NodejsFunction(this, 'WebSocketDefaultHandler', {
-      entry: 'lambda/websocket-handlers/default.js',
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      environment: {
-        EVENT_BUS_NAME: eventBus.eventBusName,
-        DYNAMODB_TABLE: table.tableName,
-      },
-    });
-    eventBus.grantPutEventsTo(webSocketDefaultHandler);
-    table.grantReadWriteData(webSocketDefaultHandler);
-
-    const webSocketApi = new WebSocketApi(this, 'GameWebSocketApi', {
-      connectRouteOptions: { integration: new WebSocketLambdaIntegration('ConnectIntegration', webSocketConnectHandler) },
-      disconnectRouteOptions: { integration: new WebSocketLambdaIntegration('DisconnectIntegration', webSocketDisconnectHandler) },
-      defaultRouteOptions: { integration: new WebSocketLambdaIntegration('DefaultIntegration', webSocketDefaultHandler) },
-    });
-
-    const webSocketStage = new WebSocketStage(this, 'GameWebSocketStage', {
-      webSocketApi,
-      stageName: 'prod',
-      autoDeploy: true,
-    });
-
-
-    const webSocketSenderLambda = new NodejsFunction(this, 'WebSocketSenderLambda', {
-      entry: 'lambda/websocket-handlers/sender.js',
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      environment: {
-        WEBSOCKET_ENDPOINT: webSocketStage.url.replace('wss://', ''),
-      },
-    });
-
-    const connectionsTable = new Table(this, 'WebSocketConnections', {
-      partitionKey: { name: 'connectionId', type: AttributeType.STRING },
-      timeToLiveAttribute: 'ttl',
-      billingMode: BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
-    connectionsTable.grantReadWriteData(webSocketConnectHandler);
-    connectionsTable.grantReadWriteData(webSocketDisconnectHandler);
-    connectionsTable.grantReadWriteData(webSocketDefaultHandler);
-    connectionsTable.grantReadWriteData(webSocketSenderLambda);
-
-    webSocketConnectHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
-    webSocketDisconnectHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
-    webSocketDefaultHandler.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
-    webSocketSenderLambda.addEnvironment('CONNECTIONS_TABLE', connectionsTable.tableName);
-
-    webSocketSenderLambda.addToRolePolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ['execute-api:ManageConnections'],
-        resources: [`arn:aws:execute-api:${this.region}:${this.account}:${webSocketApi.apiId}/${webSocketStage.stageName}/*`],
-      })
-    );
-
-    new events.Rule(this, 'GameWebSocketSenderRule', { 
-      eventBus,
-      description: 'Rule for forwarding game events to WebSocket clients',
-      eventPattern: {
-        source: ['game.service'],
-        detailType: [
-          'GameCreated', 
-          'GameUpdated', 
-          'GameDeleted', 
-          'GameRequested',
-         
-        ],
-      },
-      targets: [new targets.LambdaFunction(webSocketSenderLambda)],
-    });
   }
 } 
-
-
