@@ -1,161 +1,19 @@
+/* global Event */
 import {html, css, LitElement} from 'lit'
 import './game-board.js'
+import {
+  ShipPlacementBoard,
+  EnemyAttackBoard,
+  PlayerAttackBoard
+} from './game-board-mixins.js'
 
+
+/**
+ * @class Tutorial
+ * @extends {LitElement}
+ * @description Web component handle tutorial onboarding 
+ */
 export class Tutorial extends LitElement {
-  
-  static get properties() {
-    return {}
-  }
-
-  constructor() {
-    super(); 
-    this.observer = null;
-    
-    // Temporarily store game state to avoid interference with tutorial
-    this._originalGameId = localStorage.getItem('gameId');
-    this._originalPlayerBoard = localStorage.getItem('playerBoard');
-    this._originalShipsPlaced = localStorage.getItem('shipsPlaced');
-    this._originalGameStateSnapshot = localStorage.getItem('gameStateSnapshot');
-    localStorage.removeItem('gameId');
-  }
-
-  firstUpdated() {
-    // Set up observer for scroll animations
-    this.observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-        }
-      });
-    }, {
-      threshold: 0.1
-    });
-
-    this.shadowRoot.querySelectorAll('section, .game-board-container').forEach(el => {
-      this.observer.observe(el);
-    });
-  }
-
-  disconnectedCallback() {
-    if (this.observer)
-      this.observer.disconnect();
-
-    this._restoreOriginalGameState();
-    super.disconnectedCallback();
-  }
-  
-  // Only restore if not explicitly cleared by playButton method
-  _restoreOriginalGameState() {
-    if (!this._stateCleared) {
-      if (this._originalGameId) {
-        localStorage.setItem('gameId', this._originalGameId);
-      }
-      if (this._originalPlayerBoard) {
-        localStorage.setItem('playerBoard', this._originalPlayerBoard);
-      }
-      if (this._originalShipsPlaced) {
-        localStorage.setItem('shipsPlaced', this._originalShipsPlaced);
-      }
-      if (this._originalGameStateSnapshot) {
-        localStorage.setItem('gameStateSnapshot', this._originalGameStateSnapshot);
-      }
-      console.log('Original game state restored after tutorial');
-    }
-  }
-
-  render() {
-    return html`
-      <section>
-        <h1>Welcome to Battle Ship Down!</h1>
-      </section>
-
-      <section>
-        <h2> Place Ships</h2>
-        <div class="game-board-container">
-          <ship-placement-board></ship-placement-board>
-        </div>
-      </section>
-
-      <section>
-        <h2>Enemy Attacking</h2>
-        <div class="game-board-container">
-          <enemy-attack-board></enemy-attack-board>
-        </div>
-      </section>
-
-      <section>
-        <h2>Annihilate the Enemy!</h2>
-        <div class="game-board-container">
-          <player-attack-board></player-attack-board>
-        </div>
-        <div class="button-container">
-          <button @click=${this.playButton}>Start Game</button>
-        </div>
-      </section>
-    ` 
-  }
-
-  playButton() {
-    console.log('Play button clicked!');
-    
-    const wins = parseInt(localStorage.getItem('playerWins') || '0');
-    const losses = parseInt(localStorage.getItem('playerLosses') || '0');
-    
-    this._stateCleared = true;
-    localStorage.removeItem('gameId');
-    localStorage.removeItem('playerBoard');
-    localStorage.removeItem('shipsPlaced');
-    localStorage.removeItem('gameStateSnapshot');
-    this.remove();
-    
-    const appElement = document.createElement('app-element');
-    document.body.appendChild(appElement);
-    
-    // Set the route to 'game', which will display the navbar and game-board
-    setTimeout(() => {
-      appElement.route = 'game';
-      
-      setTimeout(() => {
-        const gameBoard = appElement.shadowRoot?.querySelector('game-board');
-        if (gameBoard) {
-          if (gameBoard._enemyMoveTimeout)
-            clearTimeout(gameBoard._enemyMoveTimeout);
-
-          gameBoard.wins = wins;
-          gameBoard.losses = losses;
-          
-          if (gameBoard.websocket) {
-            gameBoard.websocket.close();
-            gameBoard.websocket = null;
-          }
-          
-          setTimeout(() => {
-            gameBoard.isPlayerTurn = null; // Setting to null prevents enemy movement
-            gameBoard.shipsPlaced = 0;
-            gameBoard.gameEnded = false;
-            gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
-            gameBoard.instructionText = `Click to place ships`; // Simplified instruction
-            gameBoard.playerBoard = Array(gameBoard.boardSize).fill().map(() => Array(gameBoard.boardSize).fill(''));
-            gameBoard.enemyBoard = Array(gameBoard.boardSize).fill().map(() => Array(gameBoard.boardSize).fill(''));
-            gameBoard.playerShipPositions = [];
-            gameBoard.enemyShipPositions = [];
-            
-            // Reinitialize and wait for connection
-            gameBoard.initWebSocket();
-            gameBoard.waitForWebSocketConnection().then(() => {
-              gameBoard.createGame();
-            }).catch(error => {
-              console.error('Error connecting to WebSocket after tutorial:', error);
-              gameBoard.createGame();
-            });
-            
-            gameBoard.requestUpdate();
-          }, 200);
-        }
-      }, 300);
-    }, 100);
-  }
-
   static get styles() {
     return css`
       :host {
@@ -249,6 +107,125 @@ export class Tutorial extends LitElement {
       }
     `
   }
+
+  static get properties() {
+    return {
+      
+    }
+  }
+
+  constructor() {
+    super(); 
+    this.observer = null;
+  }
+
+  firstUpdated() {
+    // Set up intersection observer for scroll animations
+    this.observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, {
+      threshold: 0.1
+    });
+
+    // Observe all sections and game board containers
+    this.shadowRoot.querySelectorAll('section, .game-board-container').forEach(el => {
+      this.observer.observe(el);
+    });
+  }
+
+  disconnectedCallback() {
+    if (this.observer) {
+      this.observer.disconnect();
+    }
+  }
+
+  render() {
+    return html`
+      <section>
+        <h1>Welcome to Battle Ship Down!</h1>
+      </section>
+
+      <section>
+        <h2> Place Ships</h2>
+        <div class="game-board-container">
+          <ship-placement-board></ship-placement-board>
+        </div>
+      </section>
+
+      <section>
+        <h2>Enemy Attacking</h2>
+        <div class="game-board-container">
+          <enemy-attack-board></enemy-attack-board>
+        </div>
+      </section>
+
+      <section>
+        <h2>Annihilate the Enemy!</h2>
+        <div class="game-board-container">
+          <player-attack-board></player-attack-board>
+        </div>
+        <div class="button-container">
+          <button @click=${this.playButton}>Start Game</button>
+        </div>
+      </section>
+    ` 
+  }
+
+  playButton() {
+    console.log('Play button clicked!');
+    
+    // Save existing win/loss counts
+    const wins = parseInt(localStorage.getItem('playerWins') || '0');
+    const losses = parseInt(localStorage.getItem('playerLosses') || '0');
+    
+    // Remove the tutorial element
+    this.remove();
+    
+    // Clear any existing gameId to force a new game
+    localStorage.removeItem('gameId');
+    
+    // Create main app element
+    const appElement = document.createElement('app-element');
+    document.body.appendChild(appElement);
+    
+    // Set the route to 'game' which will display the navbar and game-board
+    setTimeout(() => {
+      // Use the app's login method to set route to 'game'
+      appElement.route = 'game';
+      
+      // Wait for game-board to be initialized
+      setTimeout(() => {
+        // Get the game board and initialize it for ship placement
+        const gameBoard = appElement.shadowRoot?.querySelector('game-board');
+        if (gameBoard) {
+          // Cancel any existing enemy move timeouts
+          clearTimeout(gameBoard._enemyMoveTimeout);
+          
+          // Restore wins and losses
+          gameBoard.wins = wins;
+          gameBoard.losses = losses;
+          
+          // Force game into ship placement mode
+          gameBoard.isPlayerTurn = null; // Setting to null prevents enemy movement
+          gameBoard.shipsPlaced = 0;
+          gameBoard.gameEnded = false;
+          gameBoard.message = `Place your ships! Click on your board to place ${gameBoard.boardSize} ships.`;
+          gameBoard.instructionText = `Click to place ships`; // Simplified instruction
+          
+          // Update the game to save the restored wins/losses
+          gameBoard.updateGame();
+          gameBoard.requestUpdate();
+        }
+      }, 200);
+    }, 100);
+  }
 }
 
+/**
+ * @customElement login-element
+ */
 window.customElements.define('tutorial-element', Tutorial)
