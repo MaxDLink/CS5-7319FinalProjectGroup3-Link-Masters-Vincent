@@ -1,10 +1,249 @@
 import {html, css, LitElement} from 'lit';
-import './tutorial.js'; // import the tutorial element for the tutorial button 
-import './profile-lit.js'; // import the profile element for the profile button 
-import './ChatBox.js'; // import the chat box element for the chat button 
-import { UserManager } from 'oidc-client-ts'; // Import UserManager for proper auth checking
+import './tutorial.js';
+import './profile-lit.js';
+import './ChatBox.js';
+import { UserManager } from 'oidc-client-ts';
 
 export class NavBar extends LitElement {
+
+  static properties = {
+    chatBoxVisible: { type: Boolean },
+    userManager: { type: Object }
+  };
+
+  static chatBoxInstance = null;
+
+  constructor() {
+    super();
+    this.tutorialClickCount = 0;
+    this.profileClickCount = 0;
+    this.playAgainClickCount = 0;
+    this.chatClickCount = 0;
+    this.chatBoxVisible = false;
+    
+    // Initialize UserManager with the same config used in profile-lit.js
+    this.userManager = new UserManager({
+      authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_VtsIc3ZeH",
+      client_id: "9ihaiqmpt1f94sci2553h6cfn",
+      redirect_uri: `${window.location.origin}/`,
+      response_type: "code",
+      scope: "email openid phone"
+    });
+  }
+
+  render() {
+    return html` 
+    <div class="navigation-container">
+      <div class="navigation">
+        <ul>
+          <li class="list">
+            <a href="#" id="playAgainButton" @click=${this.handlePlayAgainClick}>
+              <span class="icon">↻</span>
+              <span class="text">Restart</span>
+            </a>
+          </li>
+          
+          <li class="list">
+            <a href="#" id="TutorialButton" @click=${this.handleTutorialClick}>
+              <span class="icon">?</span>
+              <span class="text">Help</span>
+            </a>
+          </li>
+          
+          <li class="list">
+            <a href="#" id="ProfileButton" @click=${this.handleProfileClick}>
+              <span class="icon">👤</span>
+              <span class="text">Profile</span>
+            </a>
+          </li>
+          
+          <li class="list">
+            <a href="#" id="chatButton" @click=${this.handleChatClick}>
+              <span class="icon">💬</span>
+              <span class="text">Chat</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  `;
+  }
+
+  firstUpdated() {
+    this.updateActiveLink();
+  }
+
+  updateActiveLink() {
+    const list = this.shadowRoot.querySelectorAll('.list');
+    list.forEach((item) => {
+      item.addEventListener('click', () => {
+        list.forEach((el) => el.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
+  }
+
+  handleTutorialClick() {
+    this.profileClickCount = 0;
+    this.playAgainClickCount = 0;
+    this.chatClickCount = 0;
+    this.tutorialClickCount = 1; // enter after first click 
+    if (this.tutorialClickCount === 1) {
+      console.log('Tutorial button clicked!');
+      document.body.innerHTML = '';
+      const tutorialElement = document.createElement('tutorial-element');
+      document.body.appendChild(tutorialElement);
+      this.tutorialClickCount = 0; // reset for future clicks 
+    } 
+  }
+
+  async handleProfileClick() {
+    this.tutorialClickCount = 0;
+    this.playAgainClickCount = 0;
+    this.chatClickCount = 0;
+    this.profileClickCount = 1;
+    
+    if (this.profileClickCount === 1) {
+      console.log('Profile button clicked!');
+      
+      try {
+        const user = await this.userManager.getUser();
+        
+        if (user && !user.expired) {
+          const app = document.createElement('div');
+          app.innerHTML = `<profile-element></profile-element>`;
+          document.body.appendChild(app);
+        }
+        else {
+          this.showLoginDialog();
+        }
+      } catch (error) {
+        console.error('Error checking authentication status:', error);
+        this.showLoginDialog();
+      }
+      
+      this.profileClickCount = 1;
+    }
+  }
+  
+  showLoginDialog() {
+    const existingDialog = document.getElementById('login-dialog');
+    if (existingDialog) {
+      existingDialog.remove();
+    }
+    
+    // Create a modal
+    const loginDialog = document.createElement('div');
+    loginDialog.id = 'login-dialog';
+    loginDialog.style.position = 'fixed';
+    loginDialog.style.top = '50%';
+    loginDialog.style.left = '50%';
+    loginDialog.style.transform = 'translate(-50%, -50%)';
+    loginDialog.style.background = 'var(--bg-color, rgba(30, 30, 30, 0.9))';
+    loginDialog.style.padding = '30px';
+    loginDialog.style.borderRadius = '15px';
+    loginDialog.style.zIndex = '1000';
+    loginDialog.style.color = '#fff';
+    loginDialog.style.maxWidth = '400px';
+    loginDialog.style.textAlign = 'center';
+    loginDialog.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
+    loginDialog.style.backdropFilter = 'blur(10px)';
+    
+    loginDialog.innerHTML = `
+      <h2 style="margin-bottom: 20px; font-family: 'Poppins', sans-serif;">Sign In Required</h2>
+      <p style="margin-bottom: 25px; font-family: 'Poppins', sans-serif;">Please sign in to view your profile and stats.</p>
+      <div style="display: flex; justify-content: space-between;">
+        <button id="cancel-btn" style="
+          background: rgba(220, 53, 69, 0.8);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+        ">Cancel</button>
+        <button id="signin-btn" style="
+          background: rgba(13, 110, 253, 0.8);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+        ">Sign In</button>
+      </div>
+    `;
+    
+    document.body.appendChild(loginDialog);
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+      document.body.removeChild(loginDialog);
+    });
+    
+    document.getElementById('signin-btn').addEventListener('click', async () => {
+      try {
+        await this.userManager.signinRedirect();
+        document.body.removeChild(loginDialog);
+      } catch (error) {
+        console.error('Login redirect error:', error);
+        const errorMsg = document.createElement('p');
+        errorMsg.style.color = 'red';
+        errorMsg.style.marginTop = '10px';
+        errorMsg.textContent = 'Sign-in failed. Please try again.';
+        loginDialog.appendChild(errorMsg);
+      }
+    });
+  }
+
+  handlePlayAgainClick() {  
+    this.tutorialClickCount = 0;
+    this.profileClickCount = 0;
+    this.chatClickCount = 0;
+    this.playAgainClickCount = 1; // enter after first click 
+    if (this.playAgainClickCount === 1) {
+      console.log('Play Again button clicked!');
+      
+      // Dispatch the event on the window object to ensure it's globally accessible
+      window.dispatchEvent(new CustomEvent('game-reset', {
+        bubbles: true,
+        composed: true // allows the event to cross shadow DOM boundaries
+      }));
+      console.log('Reset event dispatched on window object');
+      
+      this.playAgainClickCount = 0; // reset for future clicks 
+    } 
+  }
+
+  handleChatClick() { 
+    this.tutorialClickCount = 0;
+    this.profileClickCount = 0;
+    this.playAgainClickCount = 0;
+    this.chatBoxVisible = !this.chatBoxVisible;
+
+    if (this.chatBoxVisible) {
+      if (!NavBar.chatBoxInstance) {
+        NavBar.chatBoxInstance = document.createElement('chat-box');
+      }
+
+      const chatButton = this.shadowRoot.querySelector('#chatButton');
+      const chatButtonRect = chatButton.getBoundingClientRect();
+      
+      const chatBoxContainer = document.createElement('div');
+      chatBoxContainer.style.position = 'fixed';
+      chatBoxContainer.style.top = `${chatButtonRect.bottom + window.scrollY}px`;
+      chatBoxContainer.style.right = `${window.innerWidth - chatButtonRect.right}px`;
+      chatBoxContainer.style.zIndex = '1001';
+      
+      chatBoxContainer.appendChild(NavBar.chatBoxInstance);
+      document.body.appendChild(chatBoxContainer);
+      NavBar.chatBoxInstance.container = chatBoxContainer;
+    }
+    else {
+      if (NavBar.chatBoxInstance && NavBar.chatBoxInstance.container) {
+        document.body.removeChild(NavBar.chatBoxInstance.container);
+      }
+    }
+  }
+
   static styles = css`
   @import url('https://fonts.googleapis.com/css?family=Poppins:300,400,500,600');
 
@@ -142,255 +381,6 @@ export class NavBar extends LitElement {
   }
   `;
 
-  static properties = {
-    chatBoxVisible: { type: Boolean },
-    userManager: { type: Object }
-  };
-
-  static chatBoxInstance = null;
-
-  constructor() {
-    super();
-    this.tutorialClickCount = 0;
-    this.profileClickCount = 0;
-    this.playAgainClickCount = 0;
-    this.chatClickCount = 0;
-    this.chatBoxVisible = false;
-    
-    // Initialize UserManager with the same config used in profile-lit.js
-    this.userManager = new UserManager({
-      authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_VtsIc3ZeH",
-      client_id: "9ihaiqmpt1f94sci2553h6cfn",
-      redirect_uri: `${window.location.origin}/`,
-      response_type: "code",
-      scope: "email openid phone"
-    });
-  }
-
-  render() {
-    return html` 
-    <div class="navigation-container">
-      <div class="navigation">
-        <ul>
-          <li class="list">
-            <a href="#" id="playAgainButton" @click=${this.handlePlayAgainClick}>
-              <span class="icon">↻</span>
-              <span class="text">Restart</span>
-            </a>
-          </li>
-          
-          <li class="list">
-            <a href="#" id="TutorialButton" @click=${this.handleTutorialClick}>
-              <span class="icon">?</span>
-              <span class="text">Help</span>
-            </a>
-          </li>
-          
-          <li class="list">
-            <a href="#" id="ProfileButton" @click=${this.handleProfileClick}>
-              <span class="icon">👤</span>
-              <span class="text">Profile</span>
-            </a>
-          </li>
-          
-          <li class="list">
-            <a href="#" id="chatButton" @click=${this.handleChatClick}>
-              <span class="icon">💬</span>
-              <span class="text">Chat</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  `;
-  }
-
-  firstUpdated() {
-    this.updateActiveLink();
-  }
-
-  updateActiveLink() {
-    const list = this.shadowRoot.querySelectorAll('.list');
-    list.forEach((item) => {
-      item.addEventListener('click', () => {
-        list.forEach((el) => el.classList.remove('active'));
-        item.classList.add('active');
-      });
-    });
-  }
-
-  handleTutorialClick() {
-    this.profileClickCount = 0;
-    this.playAgainClickCount = 0;
-    this.chatClickCount = 0;
-    this.tutorialClickCount = 1; // enter after first click 
-    if (this.tutorialClickCount === 1) {
-      console.log('Tutorial button clicked!');
-      document.body.innerHTML = '';
-      const tutorialElement = document.createElement('tutorial-element');
-      document.body.appendChild(tutorialElement);
-      this.tutorialClickCount = 0; // reset for future clicks 
-    } 
-  }
-
-  async handleProfileClick() {
-    this.tutorialClickCount = 0;
-    this.playAgainClickCount = 0;
-    this.chatClickCount = 0;
-    this.profileClickCount = 1;
-    
-    if (this.profileClickCount === 1) {
-      console.log('Profile button clicked!');
-      
-      try {
-        // Check if user is logged in using UserManager directly
-        const user = await this.userManager.getUser();
-        
-        if (user && !user.expired) {
-          // User is authenticated, show profile
-          const app = document.createElement('div');
-          app.innerHTML = `<profile-element></profile-element>`;
-          document.body.appendChild(app);
-        } else {
-          // User is not logged in, show login dialog
-          this.showLoginDialog();
-        }
-      } catch (error) {
-        console.error('Error checking authentication status:', error);
-        // On error, fall back to showing the login dialog
-        this.showLoginDialog();
-      }
-      
-      this.profileClickCount = 1;
-    }
-  }
-  
-  showLoginDialog() {
-    // Remove any existing login dialogs
-    const existingDialog = document.getElementById('login-dialog');
-    if (existingDialog) {
-      existingDialog.remove();
-    }
-    
-    // Create a simple modal dialog
-    const loginDialog = document.createElement('div');
-    loginDialog.id = 'login-dialog';
-    loginDialog.style.position = 'fixed';
-    loginDialog.style.top = '50%';
-    loginDialog.style.left = '50%';
-    loginDialog.style.transform = 'translate(-50%, -50%)';
-    loginDialog.style.background = 'var(--bg-color, rgba(30, 30, 30, 0.9))';
-    loginDialog.style.padding = '30px';
-    loginDialog.style.borderRadius = '15px';
-    loginDialog.style.zIndex = '1000';
-    loginDialog.style.color = '#fff';
-    loginDialog.style.maxWidth = '400px';
-    loginDialog.style.textAlign = 'center';
-    loginDialog.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
-    loginDialog.style.backdropFilter = 'blur(10px)';
-    
-    loginDialog.innerHTML = `
-      <h2 style="margin-bottom: 20px; font-family: 'Poppins', sans-serif;">Sign In Required</h2>
-      <p style="margin-bottom: 25px; font-family: 'Poppins', sans-serif;">Please sign in to view your profile and stats.</p>
-      <div style="display: flex; justify-content: space-between;">
-        <button id="cancel-btn" style="
-          background: rgba(220, 53, 69, 0.8);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
-          cursor: pointer;
-          font-family: 'Poppins', sans-serif;
-        ">Cancel</button>
-        <button id="signin-btn" style="
-          background: rgba(13, 110, 253, 0.8);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
-          cursor: pointer;
-          font-family: 'Poppins', sans-serif;
-        ">Sign In</button>
-      </div>
-    `;
-    
-    document.body.appendChild(loginDialog);
-    
-    // Add event listeners
-    document.getElementById('cancel-btn').addEventListener('click', () => {
-      document.body.removeChild(loginDialog);
-    });
-    
-    document.getElementById('signin-btn').addEventListener('click', async () => {
-      try {
-        // Use UserManager for proper redirect
-        await this.userManager.signinRedirect();
-        // Remove dialog after redirect is initiated
-        document.body.removeChild(loginDialog);
-      } catch (error) {
-        console.error('Login redirect error:', error);
-        // If the redirect fails, show an error message
-        const errorMsg = document.createElement('p');
-        errorMsg.style.color = 'red';
-        errorMsg.style.marginTop = '10px';
-        errorMsg.textContent = 'Sign-in failed. Please try again.';
-        loginDialog.appendChild(errorMsg);
-      }
-    });
-  }
-
-  handlePlayAgainClick() {  
-    this.tutorialClickCount = 0;
-    this.profileClickCount = 0;
-    this.chatClickCount = 0;
-    this.playAgainClickCount = 1; // enter after first click 
-    if (this.playAgainClickCount === 1) {
-      console.log('Play Again button clicked!');
-      
-      // Dispatch the event on the window object to ensure it's globally accessible
-      window.dispatchEvent(new CustomEvent('game-reset', {
-        bubbles: true,
-        composed: true // This allows the event to cross shadow DOM boundaries
-      }));
-      console.log('Reset event dispatched on window object');
-      
-      this.playAgainClickCount = 0; // reset for future clicks 
-    } 
-  }
-
-  handleChatClick() { 
-    this.tutorialClickCount = 0;
-    this.profileClickCount = 0;
-    this.playAgainClickCount = 0;
-    this.chatBoxVisible = !this.chatBoxVisible;
-
-    if (this.chatBoxVisible) {
-      // If we don't have a chat box instance yet, create one
-      if (!NavBar.chatBoxInstance) {
-        NavBar.chatBoxInstance = document.createElement('chat-box');
-      }
-
-      // Find the chat button in the nav bar
-      const chatButton = this.shadowRoot.querySelector('#chatButton');
-      const chatButtonRect = chatButton.getBoundingClientRect();
-      
-      // Position the chat box relative to the chat button
-      const chatBoxContainer = document.createElement('div');
-      chatBoxContainer.style.position = 'fixed';
-      chatBoxContainer.style.top = `${chatButtonRect.bottom + window.scrollY}px`;
-      chatBoxContainer.style.right = `${window.innerWidth - chatButtonRect.right}px`;
-      chatBoxContainer.style.zIndex = '1001';
-      
-      chatBoxContainer.appendChild(NavBar.chatBoxInstance);
-      document.body.appendChild(chatBoxContainer);
-      NavBar.chatBoxInstance.container = chatBoxContainer;
-    } else {
-      // Hide the chat box
-      if (NavBar.chatBoxInstance && NavBar.chatBoxInstance.container) {
-        document.body.removeChild(NavBar.chatBoxInstance.container);
-      }
-    }
-  }
 }
 
 customElements.define('nav-bar', NavBar);

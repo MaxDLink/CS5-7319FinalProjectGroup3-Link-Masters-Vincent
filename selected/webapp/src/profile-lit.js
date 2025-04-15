@@ -2,92 +2,6 @@ import { LitElement, html, css } from 'lit';
 import { UserManager } from 'oidc-client-ts';
 
 class ProfileElement extends LitElement {
-  static styles = css`
-    :host {
-      display: block;
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100vh;
-      width: 100vw;
-      z-index: 9999;
-      background-color: var(--background-color, #121212);
-      margin: 0;
-      padding: 0;
-      font-family: 'Poppins', sans-serif;
-    }
-
-    div {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
-      color: var(--text-color, #ffffff);
-    }
-
-    button {
-      margin: 10px;
-      padding: 8px 12px;
-      font-size: 0.85em;
-      cursor: pointer;
-      border: none;
-      border-radius: 20px;
-      background-color: var(--bg-color, rgba(30, 30, 30, 0.8));
-      color: var(--text-color, #ffffff);
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    button:hover {
-      background-color: var(--hover-color, rgba(255, 255, 255, 0.1));
-      transform: scale(1.05);
-    }
-
-    .stats-card {
-      background: var(--card-bg-color, #1e1e1e);
-      border-radius: 10px;
-      padding: 2rem;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      margin: 2rem;
-      min-width: 300px;
-      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-    }
-
-    .profile-name {
-      font-size: 2rem;
-      font-weight: bold;
-      margin-bottom: 1.5rem;
-      color: var(--text-color, #ffffff);
-    }
-
-    .stats-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-      text-align: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .stat-item {
-      padding: 1rem;
-    }
-
-    .stat-value {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #007BFF;
-    }
-
-    .stat-label {
-      color: #6c757d;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-  `;
 
   static get properties() {
     return {
@@ -114,25 +28,18 @@ class ProfileElement extends LitElement {
       scope: "email openid phone"
     });
     
-    // Bind the event handler
     this.handleStatsUpdated = this.handleStatsUpdated.bind(this);
   }
 
   connectedCallback() {
     super.connectedCallback();
     console.log('Profile element connected to DOM');
-    
-    // Load user info and stats
     this.loadUserProfile();
-    
-    // Listen for stats updates
     window.addEventListener('stats-updated', this.handleStatsUpdated);
   }
   
   disconnectedCallback() {
     super.disconnectedCallback();
-    
-    // Remove event listener
     window.removeEventListener('stats-updated', this.handleStatsUpdated);
   }
 
@@ -146,15 +53,12 @@ class ProfileElement extends LitElement {
   async loadUserProfile() {
     console.log('Loading user profile...');
     try {
-      // Get user from Cognito
       const user = await this.userManager.getUser();
-      if (user) {
+      if (user)
         this.profileName = user.profile.email || user.profile.name || 'Player';
-      } else {
+      else
         this.profileName = 'Guest Player';
-      }
       
-      // Get wins and losses from localStorage
       this.wins = parseInt(localStorage.getItem('playerWins') || '0', 10);
       this.losses = parseInt(localStorage.getItem('playerLosses') || '0', 10);
       
@@ -199,20 +103,16 @@ class ProfileElement extends LitElement {
   backButton() {
     console.log('Back button clicked, returning to game');
     
-    // Get existing wins and losses to preserve them
     const wins = parseInt(localStorage.getItem('playerWins') || '0');
     const losses = parseInt(localStorage.getItem('playerLosses') || '0');
     
-    // Get current gameId to preserve ship placements
     const gameId = localStorage.getItem('gameId');
     console.log('Returning to game with gameId:', gameId);
     
-    // Remove this component from the DOM to return to the game
     if (this.parentNode) {
       this.parentNode.removeChild(this);
     }
     
-    // Dispatch an event to notify the game board about returning to game
     window.dispatchEvent(new CustomEvent('return-to-game', {
       detail: { 
         preserveGameState: true,
@@ -225,22 +125,16 @@ class ProfileElement extends LitElement {
 
   async logout() {
     console.log('Logout initiated');
-    
-    // Store current gameId to preserve game state if needed
     const gameId = localStorage.getItem('gameId');
     
-    // Reset wins and losses to zero on logout
     localStorage.setItem('playerWins', '0');
     localStorage.setItem('playerLosses', '0');
-    
-    // Clear authentication and game state data
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userId');
     localStorage.removeItem('playerBoard');
     localStorage.removeItem('shipsPlaced');
     localStorage.removeItem('gameStateSnapshot');
-    
-    // Dispatch an event to notify other components about logout
+
     window.dispatchEvent(new CustomEvent('user-logged-out', {
       detail: { 
         preserveGameState: false,
@@ -250,30 +144,112 @@ class ProfileElement extends LitElement {
       }
     }));
     
-    // Remove this component from the DOM to return to the game
     if (this.parentNode) {
       this.parentNode.removeChild(this);
     }
     
     try {
-      // First try to sign out locally
       await this.userManager.removeUser();
       
       // Use the same direct URL approach that works in login.js
       const clientId = "9ihaiqmpt1f94sci2553h6cfn";
       const logoutUri = `${window.location.origin}/`;
       const cognitoDomain = "https://us-east-1vtsic3zeh.auth.us-east-1.amazoncognito.com";
-      
-      // Redirect to Cognito logout page
       window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Logout error:', error);
-      
-      // If there's an error, at least try to reload the page
       window.location.reload();
     }
   }
+
+  static styles = css`
+  :host {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+    z-index: 9999;
+    background-color: var(--background-color, #121212);
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--text-color, #ffffff);
+  }
+
+  button {
+    margin: 10px;
+    padding: 8px 12px;
+    font-size: 0.85em;
+    cursor: pointer;
+    border: none;
+    border-radius: 20px;
+    background-color: var(--bg-color, rgba(30, 30, 30, 0.8));
+    color: var(--text-color, #ffffff);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  button:hover {
+    background-color: var(--hover-color, rgba(255, 255, 255, 0.1));
+    transform: scale(1.05);
+  }
+
+  .stats-card {
+    background: var(--card-bg-color, #1e1e1e);
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    margin: 2rem;
+    min-width: 300px;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  }
+
+  .profile-name {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    color: var(--text-color, #ffffff);
+  }
+
+  .stats-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .stat-item {
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #007BFF;
+  }
+
+  .stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+`;
+
 }
 
-// Define the custom element
 customElements.define('profile-element', ProfileElement);
