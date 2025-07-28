@@ -18,7 +18,7 @@
     "oidc-client-ts": "^3.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-scripts": "^5.0.1",
+    "react-scripts": "^0.0.0",
     "reactflow": "^11.11.4"
   },
   "browserslist": {
