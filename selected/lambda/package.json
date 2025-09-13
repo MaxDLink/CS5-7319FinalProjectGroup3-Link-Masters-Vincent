@@ -3,9 +3,10 @@
     "version": "1.0.0",
     "description": "Lambda functions for App project",
     "dependencies": {
+        "@aws-sdk/client-cognito-identity-provider": "^3.x.x",
         "@aws-sdk/client-dynamodb": "^3.726.1",
         "@aws-sdk/lib-dynamodb": "^3.726.1",
-        "cognito-at-edge": "^1.5.3", 
-        "@aws-sdk/client-cognito-identity-provider": "^3.x.x"
+        "axios": "^1.12.1",
+        "cognito-at-edge": "^1.5.3"
     }
 }
